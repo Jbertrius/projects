@@ -1,98 +1,92 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Direction DMD</title>
-    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#51b7ea" />
-    <link rel="stylesheet" href="/fonts.css" />
+    <title>Evolution des membres</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="app-sidebar">menu</button>
-    <div class="sidebar-overlay" aria-hidden="true"></div>
     <div class="app-shell">
-      <aside class="sidebar" id="app-sidebar">
+      <aside class="sidebar">
         <div class="sidebar-brand">
-          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <img class="brand-logo" src="/assets/department-logo.jpg" alt="Logo du departement" />
           <div>
             <p class="eyebrow">Departement des missions domestiques</p>
-            <p class="brand-title">Direction DMD</p>
+            <p class="brand-title">Evolution des membres</p>
           </div>
         </div>
 
-        <section class="sidebar-card sidebar-user-card">
-          <p class="section-label">Connexion</p>
-          <div class="sidebar-user-meta">
-            <strong data-auth-user>Session</strong>
-            <span data-auth-role>Chargement...</span>
-          </div>
-          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
-        </section>
-
-        <nav class="sidebar-nav is-pages" aria-label="Pages">
-          <p class="nav-section-label">Pages</p>
-          <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
-          <a class="nav-item nav-link is-active" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
-          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
-          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
-          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
-          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
-          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        <nav class="sidebar-nav" aria-label="Navigation principale">
+          <button class="nav-item is-active" type="button" data-target="top-bar">Vue generale</button>
+          <button class="nav-item" type="button" data-target="meetings-section">Rencontres</button>
+          <button class="nav-item" type="button" data-target="members-section">Membres</button>
+          <button class="nav-item" type="button" data-target="training-section">Formation</button>
+          <button class="nav-item" type="button" data-target="status-section">Alertes</button>
         </nav>
 
-        <section class="sidebar-nav is-local-menu" aria-label="Menu de page courante">
-          <p class="nav-section-label">Page courante</p>
-          <button class="nav-item nav-group-toggle" type="button" data-nav-toggle aria-expanded="true" aria-controls="direction-page-menu">
-            <span class="nav-group-toggle-copy"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_open</span><span>Sur cette page</span></span>
-            <span class="nav-group-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-          </button>
-          <div class="nav-submenu" id="direction-page-menu">
-            <button class="nav-item" type="button" data-target="summit-preview-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></button>
-            <button class="nav-item" type="button" data-target="pastor-pipeline-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">people</span><span>Pasteurs</span></button>
-            <button class="nav-item" type="button" data-target="meetings-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Trajectoire</span></button>
-            <button class="nav-item" type="button" data-target="members-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Equipe</span></button>
-            <button class="nav-item" type="button" data-target="training-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">conversion_path</span><span>Pipeline</span></button>
-            <button class="nav-item" type="button" data-target="status-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">warning</span><span>Alertes</span></button>
-          </div>
+        <section class="sidebar-card">
+          <p class="section-label">Direction visuelle</p>
+          <h2 class="sidebar-card-title">Clarte, confiance, mouvement</h2>
+          <ul class="sidebar-points">
+            <li>Bleu ciel pour la lisibilite</li>
+            <li>Or pour les priorites</li>
+            <li>Vert profond pour le terrain</li>
+          </ul>
         </section>
 
+        <section class="sidebar-card sidebar-card-soft">
+          <p class="section-label">Source active</p>
+          <p class="sidebar-highlight">Google Sheets + Telegram + Calendar</p>
+        </section>
       </aside>
 
       <div class="page-shell">
         <header class="hero">
           <div class="hero-copy">
             <div class="brand-tags">
-              <span class="brand-tag">Direction</span>
-              <span class="brand-tag">Pipeline</span>
+              <span class="brand-tag">Rencontres</span>
+              <span class="brand-tag">Formation</span>
               <span class="brand-tag">Pilotage</span>
             </div>
-            <h1>Une vue de direction pour piloter l'ensemble du parcours missionnaire.</h1>
+            <h1>Une interface claire pour suivre les membres, les rencontres et la formation.</h1>
             <p class="hero-text">
-              Une lecture transversale du DMD pour suivre la conversion entre les etapes:
-              evangelisation, cooperation, academie et developpement. L'objectif n'est plus
-              seulement de collecter des donnees, mais de voir ou le pipeline ralentit.
+              Un tableau de bord pense pour le terrain: activite des membres, rencontres avec les
+              pasteurs, progression en formation et signaux d'inaction, le tout centralise dans une
+              seule vue.
             </p>
             <div class="hero-metrics">
               <div class="hero-metric">
                 <span class="hero-metric-value">1 vue centrale</span>
-                <span class="hero-metric-label">pour piloter les 4 poles</span>
+                <span class="hero-metric-label">pour piloter le departement</span>
               </div>
               <div class="hero-metric">
-                <span class="hero-metric-value">Pipeline visible</span>
-                <span class="hero-metric-label">de l'entree au developpement</span>
+                <span class="hero-metric-value">Lecture rapide</span>
+                <span class="hero-metric-label">des activites et relances</span>
               </div>
+            </div>
+            <div class="hero-actions">
+              <button class="primary-action" type="button" data-action="sync-calendar">
+                Synchroniser Calendar
+              </button>
+              <button class="secondary-action" type="button" data-action="sync-firestore">
+                Synchroniser Firestore
+              </button>
             </div>
           </div>
 
           <aside class="hero-panel">
             <div class="hero-panel-top">
-              <img class="hero-panel-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+              <img class="hero-panel-logo" src="/assets/department-logo.jpg" alt="Logo du departement" />
               <div>
-                <p class="panel-label">Vue direction</p>
-                <h2 class="panel-title">Voir les blocages, arbitrer, accelerer</h2>
+                <p class="panel-label">Vue institutionnelle</p>
+                <h2 class="panel-title">Suivre l'effort, voir les priorites, agir vite</h2>
               </div>
             </div>
             <div class="hero-panel-grid">
@@ -163,85 +157,14 @@
 
       <section class="kpi-grid" id="kpi-grid"></section>
 
-      <section class="feature-grid" id="summit-preview-section">
-        <article class="card summit-preview-card" style="grid-column:1/-1">
-          <div class="card-head">
-            <div>
-              <p class="section-label">GMCS-EU Summit &bull; 20 Juin &bull; 2e Edition</p>
-              <h3>Inscriptions Pasteurs</h3>
-            </div>
-            <a class="secondary-action compact-action" href="/gmcs-summit.html">Tableau complet</a>
-          </div>
-          <div class="summit-preview-row" id="dashboard-summit-row">
-            <div class="summit-preview-stat">
-              <span class="summit-preview-num" id="dsum-total">&mdash;</span>
-              <span class="summit-preview-lbl">Inscrits total</span>
-            </div>
-            <div class="summit-preview-stat verbal">
-              <span class="summit-preview-num" id="dsum-verbal">&mdash;</span>
-              <span class="summit-preview-lbl">Accord verbal</span>
-            </div>
-            <div class="summit-preview-stat inscrit">
-              <span class="summit-preview-num" id="dsum-inscrit">&mdash;</span>
-              <span class="summit-preview-lbl">Inscrits</span>
-            </div>
-            <div class="summit-preview-stat paiement">
-              <span class="summit-preview-num" id="dsum-paiement">&mdash;</span>
-              <span class="summit-preview-lbl">Paiement recu</span>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <section class="feature-grid" id="pastor-pipeline-section">
-        <article class="card" style="grid-column:1/-1">
-          <div class="card-head">
-            <div>
-              <p class="section-label">Pasteurs &bull; Repartition</p>
-              <h3>Pipeline des pasteurs par categorie</h3>
-            </div>
-            <div class="pastor-pipeline-total">
-              <span class="pastor-pipeline-total-num" id="pp-academy-total">&mdash;</span>
-              <span class="pastor-pipeline-total-lbl">inscrits a l'academie</span>
-            </div>
-          </div>
-
-          <div class="pp-filters-row">
-            <div class="pp-filter-group" id="pp-country-filters" hidden>
-              <p class="section-label">Pays</p>
-              <div class="pp-checkboxes" id="pp-country-checkboxes"></div>
-            </div>
-            <div class="pp-filter-group" id="pp-titre-filters" hidden>
-              <p class="section-label">Titre</p>
-              <div class="pp-checkboxes" id="pp-titre-checkboxes"></div>
-            </div>
-          </div>
-
-          <div id="pp-bar-chart" class="pp-bar-chart"></div>
-        </article>
-      </section>
-
       <section class="feature-grid feature-grid-wide" id="meetings-section">
         <article class="card chart-card">
           <div class="card-head">
             <div>
               <p class="section-label">Trajectoire</p>
-              <h3>Rencontres filtrees dans le temps</h3>
+              <h3>Rencontres sur 6 mois</h3>
             </div>
-            <div class="chart-head-actions">
-              <div class="trajectory-date-range">
-                <label class="trajectory-date-label" for="trajectory-date-from">Du</label>
-                <input class="trajectory-date-input" type="date" id="trajectory-date-from">
-                <label class="trajectory-date-label" for="trajectory-date-to">au</label>
-                <input class="trajectory-date-input" type="date" id="trajectory-date-to">
-                <button class="trajectory-date-reset" type="button" id="trajectory-date-reset" title="Reinitialiser la plage">×</button>
-              </div>
-              <div class="segmented-control" role="group" aria-label="Granularite du graphique">
-                <button class="segment-button is-active" type="button" data-granularity="monthly">Mensuel</button>
-                <button class="segment-button" type="button" data-granularity="weekly">Hebdomadaire</button>
-                <button class="segment-button" type="button" data-granularity="daily">Quotidien</button>
-              </div>
-            </div>
+            <p class="muted">Tendance globale et points hauts</p>
           </div>
           <div id="monthly-chart" class="trend-chart"></div>
         </article>
@@ -263,7 +186,7 @@
           <div class="card-head">
             <div>
               <p class="section-label">Equipe</p>
-              <h3>Membres a suivre de près</h3>
+              <h3>Membres a suivre de pres</h3>
             </div>
             <p class="muted">Rencontres, pasteurs, formation</p>
           </div>
@@ -320,9 +243,6 @@
       </section>
     </template>
 
-    <script src="/vendor/apexcharts.min.js"></script>
-    <script src="/auth-client.js" defer></script>
-    <script src="/shell.js" defer></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

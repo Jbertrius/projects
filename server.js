@@ -1,80 +1,287 @@
-const app = require("./src/app");
-const config = require("./src/config");
-const { log } = require("./src/middleware/logger");
-const { resolveMeetingMembersJob } = require("./src/jobs/resolve-meeting-members");
-const { linkPastorsToStudentsJob } = require("./src/jobs/link-pastors-to-students");
-const { hasFirestoreConfig } = require("./lib/firestore");
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const { loadLocalEnv } = require("./lib/env");
+const { buildDashboard } = require("./lib/dashboard");
+const {
+  hasGoogleSheetsConfig,
+  loadGoogleSheetsData,
+  getGoogleSheetsConfigSummary
+} = require("./lib/sheets");
+const {
+  buildFirestoreDocuments,
+  getFirestoreConfigSummary,
+  hasFirestoreConfig,
+  syncSheetsToFirestore,
+  testFirestoreConnection
+} = require("./lib/firestore");
+const {
+  listAccessibleCalendars,
+  listCalendarEvents,
+  syncCalendarToMeetingsSheet
+} = require("./lib/calendar");
 
-// Validate environment before accepting traffic
-config.validate();
+loadLocalEnv();
 
-const server = app.listen(config.PORT, () => {
-  log("info", `server started on port ${config.PORT}`, { port: config.PORT });
-});
+const PORT = process.env.PORT || 8080;
+const PUBLIC_DIR = path.join(__dirname, "public");
+const DATA_FILE = path.join(__dirname, "data", "dashboard.json");
 
-// ---------------------------------------------------------------------------
-// Background jobs
-// ---------------------------------------------------------------------------
-const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
+const MIME_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".ico": "image/x-icon"
+};
 
-function scheduleJob(name, fn, intervalMs) {
-  if (!hasFirestoreConfig()) return;
-
-  // First run: wait 60 s after boot so the server is fully ready.
-  const firstRun = setTimeout(() => {
-    fn().catch((err) => log("error", `${name}: first run failed`, { error: err.message }));
-  }, 60_000);
-  firstRun.unref();
-
-  const recurring = setInterval(() => {
-    fn().catch((err) => log("error", `${name}: run failed`, { error: err.message }));
-  }, intervalMs);
-  recurring.unref();
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, { "Content-Type": MIME_TYPES[".json"] });
+  res.end(JSON.stringify(payload));
 }
 
-scheduleJob("resolve-meeting-members", resolveMeetingMembersJob, EIGHT_HOURS_MS);
-scheduleJob("link-pastors-to-students", linkPastorsToStudentsJob, EIGHT_HOURS_MS);
+function readLocalDashboard() {
+  const content = fs.readFileSync(DATA_FILE, "utf8");
+  return JSON.parse(content);
+}
 
-// ---------------------------------------------------------------------------
-// Graceful shutdown — Cloud Run sends SIGTERM before killing the container.
-// We stop accepting new connections, let in-flight requests finish (up to
-// 10 s), then exit cleanly so the platform can route traffic elsewhere.
-// ---------------------------------------------------------------------------
-let shutdownStarted = false;
+function serveFile(res, filePath) {
+  fs.readFile(filePath, (error, content) => {
+    if (error) {
+      sendJson(res, 500, { error: "Unable to read file." });
+      return;
+    }
 
-function shutdown(reason, { exitCode = 0, error } = {}) {
-  if (shutdownStarted) {
+    const ext = path.extname(filePath).toLowerCase();
+    res.writeHead(200, { "Content-Type": MIME_TYPES[ext] || "application/octet-stream" });
+    res.end(content);
+  });
+}
+
+async function handleApi(req, res) {
+  if (req.url === "/api/connection-status") {
+    sendJson(res, 200, {
+      googleSheetsConfigured: hasGoogleSheetsConfig(),
+      firestoreConfigured: hasFirestoreConfig(),
+      config: {
+        sheets: getGoogleSheetsConfigSummary(),
+        firestore: getFirestoreConfigSummary()
+      }
+    });
     return;
   }
-  shutdownStarted = true;
 
-  log("info", `${reason} received — shutting down gracefully`, {
-    exitCode,
-    ...(error ? { error: error.message, stack: error.stack } : {})
-  });
+  if (req.url === "/api/test/google-sheets") {
+    try {
+      if (!hasGoogleSheetsConfig()) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Google Sheets is not configured.",
+          config: getGoogleSheetsConfigSummary()
+        });
+        return;
+      }
 
-  server.close((err) => {
-    if (err) {
-      log("error", "error during shutdown", { error: err.message });
-      process.exit(1);
+      const sheetsData = await loadGoogleSheetsData();
+      sendJson(res, 200, {
+        ok: true,
+        config: getGoogleSheetsConfigSummary(),
+        counts: {
+          members: sheetsData.members.length,
+          meetings: sheetsData.meetings.length,
+          trainingSessions: sheetsData.trainingSessions.length
+        },
+        sample: {
+          member: sheetsData.members[0] || null,
+          meeting: sheetsData.meetings[0] || null,
+          trainingSession: sheetsData.trainingSessions[0] || null
+        }
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getGoogleSheetsConfigSummary()
+      });
     }
-    log("info", "server closed — process exiting");
-    process.exit(exitCode);
-  });
+    return;
+  }
 
-  // Force-exit if requests do not drain within 10 seconds
-  setTimeout(() => {
-    log("warn", "shutdown timeout exceeded — forcing exit");
-    process.exit(1);
-  }, 10_000).unref(); // .unref() so this timer doesn't keep the loop alive
+  if (req.url === "/api/test/google-calendar") {
+    try {
+      const payload = await listCalendarEvents();
+      sendJson(res, 200, {
+        ok: true,
+        calendarId: payload.calendarId,
+        count: payload.items.length,
+        sample: payload.items[0] || null
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/test/google-calendar-list") {
+    try {
+      const calendars = await listAccessibleCalendars();
+      sendJson(res, 200, {
+        ok: true,
+        calendars
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/sync/calendar-to-sheets") {
+    try {
+      const result = await syncCalendarToMeetingsSheet();
+      sendJson(res, 200, {
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/test/firestore") {
+    try {
+      if (!hasFirestoreConfig()) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Firestore is not configured.",
+          config: getFirestoreConfigSummary()
+        });
+        return;
+      }
+
+      const result = await testFirestoreConnection();
+      sendJson(res, 200, {
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getFirestoreConfigSummary()
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/preview/firestore") {
+    try {
+      const sheetsData = await loadGoogleSheetsData();
+      const preview = buildFirestoreDocuments(sheetsData);
+      sendJson(res, 200, {
+        ok: true,
+        config: getFirestoreConfigSummary(),
+        counts: {
+          members: preview.members.length,
+          meetings: preview.meetings.length,
+          trainingSessions: preview.trainingSessions.length
+        },
+        sample: {
+          member: preview.members[0] || null,
+          meeting: preview.meetings[0] || null,
+          trainingSession: preview.trainingSessions[0] || null
+        }
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getFirestoreConfigSummary()
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/sync/firestore") {
+    try {
+      const result = await syncSheetsToFirestore();
+      sendJson(res, 200, {
+        ok: true,
+        config: getFirestoreConfigSummary(),
+        ...result
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getFirestoreConfigSummary()
+      });
+    }
+    return;
+  }
+
+  if (req.url !== "/api/dashboard") {
+    sendJson(res, 404, { error: "Not found" });
+    return;
+  }
+
+  try {
+    if (hasGoogleSheetsConfig()) {
+      const sheetsData = await loadGoogleSheetsData();
+      sendJson(res, 200, buildDashboard(sheetsData));
+      return;
+    }
+
+    sendJson(res, 200, readLocalDashboard());
+  } catch (error) {
+    sendJson(res, 500, {
+      error: "Unable to load dashboard data.",
+      details: error.message
+    });
+  }
 }
 
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("unhandledRejection", (reason) => {
-  const error = reason instanceof Error ? reason : new Error(String(reason));
-  shutdown("unhandledRejection", { exitCode: 1, error });
+function handleStatic(req, res) {
+  const requestedPath = req.url === "/" ? "/index.html" : req.url;
+  const safePath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, "");
+  const filePath = path.join(PUBLIC_DIR, safePath);
+
+  if (!filePath.startsWith(PUBLIC_DIR)) {
+    sendJson(res, 403, { error: "Forbidden" });
+    return;
+  }
+
+  fs.stat(filePath, (error, stats) => {
+    if (error || !stats.isFile()) {
+      sendJson(res, 404, { error: "Not found" });
+      return;
+    }
+
+    serveFile(res, filePath);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  if (req.url.startsWith("/api/")) {
+    await handleApi(req, res);
+    return;
+  }
+
+  handleStatic(req, res);
 });
-process.on("uncaughtException", (error) => {
-  shutdown("uncaughtException", { exitCode: 1, error });
+
+server.listen(PORT, () => {
+  console.log(`Server listening on http://localhost:${PORT}`);
 });
