@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
@@ -7,40 +7,101 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Pilotage mission domestique</p>
-          <h1>Vue centrale pour suivre l’évolution des membres et des rencontres.</h1>
-          <p class="hero-text">
-            Un tableau de bord pensé pour le terrain: activité des membres, rencontres avec les pasteurs,
-            progression formation et signaux d’inaction.
-          </p>
-          <div class="hero-actions">
-            <button class="primary-action">Connecter Google Sheets</button>
-            <button class="secondary-action">Configurer Telegram</button>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.jpg" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Evolution des membres</p>
           </div>
         </div>
-        <aside class="hero-panel">
-          <p class="panel-label">Vision cible low-cost</p>
-          <ul class="panel-list">
-            <li>Cloud Run pour l’application</li>
-            <li>Google Sheets comme source initiale</li>
-            <li>Firestore seulement si nécessaire</li>
-            <li>Synchronisation Telegram + Calendar</li>
-          </ul>
-        </aside>
-      </header>
 
-      <main id="app" class="dashboard" aria-live="polite">
-        <section class="loading-state">Chargement du tableau de bord…</section>
-      </main>
+        <nav class="sidebar-nav" aria-label="Navigation principale">
+          <button class="nav-item is-active" type="button">Vue generale</button>
+          <button class="nav-item" type="button">Rencontres</button>
+          <button class="nav-item" type="button">Membres</button>
+          <button class="nav-item" type="button">Formation</button>
+          <button class="nav-item" type="button">Alertes</button>
+        </nav>
+
+        <section class="sidebar-card">
+          <p class="section-label">Direction visuelle</p>
+          <h2 class="sidebar-card-title">Clarte, confiance, mouvement</h2>
+          <ul class="sidebar-points">
+            <li>Bleu ciel pour la lisibilite</li>
+            <li>Or pour les priorites</li>
+            <li>Vert profond pour le terrain</li>
+          </ul>
+        </section>
+
+        <section class="sidebar-card sidebar-card-soft">
+          <p class="section-label">Source active</p>
+          <p class="sidebar-highlight">Google Sheets + Telegram + Calendar</p>
+        </section>
+      </aside>
+
+      <div class="page-shell">
+        <header class="hero">
+          <div class="hero-copy">
+            <div class="brand-tags">
+              <span class="brand-tag">Rencontres</span>
+              <span class="brand-tag">Formation</span>
+              <span class="brand-tag">Pilotage</span>
+            </div>
+            <h1>Une interface claire pour suivre les membres, les rencontres et la formation.</h1>
+            <p class="hero-text">
+              Un tableau de bord pense pour le terrain: activite des membres, rencontres avec les
+              pasteurs, progression en formation et signaux d'inaction, le tout centralise dans une
+              seule vue.
+            </p>
+            <div class="hero-metrics">
+              <div class="hero-metric">
+                <span class="hero-metric-value">1 vue centrale</span>
+                <span class="hero-metric-label">pour piloter le departement</span>
+              </div>
+              <div class="hero-metric">
+                <span class="hero-metric-value">Lecture rapide</span>
+                <span class="hero-metric-label">des activites et relances</span>
+              </div>
+            </div>
+            <div class="hero-actions">
+              <button class="primary-action">Connecter Google Sheets</button>
+              <button class="secondary-action">Configurer Telegram</button>
+            </div>
+          </div>
+
+          <aside class="hero-panel">
+            <div class="hero-panel-top">
+              <img class="hero-panel-logo" src="/assets/department-logo.jpg" alt="Logo du departement" />
+              <div>
+                <p class="panel-label">Vue institutionnelle</p>
+                <h2 class="panel-title">Suivre l'effort, voir les priorites, agir vite</h2>
+              </div>
+            </div>
+            <div class="hero-panel-grid">
+              <div class="hero-panel-stat">
+                <span class="hero-panel-value">Hebdo</span>
+                <span class="hero-panel-label">rythme de suivi</span>
+              </div>
+              <div class="hero-panel-stat">
+                <span class="hero-panel-value">Mensuel</span>
+                <span class="hero-panel-label">vision d'ensemble</span>
+              </div>
+            </div>
+          </aside>
+        </header>
+
+        <main id="app" class="dashboard" aria-live="polite">
+          <section class="loading-state">Chargement du tableau de bord...</section>
+        </main>
+      </div>
     </div>
 
     <template id="dashboard-template">
@@ -49,31 +110,69 @@
           <p class="section-label" id="policy-name"></p>
           <h2 id="period-label"></h2>
         </div>
-        <div class="sync-pill" id="refresh-label"></div>
+        <div class="top-bar-actions">
+          <div class="sync-pill" id="refresh-label"></div>
+          <div class="status-chip">Vue operationnelle</div>
+        </div>
+      </section>
+
+      <section class="filters-bar">
+        <div class="filter-group">
+          <label class="filter-label" for="period-filter">Periode</label>
+          <select id="period-filter" class="filter-control">
+            <option>Mars 2026</option>
+            <option>Fevrier 2026</option>
+            <option>Janvier 2026</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="zone-filter">Zone</label>
+          <select id="zone-filter" class="filter-control">
+            <option>Toutes les zones</option>
+            <option>Paris Nord</option>
+            <option>Creteil</option>
+            <option>Lille</option>
+            <option>Rouen</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="status-filter">Statut</label>
+          <select id="status-filter" class="filter-control">
+            <option>Tous</option>
+            <option>Tres active</option>
+            <option>Active</option>
+            <option>En progression</option>
+            <option>A relancer</option>
+          </select>
+        </div>
+        <div class="filter-group filter-actions">
+          <button class="secondary-action compact-action" type="button">Reinitialiser</button>
+        </div>
       </section>
 
       <section class="kpi-grid" id="kpi-grid"></section>
 
-      <section class="feature-grid">
+      <section class="feature-grid feature-grid-wide">
         <article class="card chart-card">
           <div class="card-head">
             <div>
               <p class="section-label">Trajectoire</p>
               <h3>Rencontres sur 6 mois</h3>
             </div>
-            <p class="muted">Volume déclaré par le département</p>
+            <p class="muted">Tendance globale et points hauts</p>
           </div>
-          <div id="monthly-chart" class="bar-chart"></div>
+          <div id="monthly-chart" class="trend-chart"></div>
         </article>
 
-        <article class="card insight-card">
+        <article class="card chart-card">
           <div class="card-head">
             <div>
-              <p class="section-label">Pipeline</p>
-              <h3>Flux opérationnel</h3>
+              <p class="section-label">Contribution</p>
+              <h3>Top membres actifs</h3>
             </div>
+            <p class="muted">Comparaison des efforts recents</p>
           </div>
-          <div id="pipeline-list" class="pipeline-list"></div>
+          <div id="activity-chart" class="activity-chart"></div>
         </article>
       </section>
 
@@ -82,7 +181,7 @@
           <div class="card-head">
             <div>
               <p class="section-label">Equipe</p>
-              <h3>Membres à suivre de près</h3>
+              <h3>Membres a suivre de pres</h3>
             </div>
             <p class="muted">Rencontres, pasteurs, formation</p>
           </div>
@@ -103,19 +202,42 @@
           </div>
         </article>
 
+        <article class="card insight-card">
+          <div class="card-head">
+            <div>
+              <p class="section-label">Pipeline</p>
+              <h3>Flux operationnel</h3>
+            </div>
+          </div>
+          <div id="pipeline-list" class="pipeline-list"></div>
+        </article>
+      </section>
+
+      <section class="feature-grid">
         <article class="card chart-card">
           <div class="card-head">
             <div>
               <p class="section-label">Formation</p>
               <h3>Progression sur 4 semaines</h3>
             </div>
-            <p class="muted">Présence et validations</p>
+            <p class="muted">Presence et validations</p>
           </div>
-          <div id="formation-chart" class="line-chart"></div>
+          <div id="formation-chart" class="progress-chart"></div>
+        </article>
+
+        <article class="card chart-card">
+          <div class="card-head">
+            <div>
+              <p class="section-label">Lecture rapide</p>
+              <h3>Repartition de l'activite</h3>
+            </div>
+            <p class="muted">Vue compacte du niveau d'implication</p>
+          </div>
+          <div id="status-chart" class="status-chart"></div>
         </article>
       </section>
     </template>
 
     <script src="/app.js" defer></script>
   </body>
-  </html>
+</html>
