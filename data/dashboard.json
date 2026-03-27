@@ -1,0 +1,87 @@
+{
+  "meta": {
+    "policyName": "Evolution des membres",
+    "period": "Mars 2026",
+    "refreshLabel": "Dernière synchronisation il y a 18 min"
+  },
+  "kpis": [
+    {
+      "label": "Pasteurs rencontrés",
+      "value": 148,
+      "delta": "+18% vs février",
+      "tone": "positive"
+    },
+    {
+      "label": "Membres actifs",
+      "value": 26,
+      "delta": "4 inactifs à relancer",
+      "tone": "warning"
+    },
+    {
+      "label": "Sessions déclarées",
+      "value": 82,
+      "delta": "+11 cette semaine",
+      "tone": "positive"
+    },
+    {
+      "label": "Inscrits formation",
+      "value": 19,
+      "delta": "63% du département",
+      "tone": "neutral"
+    }
+  ],
+  "monthlyMeetings": [
+    { "month": "Oct", "value": 62 },
+    { "month": "Nov", "value": 74 },
+    { "month": "Dec", "value": 71 },
+    { "month": "Jan", "value": 88 },
+    { "month": "Feb", "value": 126 },
+    { "month": "Mar", "value": 148 }
+  ],
+  "members": [
+    {
+      "name": "Sarah M.",
+      "zone": "Paris Nord",
+      "meetings": 18,
+      "pastors": 31,
+      "formation": 92,
+      "status": "Très active"
+    },
+    {
+      "name": "David K.",
+      "zone": "Créteil",
+      "meetings": 14,
+      "pastors": 21,
+      "formation": 84,
+      "status": "Active"
+    },
+    {
+      "name": "Esther B.",
+      "zone": "Lille",
+      "meetings": 9,
+      "pastors": 12,
+      "formation": 67,
+      "status": "En progression"
+    },
+    {
+      "name": "Jean P.",
+      "zone": "Rouen",
+      "meetings": 4,
+      "pastors": 6,
+      "formation": 28,
+      "status": "À relancer"
+    }
+  ],
+  "formationTimeline": [
+    { "week": "S1", "attendance": 17, "completed": 4 },
+    { "week": "S2", "attendance": 19, "completed": 8 },
+    { "week": "S3", "attendance": 18, "completed": 12 },
+    { "week": "S4", "attendance": 16, "completed": 15 }
+  ],
+  "pipeline": [
+    { "label": "Rencontres planifiées", "value": 24 },
+    { "label": "Rapports reçus", "value": 17 },
+    { "label": "Ajouts calendrier", "value": 15 },
+    { "label": "Suivis à faire", "value": 9 }
+  ]
+}

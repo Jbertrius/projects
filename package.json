@@ -1,0 +1,13 @@
+{
+  "name": "member-evolution-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MVP dashboard for tracking member activity, meetings, and training progression.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
