@@ -1,10 +1,12 @@
 ﻿const state = {
   rawData: null,
   filteredMembers: [],
+  charts: {},
   filters: {
     period: "all",
     zone: "all",
-    status: "all"
+    status: "all",
+    granularity: "monthly"
   }
 };
 
@@ -32,39 +34,71 @@ function normalizeText(value) {
     .trim();
 }
 
-function parseMonthKey(value) {
-  const normalized = normalizeText(value);
-  if (!normalized) {
-    return "";
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+function parseDateValue(value) {
+  if (!value) {
+    return null;
   }
 
-  const monthMap = {
-    janv: "2026-01",
-    janvier: "2026-01",
-    fev: "2026-02",
-    fevr: "2026-02",
-    fevrier: "2026-02",
-    mars: "2026-03",
-    avr: "2026-04",
-    avril: "2026-04",
-    mai: "2026-05",
-    juin: "2026-06",
-    juil: "2026-07",
-    juillet: "2026-07",
-    aout: "2026-08",
-    sep: "2026-09",
-    sept: "2026-09",
-    septembre: "2026-09",
-    oct: "2026-10",
-    octobre: "2026-10",
-    nov: "2026-11",
-    novembre: "2026-11",
-    dec: "2026-12",
-    decembre: "2026-12"
-  };
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) {
+    return direct;
+  }
 
-  const token = Object.keys(monthMap).find((key) => normalized.startsWith(key));
-  return token ? monthMap[token] : normalized;
+  const frenchMatch = String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!frenchMatch) {
+    return null;
+  }
+
+  const [, day, month, year] = frenchMatch;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function startOfWeek(date) {
+  const copy = new Date(date);
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diff);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function toBucketKey(date, granularity) {
+  if (granularity === "daily") {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  if (granularity === "weekly") {
+    const monday = startOfWeek(date);
+    return `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+  }
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+}
+
+function formatBucketLabel(key, granularity) {
+  if (granularity === "daily") {
+    const date = parseDateValue(key);
+    return date
+      ? date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+      : key;
+  }
+
+  if (granularity === "weekly") {
+    const date = parseDateValue(key);
+    return date
+      ? `Sem. du ${date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
+      : key;
+  }
+
+  const date = parseDateValue(`${key}-01`);
+  return date
+    ? date.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })
+    : key;
 }
 
 function createKpiCard(kpi) {
@@ -75,75 +109,6 @@ function createKpiCard(kpi) {
       <div class="kpi-delta tone-${kpi.tone}">${kpi.delta}</div>
     </article>
   `;
-}
-
-function createTrendChart(items) {
-  if (!items.length) {
-    return `<div class="empty-state">Aucune rencontre pour les filtres actuels.</div>`;
-  }
-
-  const max = Math.max(...items.map((item) => item.value), 1);
-  const width = 640;
-  const height = 220;
-  const stepX = width / Math.max(items.length - 1, 1);
-  const points = items.map((item, index) => {
-    const x = index * stepX;
-    const y = height - (item.value / max) * (height - 18) - 10;
-    return { x, y, label: item.month, value: item.value };
-  });
-  const linePath = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
-    .join(" ");
-  const areaPath = `${linePath} L ${width} ${height} L 0 ${height} Z`;
-
-  return `
-    <div class="trend-grid">${Array.from({ length: 5 }, () => "<span></span>").join("")}</div>
-    <svg class="trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="trendGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#51b7ea"></stop>
-          <stop offset="55%" stop-color="#f5c32c"></stop>
-          <stop offset="100%" stop-color="#0e7d3a"></stop>
-        </linearGradient>
-      </defs>
-      <path class="trend-fill" d="${areaPath}"></path>
-      <path class="trend-line" d="${linePath}"></path>
-      ${points
-        .map(
-          (point) =>
-            `<circle class="trend-point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="7"></circle>`
-        )
-        .join("")}
-    </svg>
-    <div class="trend-labels">
-      ${points.map((point) => `<span>${point.label}<br /><strong>${point.value}</strong></span>`).join("")}
-    </div>
-  `;
-}
-
-function createActivityChart(items) {
-  const topMembers = [...items].sort((a, b) => b.meetings - a.meetings).slice(0, 5);
-  const max = Math.max(...topMembers.map((item) => item.meetings), 1);
-
-  if (!topMembers.length) {
-    return `<div class="empty-state">Aucun membre pour les filtres actuels.</div>`;
-  }
-
-  return topMembers
-    .map(
-      (member) => `
-        <div class="activity-row">
-          <div class="activity-meta">
-            <span class="activity-name">${member.name}</span>
-            <span>${member.meetings} rencontres</span>
-          </div>
-          <div class="activity-track">
-            <div class="activity-fill" style="width: ${(member.meetings / max) * 100}%"></div>
-          </div>
-        </div>
-      `
-    )
-    .join("");
 }
 
 function createPipeline(items) {
@@ -184,103 +149,109 @@ function createMembersRows(items) {
     .join("");
 }
 
-function createProgressChart(items) {
-  if (!items.length) {
-    return `<div class="empty-state">Aucune progression formation disponible.</div>`;
+function matchesZone(record, zoneFilter) {
+  if (zoneFilter === "all") {
+    return true;
   }
 
-  const max = Math.max(...items.map((item) => Math.max(item.attendance, item.completed)), 1);
+  const zones = [record.zone, ...(record.memberZones || [])]
+    .map(normalizeText)
+    .filter(Boolean);
 
-  return items
-    .map(
-      (item) => `
-        <div class="progress-row">
-          <div class="progress-meta">
-            <span class="progress-name">${item.week}</span>
-            <span>${item.attendance} presents / ${item.completed} valides</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-attendance" style="width: ${(item.attendance / max) * 100}%"></div>
-            <div class="progress-completed" style="width: ${(item.completed / max) * 100}%"></div>
-          </div>
-        </div>
-      `
-    )
-    .join("");
+  return zones.includes(zoneFilter);
 }
 
-function createStatusChart(items) {
-  const counts = items.reduce((acc, member) => {
-    acc[member.status] = (acc[member.status] || 0) + 1;
-    return acc;
-  }, {});
-  const max = Math.max(...Object.values(counts), 1);
-  const colors = {
-    "Très active": "linear-gradient(90deg, #0e7d3a, #39b36a)",
-    "Tres active": "linear-gradient(90deg, #0e7d3a, #39b36a)",
-    Active: "linear-gradient(90deg, #51b7ea, #2589c8)",
-    "En progression": "linear-gradient(90deg, #f5c32c, #d9a719)",
-    "A relancer": "linear-gradient(90deg, #f0c25a, #b87b00)",
-    "À relancer": "linear-gradient(90deg, #f0c25a, #b87b00)",
-    "À suivre": "linear-gradient(90deg, #8ab8d0, #5f7891)"
-  };
-
-  if (!Object.keys(counts).length) {
-    return `<div class="empty-state">Aucun statut à afficher.</div>`;
+function matchesStatus(record, statusFilter) {
+  if (statusFilter === "all") {
+    return true;
   }
 
-  return `
-    <div class="status-stack">
-      ${Object.entries(counts)
-        .map(
-          ([label, value]) => `
-            <div class="status-item">
-              <div class="status-meta">
-                <span>${label}</span>
-                <span>${value}</span>
-              </div>
-              <div class="status-bar">
-                <div class="status-fill" style="width: ${(value / max) * 100}%; background: ${
-                  colors[label] || "linear-gradient(90deg, #51b7ea, #0e7d3a)"
-                }"></div>
-              </div>
-            </div>
-          `
-        )
-        .join("")}
-    </div>
-  `;
+  return (record.memberStatuses || []).map(normalizeText).includes(statusFilter);
+}
+
+function getZoneStatusFilteredRecords(data) {
+  const records = data.meetingRecords || [];
+  const zoneFilter = normalizeText(state.filters.zone);
+  const statusFilter = normalizeText(state.filters.status);
+
+  return records.filter((record) => matchesZone(record, zoneFilter) && matchesStatus(record, statusFilter));
+}
+
+function aggregateTrajectoryRecords(records, granularity) {
+  const grouped = new Map();
+
+  records.forEach((record) => {
+    const date = parseDateValue(record.meetingDate);
+    if (!date) {
+      return;
+    }
+
+    const key = toBucketKey(date, granularity);
+    grouped.set(key, (grouped.get(key) || 0) + 1);
+  });
+
+  return Array.from(grouped.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => ({
+      key,
+      label: formatBucketLabel(key, granularity),
+      value
+    }));
+}
+
+function computeMemberSummaries(members, records, scopedToPeriod) {
+  const meetingStats = new Map();
+
+  records.forEach((record) => {
+    const pastorName = record.pastorName || "";
+    (record.memberIds || []).forEach((memberId) => {
+      const key = String(memberId);
+      const current = meetingStats.get(key) || { meetings: 0, pastors: new Set() };
+      current.meetings += 1;
+      if (pastorName) {
+        current.pastors.add(pastorName);
+      }
+      meetingStats.set(key, current);
+    });
+  });
+
+  const summaries = members.map((member) => {
+    const stats = meetingStats.get(String(member.id)) || { meetings: 0, pastors: new Set() };
+    return {
+      ...member,
+      meetings: stats.meetings,
+      pastors: stats.pastors.size
+    };
+  });
+
+  const visibleMembers = scopedToPeriod ? summaries.filter((member) => member.meetings > 0) : summaries;
+  return visibleMembers.sort((a, b) => b.meetings - a.meetings || b.formation - a.formation || a.name.localeCompare(b.name));
 }
 
 function computeFilteredView(data) {
   const members = data.members || [];
-  const periodFilter = state.filters.period;
+  const granularity = state.filters.granularity;
   const zoneFilter = normalizeText(state.filters.zone);
   const statusFilter = normalizeText(state.filters.status);
-
-  let filteredMembers = members.filter((member) => {
+  const zoneStatusFilteredMembers = members.filter((member) => {
     const zoneOk = zoneFilter === "all" || normalizeText(member.zone) === zoneFilter;
     const statusOk = statusFilter === "all" || normalizeText(member.status) === statusFilter;
     return zoneOk && statusOk;
   });
 
-  if (periodFilter !== "all") {
-    const monthlyLookup = new Map((data.monthlyMeetings || []).map((item) => [parseMonthKey(item.month), item.value]));
-    const selectedMonthHasData = monthlyLookup.has(periodFilter);
-    if (!selectedMonthHasData) {
-      filteredMembers = [];
-    }
+  const zoneStatusRecords = getZoneStatusFilteredRecords(data);
+  const trajectoryAll = aggregateTrajectoryRecords(zoneStatusRecords, granularity);
+  const validPeriodKeys = new Set(trajectoryAll.map((item) => item.key));
+
+  if (state.filters.period !== "all" && !validPeriodKeys.has(state.filters.period)) {
+    state.filters.period = "all";
   }
 
-  const monthItems =
-    periodFilter === "all"
-      ? data.monthlyMeetings || []
-      : (data.monthlyMeetings || []).filter((item) => parseMonthKey(item.month) === periodFilter);
-
-  const totalMeetings = filteredMembers.reduce((sum, member) => sum + Number(member.meetings || 0), 0);
-  const totalPastors = filteredMembers.reduce((sum, member) => sum + Number(member.pastors || 0), 0);
-  const activeMembers = filteredMembers.filter((member) => Number(member.meetings || 0) > 0).length;
-  const inactiveMembers = filteredMembers.length - activeMembers;
+  const memberSummaries = computeMemberSummaries(zoneStatusFilteredMembers, zoneStatusRecords, false);
+  const totalMeetings = zoneStatusRecords.length;
+  const totalPastors = new Set(zoneStatusRecords.map((record) => record.pastorName).filter(Boolean)).size;
+  const activeMembers = memberSummaries.filter((member) => Number(member.meetings || 0) > 0).length;
+  const inactiveMembers = memberSummaries.length - activeMembers;
 
   const kpis = (data.kpis || []).map((kpi) => ({ ...kpi }));
   if (kpis[0]) {
@@ -289,29 +260,33 @@ function computeFilteredView(data) {
   }
   if (kpis[1]) {
     kpis[1].value = activeMembers;
-    kpis[1].delta = `${inactiveMembers} sans activite`;
+    kpis[1].delta = `${Math.max(inactiveMembers, 0)} sans activite`;
     kpis[1].tone = inactiveMembers > 0 ? "warning" : "positive";
   }
   if (kpis[2]) {
     kpis[2].value = totalMeetings;
-    kpis[2].delta = `${filteredMembers.length} membres filtres`;
+    kpis[2].delta = `${memberSummaries.length} membres filtres`;
   }
   if (kpis[3]) {
-    kpis[3].value = filteredMembers.filter((member) => Number(member.formation || 0) > 0).length;
-    kpis[3].delta = `${filteredMembers.length ? Math.round(filteredMembers.reduce((sum, member) => sum + Number(member.formation || 0), 0) / filteredMembers.length) : 0}% formation moyenne`;
+    const membersWithFormation = memberSummaries.filter((member) => Number(member.formation || 0) > 0);
+    kpis[3].value = membersWithFormation.length;
+    kpis[3].delta = `${memberSummaries.length ? Math.round(memberSummaries.reduce((sum, member) => sum + Number(member.formation || 0), 0) / memberSummaries.length) : 0}% formation moyenne`;
   }
 
   const pipeline = [
     { label: "Rencontres visibles", value: totalMeetings },
-    { label: "Membres filtres", value: filteredMembers.length },
+    { label: "Membres filtres", value: memberSummaries.length },
     { label: "Pasteurs visibles", value: totalPastors },
-    { label: "Suivis a faire", value: inactiveMembers }
+    { label: "Suivis a faire", value: Math.max(inactiveMembers, 0) }
   ];
 
   return {
     kpis,
-    monthlyMeetings: monthItems,
-    members: filteredMembers,
+    trajectory:
+      state.filters.period === "all"
+        ? trajectoryAll
+        : trajectoryAll.filter((item) => item.key === state.filters.period),
+    members: memberSummaries,
     formationTimeline: data.formationTimeline || [],
     pipeline
   };
@@ -326,16 +301,14 @@ function populateFilterOptions(data) {
     return;
   }
 
-  const monthOptions = (data.monthlyMeetings || []).map((item) => ({
-    value: parseMonthKey(item.month),
-    label: item.month
-  }));
+  const previousPeriod = state.filters.period;
+  const trajectoryOptions = aggregateTrajectoryRecords(getZoneStatusFilteredRecords(data), state.filters.granularity);
   const zones = Array.from(new Set((data.members || []).map((member) => member.zone).filter(Boolean))).sort();
   const statuses = Array.from(new Set((data.members || []).map((member) => member.status).filter(Boolean))).sort();
 
   periodFilter.innerHTML = [
     `<option value="all">Toutes periodes</option>`,
-    ...monthOptions.map((item) => `<option value="${item.value}">${item.label}</option>`)
+    ...trajectoryOptions.map((item) => `<option value="${item.key}">${item.label}</option>`)
   ].join("");
   zoneFilter.innerHTML = [
     `<option value="all">Toutes les zones</option>`,
@@ -345,66 +318,386 @@ function populateFilterOptions(data) {
     `<option value="all">Tous</option>`,
     ...statuses.map((status) => `<option value="${status}">${status}</option>`)
   ].join("");
+
+  state.filters.period = trajectoryOptions.some((item) => item.key === previousPeriod) ? previousPeriod : "all";
+  periodFilter.value = state.filters.period;
+  zoneFilter.value = state.filters.zone;
+  statusFilter.value = state.filters.status;
 }
 
-function renderDashboard() {
+function getChartBaseOptions() {
+  return {
+    chart: {
+      fontFamily: 'Instrument Sans, sans-serif',
+      toolbar: { show: false },
+      zoom: { enabled: false },
+      animations: { easing: 'easeinout', speed: 420 }
+    },
+    grid: {
+      borderColor: 'rgba(37, 137, 200, 0.12)',
+      strokeDashArray: 4,
+      padding: { left: 6, right: 12, top: 8, bottom: 0 }
+    },
+    legend: {
+      fontSize: '13px',
+      labels: { colors: ['#5f7891'] }
+    },
+    tooltip: {
+      theme: 'light'
+    },
+    dataLabels: {
+      enabled: false
+    }
+  };
+}
+
+function destroyChart(key) {
+  if (state.charts[key]) {
+    state.charts[key].destroy();
+    delete state.charts[key];
+  }
+}
+
+async function mountChart(key, elementId, options) {
+  const element = document.getElementById(elementId);
+  if (!element) {
+    return;
+  }
+
+  if (typeof ApexCharts === 'undefined') {
+    element.innerHTML = '<div class="empty-state">La librairie de graphiques n\'a pas pu se charger.</div>';
+    return;
+  }
+
+  destroyChart(key);
+  element.innerHTML = '';
+  const chart = new ApexCharts(element, options);
+  state.charts[key] = chart;
+  await chart.render();
+}
+
+function renderEmptyChart(key, elementId, message) {
+  destroyChart(key);
+  const element = document.getElementById(elementId);
+  if (element) {
+    element.innerHTML = `<div class="empty-state">${message}</div>`;
+  }
+}
+
+async function renderTrajectoryChart(items) {
+  if (!items.length) {
+    renderEmptyChart('trajectory', 'monthly-chart', 'Aucune rencontre pour les filtres actuels.');
+    return;
+  }
+
+  await mountChart('trajectory', 'monthly-chart', {
+    ...getChartBaseOptions(),
+    chart: {
+      ...getChartBaseOptions().chart,
+      type: 'area',
+      height: 320
+    },
+    colors: ['#1d8a5a'],
+    stroke: {
+      curve: 'smooth',
+      width: 4
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.32,
+        opacityTo: 0.04,
+        stops: [0, 90, 100],
+        colorStops: [
+          [
+            { offset: 0, color: '#51b7ea', opacity: 0.42 },
+            { offset: 50, color: '#f5c32c', opacity: 0.28 },
+            { offset: 100, color: '#0e7d3a', opacity: 0.08 }
+          ]
+        ]
+      }
+    },
+    series: [
+      {
+        name: 'Rencontres',
+        data: items.map((item) => item.value)
+      }
+    ],
+    xaxis: {
+      categories: items.map((item) => item.label),
+      labels: {
+        rotate: 0,
+        trim: true,
+        hideOverlappingLabels: true,
+        style: {
+          colors: '#68839d',
+          fontSize: '12px'
+        }
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      tooltip: { enabled: false }
+    },
+    yaxis: {
+      min: 0,
+      forceNiceScale: true,
+      labels: {
+        style: {
+          colors: '#68839d',
+          fontSize: '12px'
+        }
+      }
+    },
+    markers: {
+      size: 5,
+      strokeWidth: 3,
+      strokeColors: '#ffffff',
+      hover: { size: 7 }
+    },
+    tooltip: {
+      theme: 'light',
+      y: {
+        formatter: (value) => `${value} rencontre${value > 1 ? 's' : ''}`
+      }
+    }
+  });
+}
+
+async function renderActivityChart(items) {
+  const topMembers = [...items].sort((a, b) => b.meetings - a.meetings).slice(0, 6);
+  if (!topMembers.length) {
+    renderEmptyChart('activity', 'activity-chart', 'Aucun membre pour les filtres actuels.');
+    return;
+  }
+
+  await mountChart('activity', 'activity-chart', {
+    ...getChartBaseOptions(),
+    chart: {
+      ...getChartBaseOptions().chart,
+      type: 'bar',
+      height: 320
+    },
+    colors: ['#2589c8'],
+    series: [
+      {
+        name: 'Rencontres',
+        data: topMembers.map((member) => member.meetings)
+      }
+    ],
+    plotOptions: {
+      bar: {
+        horizontal: true,
+        borderRadius: 8,
+        barHeight: '54%',
+        distributed: true
+      }
+    },
+    colors: ['#51b7ea', '#3ea0d4', '#2d94bf', '#1f87ab', '#177a8f', '#0e7d3a'],
+    xaxis: {
+      categories: topMembers.map((member) => member.name),
+      labels: {
+        style: {
+          colors: '#68839d',
+          fontSize: '12px'
+        }
+      }
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: '#12314a',
+          fontSize: '14px',
+          fontWeight: 600
+        }
+      }
+    },
+    tooltip: {
+      theme: 'light',
+      y: {
+        formatter: (value) => `${value} rencontre${value > 1 ? 's' : ''}`
+      }
+    },
+    legend: { show: false }
+  });
+}
+
+async function renderProgressChart(items) {
+  if (!items.length) {
+    renderEmptyChart('progress', 'formation-chart', 'Aucune progression formation disponible.');
+    return;
+  }
+
+  await mountChart('progress', 'formation-chart', {
+    ...getChartBaseOptions(),
+    chart: {
+      ...getChartBaseOptions().chart,
+      type: 'bar',
+      height: 320,
+      stacked: false
+    },
+    series: [
+      {
+        name: 'Presences',
+        data: items.map((item) => item.attendance)
+      },
+      {
+        name: 'Validations',
+        data: items.map((item) => item.completed)
+      }
+    ],
+    colors: ['#51b7ea', '#f5c32c'],
+    plotOptions: {
+      bar: {
+        borderRadius: 8,
+        columnWidth: '42%'
+      }
+    },
+    xaxis: {
+      categories: items.map((item) => item.week),
+      labels: {
+        style: {
+          colors: '#68839d',
+          fontSize: '12px'
+        }
+      }
+    },
+    yaxis: {
+      min: 0,
+      labels: {
+        style: {
+          colors: '#68839d',
+          fontSize: '12px'
+        }
+      }
+    }
+  });
+}
+
+async function renderStatusChart(items) {
+  const counts = items.reduce((acc, member) => {
+    acc[member.status] = (acc[member.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const labels = Object.keys(counts);
+  if (!labels.length) {
+    renderEmptyChart('status', 'status-chart', 'Aucun statut a afficher.');
+    return;
+  }
+
+  await mountChart('status', 'status-chart', {
+    ...getChartBaseOptions(),
+    chart: {
+      ...getChartBaseOptions().chart,
+      type: 'donut',
+      height: 320
+    },
+    series: labels.map((label) => counts[label]),
+    labels,
+    colors: ['#0e7d3a', '#51b7ea', '#f5c32c', '#b87b00', '#8ab8d0'],
+    stroke: {
+      colors: ['rgba(255,255,255,0.92)']
+    },
+    legend: {
+      position: 'bottom',
+      fontSize: '13px',
+      labels: { colors: ['#5f7891'] }
+    },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: '68%',
+          labels: {
+            show: true,
+            total: {
+              show: true,
+              label: 'Membres',
+              color: '#5f7891',
+              formatter: () => String(items.length)
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+async function renderDashboard() {
   if (!state.rawData) {
     return;
   }
 
+  populateFilterOptions(state.rawData);
   const view = computeFilteredView(state.rawData);
   state.filteredMembers = view.members;
 
-  document.getElementById("kpi-grid").innerHTML = view.kpis.map(createKpiCard).join("");
-  document.getElementById("monthly-chart").innerHTML = createTrendChart(view.monthlyMeetings);
-  document.getElementById("activity-chart").innerHTML = createActivityChart(view.members);
-  document.getElementById("pipeline-list").innerHTML = createPipeline(view.pipeline);
-  document.getElementById("members-table").innerHTML = createMembersRows(view.members);
-  document.getElementById("formation-chart").innerHTML = createProgressChart(view.formationTimeline);
-  document.getElementById("status-chart").innerHTML = createStatusChart(view.members);
+  document.getElementById('kpi-grid').innerHTML = view.kpis.map(createKpiCard).join('');
+  document.getElementById('pipeline-list').innerHTML = createPipeline(view.pipeline);
+  document.getElementById('members-table').innerHTML = createMembersRows(view.members);
+
+  await Promise.all([
+    renderTrajectoryChart(view.trajectory),
+    renderActivityChart(view.members),
+    renderProgressChart(view.formationTimeline),
+    renderStatusChart(view.members)
+  ]);
+
+  document.querySelectorAll('[data-granularity]').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.granularity === state.filters.granularity);
+  });
 }
 
 function attachFilterHandlers() {
-  const periodFilter = document.getElementById("period-filter");
-  const zoneFilter = document.getElementById("zone-filter");
-  const statusFilter = document.getElementById("status-filter");
-  const resetFilters = document.getElementById("reset-filters");
+  const periodFilter = document.getElementById('period-filter');
+  const zoneFilter = document.getElementById('zone-filter');
+  const statusFilter = document.getElementById('status-filter');
+  const resetFilters = document.getElementById('reset-filters');
 
-  periodFilter?.addEventListener("change", () => {
+  periodFilter?.addEventListener('change', () => {
     state.filters.period = periodFilter.value;
     renderDashboard();
   });
 
-  zoneFilter?.addEventListener("change", () => {
+  zoneFilter?.addEventListener('change', () => {
     state.filters.zone = zoneFilter.value;
     renderDashboard();
   });
 
-  statusFilter?.addEventListener("change", () => {
+  statusFilter?.addEventListener('change', () => {
     state.filters.status = statusFilter.value;
     renderDashboard();
   });
 
-  resetFilters?.addEventListener("click", () => {
-    state.filters = { period: "all", zone: "all", status: "all" };
-    periodFilter.value = "all";
-    zoneFilter.value = "all";
-    statusFilter.value = "all";
+  resetFilters?.addEventListener('click', () => {
+    state.filters = { period: 'all', zone: 'all', status: 'all', granularity: 'monthly' };
     renderDashboard();
-    showFeedback("Filtres reinitialises.", "success");
+    showFeedback('Filtres reinitialises.', 'success');
+  });
+
+  document.querySelectorAll('[data-granularity]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.filters.granularity = button.dataset.granularity;
+      state.filters.period = 'all';
+      renderDashboard();
+    });
   });
 }
 
 function setButtonsBusy(isBusy) {
-  document.querySelectorAll("[data-action]").forEach((button) => {
+  document.querySelectorAll('[data-action]').forEach((button) => {
     button.disabled = isBusy;
   });
 }
 
 async function runAction(action) {
   const routes = {
-    "sync-calendar": { url: "/api/sync/calendar-to-sheets", message: "Synchronisation Calendar terminee." },
-    "sync-firestore": { url: "/api/sync/firestore", message: "Synchronisation Firestore terminee." }
+    'sync-full': {
+      url: '/api/sync/full',
+      message: 'Synchronisation complete terminee.'
+    },
+    'sync-calendar': { url: '/api/sync/calendar-to-sheets', message: 'Synchronisation Calendar terminee.' },
+    'sync-firestore': { url: '/api/sync/firestore', message: 'Synchronisation Firestore terminee.' }
   };
 
   const config = routes[action];
@@ -413,62 +706,67 @@ async function runAction(action) {
   }
 
   setButtonsBusy(true);
-  showFeedback("Operation en cours...", "info");
+  showFeedback('Operation en cours...', 'info');
 
   try {
     const response = await fetch(config.url);
     const payload = await response.json();
     if (!response.ok || payload.ok === false) {
-      throw new Error(payload.error || "Operation impossible.");
+      throw new Error(payload.error || 'Operation impossible.');
     }
 
-    showFeedback(config.message, "success");
+    if (action === 'sync-full' && payload.steps) {
+      const importedEvents = payload.steps.calendarToSheets?.importedEvents ?? 0;
+      const syncedMeetings = payload.steps.sheetsToFirestore?.meetings ?? 0;
+      showFeedback(`${config.message} ${importedEvents} evenements importes, ${syncedMeetings} meetings pushes vers Firestore.`, 'success');
+    } else {
+      showFeedback(config.message, 'success');
+    }
     await refreshDashboard();
   } catch (error) {
-    showFeedback(error.message, "error");
+    showFeedback(error.message, 'error');
   } finally {
     setButtonsBusy(false);
   }
 }
 
 function attachActionHandlers() {
-  document.querySelectorAll("[data-action]").forEach((button) => {
-    button.addEventListener("click", () => runAction(button.dataset.action));
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    button.addEventListener('click', () => runAction(button.dataset.action));
   });
 }
 
 function attachNavigationHandlers() {
-  const navItems = Array.from(document.querySelectorAll(".nav-item[data-target]"));
+  const navItems = Array.from(document.querySelectorAll('.nav-item[data-target]'));
   navItems.forEach((button) => {
-    button.addEventListener("click", () => {
-      navItems.forEach((item) => item.classList.remove("is-active"));
-      button.classList.add("is-active");
+    button.addEventListener('click', () => {
+      navItems.forEach((item) => item.classList.remove('is-active'));
+      button.classList.add('is-active');
       const target = document.getElementById(button.dataset.target);
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 }
 
 async function refreshDashboard() {
-  const response = await fetch("/api/dashboard");
+  const response = await fetch('/api/dashboard');
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Impossible de charger le dashboard.");
+    throw new Error(data.error || 'Impossible de charger le dashboard.');
   }
 
   state.rawData = data;
-  document.getElementById("policy-name").textContent = data.meta.policyName;
-  document.getElementById("period-label").textContent = data.meta.period;
-  document.getElementById("refresh-label").textContent = data.meta.refreshLabel;
-  populateFilterOptions(data);
-  renderDashboard();
+  document.getElementById('policy-name').textContent = data.meta.policyName;
+  document.getElementById('period-label').textContent = data.meta.period;
+  document.getElementById('refresh-label').textContent = data.meta.refreshLabel;
+  await renderDashboard();
 }
 
 async function loadDashboard() {
-  const app = document.getElementById("app");
+  const app = document.getElementById('app');
 
   try {
-    app.innerHTML = document.getElementById("dashboard-template").innerHTML;
+    app.innerHTML = document.getElementById('dashboard-template').innerHTML;
     attachActionHandlers();
     attachNavigationHandlers();
     attachFilterHandlers();
@@ -479,7 +777,7 @@ async function loadDashboard() {
         Impossible de charger les donnees du dashboard.
       </section>
     `;
-    showFeedback(error.message, "error");
+    showFeedback(error.message, 'error');
   }
 }
 

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fiches pasteurs</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Fiches pasteurs</p>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Navigation principale">
+          <a class="nav-item nav-link" href="/">Retour dashboard</a>
+          <button class="nav-item is-active" type="button" data-target="pastors-top">Base pasteurs</button>
+          <button class="nav-item" type="button" data-target="review-queue">A revoir</button>
+          <button class="nav-item" type="button" data-target="review-form">Edition</button>
+        </nav>
+
+        <section class="sidebar-card">
+          <p class="section-label">Usage</p>
+          <h2 class="sidebar-card-title">Corriger, enrichir, consolider</h2>
+          <ul class="sidebar-points">
+            <li>Nettoyer les noms detectes</li>
+            <li>Ajouter eglise, ville, contact</li>
+            <li>Lever les fiches a revoir</li>
+          </ul>
+        </section>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="top-bar" id="pastors-top">
+            <div>
+              <p class="section-label">Base relationnelle</p>
+              <h2>Relecture des pasteurs rencontres</h2>
+            </div>
+            <div class="top-bar-actions">
+              <div class="sync-pill" id="pastors-count">Chargement...</div>
+              <button class="secondary-action compact-action" id="refresh-pastors" type="button">Actualiser</button>
+            </div>
+          </section>
+
+          <section class="filters-bar">
+            <div class="filter-group">
+              <label class="filter-label" for="pastor-search">Recherche</label>
+              <input class="filter-control" id="pastor-search" type="search" placeholder="Nom, variante, eglise..." />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label" for="review-filter">Statut revue</label>
+              <select id="review-filter" class="filter-control">
+                <option value="all">Tous</option>
+                <option value="review">A revoir</option>
+                <option value="clean">Valides</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label" for="title-filter">Titre</label>
+              <select id="title-filter" class="filter-control">
+                <option value="all">Tous</option>
+              </select>
+            </div>
+            <div class="filter-group filter-actions">
+              <button class="secondary-action compact-action" id="reset-pastor-filters" type="button">Reinitialiser</button>
+            </div>
+          </section>
+
+          <section class="review-layout">
+            <article class="card review-list-card" id="review-queue">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Liste</p>
+                  <h3>Pasteurs detectes</h3>
+                </div>
+                <p class="muted" id="review-summary"></p>
+              </div>
+              <div class="pastor-list" id="pastor-list"></div>
+            </article>
+
+            <article class="card review-form-card" id="review-form">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Edition</p>
+                  <h3 id="editor-title">Selectionner une fiche</h3>
+                </div>
+                <span class="status-pill" id="editor-status">Aucune selection</span>
+              </div>
+
+              <form id="pastor-form" class="pastor-form">
+                <input type="hidden" id="pastor-id" />
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Nom canonique</span>
+                    <input id="pastor-name" class="filter-control" type="text" />
+                  </label>
+                  <label class="form-field">
+                    <span>Titre</span>
+                    <input id="pastor-title" class="filter-control" type="text" />
+                  </label>
+                </div>
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Prenom</span>
+                    <input id="pastor-first-name" class="filter-control" type="text" />
+                  </label>
+                  <label class="form-field">
+                    <span>Nom</span>
+                    <input id="pastor-last-name" class="filter-control" type="text" />
+                  </label>
+                </div>
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Eglise</span>
+                    <input id="pastor-church" class="filter-control" type="text" />
+                  </label>
+                  <label class="form-field">
+                    <span>Ville</span>
+                    <input id="pastor-city" class="filter-control" type="text" />
+                  </label>
+                </div>
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Telephone</span>
+                    <input id="pastor-phone" class="filter-control" type="text" />
+                  </label>
+                  <label class="form-field">
+                    <span>Email</span>
+                    <input id="pastor-email" class="filter-control" type="email" />
+                  </label>
+                </div>
+
+                <label class="form-field">
+                  <span>Aliases</span>
+                  <input id="pastor-aliases" class="filter-control" type="text" placeholder="Alias 1 | Alias 2" />
+                </label>
+
+                <label class="form-field">
+                  <span>Notes</span>
+                  <textarea id="pastor-notes" class="filter-control form-textarea"></textarea>
+                </label>
+
+                <label class="review-toggle">
+                  <input id="pastor-needs-review" type="checkbox" />
+                  <span>Laisser la fiche dans la file de relecture</span>
+                </label>
+
+                <div class="review-meta">
+                  <div>
+                    <p class="section-label">Variantes source</p>
+                    <p class="review-source" id="pastor-source-variants">-</p>
+                  </div>
+                  <div>
+                    <p class="section-label">Historique</p>
+                    <p class="review-source" id="pastor-history">-</p>
+                  </div>
+                </div>
+
+                <div class="hero-actions">
+                  <button class="primary-action" type="submit">Enregistrer la fiche</button>
+                </div>
+              </form>
+            </article>
+          </section>
+        </main>
+
+        <div id="app-feedback" class="app-feedback" hidden></div>
+      </div>
+    </div>
+
+    <script src="/pastors.js" defer></script>
+  </body>
+</html>

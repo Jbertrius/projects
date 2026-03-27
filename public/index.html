@@ -4,10 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evolution des membres</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
@@ -16,7 +17,7 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
-          <img class="brand-logo" src="/assets/department-logo.jpg" alt="Logo du departement" />
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
           <div>
             <p class="eyebrow">Departement des missions domestiques</p>
             <p class="brand-title">Evolution des membres</p>
@@ -29,6 +30,7 @@
           <button class="nav-item" type="button" data-target="members-section">Membres</button>
           <button class="nav-item" type="button" data-target="training-section">Formation</button>
           <button class="nav-item" type="button" data-target="status-section">Alertes</button>
+          <a class="nav-item nav-link" href="/pastors.html">Fiches pasteurs</a>
         </nav>
 
         <section class="sidebar-card">
@@ -43,7 +45,7 @@
 
         <section class="sidebar-card sidebar-card-soft">
           <p class="section-label">Source active</p>
-          <p class="sidebar-highlight">Google Sheets + Telegram + Calendar</p>
+          <p class="sidebar-highlight">Firestore prioritaire • Sheets en ingestion</p>
         </section>
       </aside>
 
@@ -72,18 +74,21 @@
               </div>
             </div>
             <div class="hero-actions">
-              <button class="primary-action" type="button" data-action="sync-calendar">
-                Synchroniser Calendar
+              <button class="primary-action" type="button" data-action="sync-full">
+                Synchroniser tout
+              </button>
+              <button class="secondary-action" type="button" data-action="sync-calendar">
+                Calendar -> Sheets
               </button>
               <button class="secondary-action" type="button" data-action="sync-firestore">
-                Synchroniser Firestore
+                Sheets -> Firestore
               </button>
             </div>
           </div>
 
           <aside class="hero-panel">
             <div class="hero-panel-top">
-              <img class="hero-panel-logo" src="/assets/department-logo.jpg" alt="Logo du departement" />
+              <img class="hero-panel-logo" src="/assets/department-logo.png" alt="Logo du departement" />
               <div>
                 <p class="panel-label">Vue institutionnelle</p>
                 <h2 class="panel-title">Suivre l'effort, voir les priorites, agir vite</h2>
@@ -162,9 +167,16 @@
           <div class="card-head">
             <div>
               <p class="section-label">Trajectoire</p>
-              <h3>Rencontres sur 6 mois</h3>
+              <h3>Rencontres filtrees dans le temps</h3>
             </div>
-            <p class="muted">Tendance globale et points hauts</p>
+            <div class="chart-head-actions">
+              <p class="muted">Zone, statut et granularite appliques</p>
+              <div class="segmented-control" role="group" aria-label="Granularite du graphique">
+                <button class="segment-button is-active" type="button" data-granularity="monthly">Mensuel</button>
+                <button class="segment-button" type="button" data-granularity="weekly">Hebdomadaire</button>
+                <button class="segment-button" type="button" data-granularity="daily">Quotidien</button>
+              </div>
+            </div>
           </div>
           <div id="monthly-chart" class="trend-chart"></div>
         </article>
@@ -186,7 +198,7 @@
           <div class="card-head">
             <div>
               <p class="section-label">Equipe</p>
-              <h3>Membres a suivre de pres</h3>
+              <h3>Membres a suivre de près</h3>
             </div>
             <p class="muted">Rencontres, pasteurs, formation</p>
           </div>
@@ -243,6 +255,7 @@
       </section>
     </template>
 
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

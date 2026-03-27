@@ -12,14 +12,18 @@ const {
   buildFirestoreDocuments,
   getFirestoreConfigSummary,
   hasFirestoreConfig,
+  loadDashboardDataFromFirestore,
+  loadPastorsFromFirestore,
   syncSheetsToFirestore,
-  testFirestoreConnection
+  testFirestoreConnection,
+  updatePastorInFirestore
 } = require("./lib/firestore");
 const {
   listAccessibleCalendars,
   listCalendarEvents,
   syncCalendarToMeetingsSheet
 } = require("./lib/calendar");
+const { loadPastorsSheet, updatePastorRecord } = require("./lib/pastors");
 
 loadLocalEnv();
 
@@ -39,7 +43,10 @@ const MIME_TYPES = {
 };
 
 function sendJson(res, statusCode, payload) {
-  res.writeHead(statusCode, { "Content-Type": MIME_TYPES[".json"] });
+  res.writeHead(statusCode, {
+    "Content-Type": MIME_TYPES[".json"],
+    "Cache-Control": "no-store"
+  });
   res.end(JSON.stringify(payload));
 }
 
@@ -56,12 +63,80 @@ function serveFile(res, filePath) {
     }
 
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME_TYPES[ext] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
+      "Cache-Control": "no-store"
+    });
     res.end(content);
   });
 }
 
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 1_000_000) {
+        reject(new Error("Request body too large."));
+        req.destroy();
+      }
+    });
+
+    req.on("end", () => {
+      if (!body) {
+        resolve({});
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(body));
+      } catch {
+        reject(new Error("Invalid JSON body."));
+      }
+    });
+
+    req.on("error", reject);
+  });
+}
+
 async function handleApi(req, res) {
+  if (req.url === "/api/pastors" && req.method === "GET") {
+    try {
+      const source = hasFirestoreConfig() ? "firestore" : "sheets";
+      const pastors = hasFirestoreConfig() ? await loadPastorsFromFirestore() : await loadPastorsSheet();
+      sendJson(res, 200, {
+        ok: true,
+        source,
+        pastors
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/pastors/update" && req.method === "POST") {
+    try {
+      const payload = await readJsonBody(req);
+      const pastor = hasFirestoreConfig() ? await updatePastorInFirestore(payload) : await updatePastorRecord(payload);
+      sendJson(res, 200, {
+        ok: true,
+        source: hasFirestoreConfig() ? "firestore" : "sheets",
+        pastor
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
   if (req.url === "/api/connection-status") {
     sendJson(res, 200, {
       googleSheetsConfigured: hasGoogleSheetsConfig(),
@@ -160,6 +235,31 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (req.url === "/api/sync/full" && req.method === "GET") {
+    let calendarResult = null;
+
+    try {
+      calendarResult = await syncCalendarToMeetingsSheet();
+      const firestoreResult = await syncSheetsToFirestore();
+      sendJson(res, 200, {
+        ok: true,
+        steps: {
+          calendarToSheets: calendarResult,
+          sheetsToFirestore: firestoreResult
+        }
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        steps: {
+          calendarToSheets: calendarResult
+        }
+      });
+    }
+    return;
+  }
+
   if (req.url === "/api/test/firestore") {
     try {
       if (!hasFirestoreConfig()) {
@@ -189,7 +289,7 @@ async function handleApi(req, res) {
   if (req.url === "/api/preview/firestore") {
     try {
       const sheetsData = await loadGoogleSheetsData();
-      const preview = buildFirestoreDocuments(sheetsData);
+      const preview = await buildFirestoreDocuments(sheetsData);
       sendJson(res, 200, {
         ok: true,
         config: getFirestoreConfigSummary(),
@@ -238,6 +338,12 @@ async function handleApi(req, res) {
   }
 
   try {
+    if (hasFirestoreConfig()) {
+      const firestoreData = await loadDashboardDataFromFirestore();
+      sendJson(res, 200, buildDashboard(firestoreData));
+      return;
+    }
+
     if (hasGoogleSheetsConfig()) {
       const sheetsData = await loadGoogleSheetsData();
       sendJson(res, 200, buildDashboard(sheetsData));
