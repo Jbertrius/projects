@@ -11,6 +11,7 @@ env:
   SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE }}
   REGION: ${{ vars.GCP_REGION }}
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  RUNTIME_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
 
 jobs:
   deploy:
@@ -49,6 +50,16 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.IMAGE }}
           project_id: ${{ env.PROJECT_ID }}
+          env_vars: |-
+            GOOGLE_SPREADSHEET_ID=${{ vars.GOOGLE_SPREADSHEET_ID }}
+            GOOGLE_SHEET_MEMBERS_RANGE=${{ vars.GOOGLE_SHEET_MEMBERS_RANGE }}
+            GOOGLE_SHEET_MEETINGS_RANGE=${{ vars.GOOGLE_SHEET_MEETINGS_RANGE }}
+            GOOGLE_SHEET_TRAINING_RANGE=${{ vars.GOOGLE_SHEET_TRAINING_RANGE }}
+            GOOGLE_CALENDAR_ID=${{ vars.GOOGLE_CALENDAR_ID }}
+            GOOGLE_CALENDAR_PAST_DAYS=${{ vars.GOOGLE_CALENDAR_PAST_DAYS }}
+            GOOGLE_CALENDAR_FUTURE_DAYS=${{ vars.GOOGLE_CALENDAR_FUTURE_DAYS }}
+            FIRESTORE_PROJECT_ID=${{ vars.FIRESTORE_PROJECT_ID }}
+            FIRESTORE_DATABASE_ID=${{ vars.FIRESTORE_DATABASE_ID }}
           flags: >-
+            --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }}
             --allow-unauthenticated
-

@@ -30,6 +30,175 @@ GOOGLE_SHEET_TRAINING_RANGE=training!A1:Z
 
 Le service account doit avoir accès en lecture au spreadsheet.
 
+Le projet charge automatiquement `.env` et `.env.local` au démarrage. Pour un test local simple, crée un fichier `.env.local` à la racine du projet.
+
+## Test local avec vraies données Google Sheets
+
+### 1. Créer un service account GCP
+
+Dans Google Cloud:
+
+- va dans `IAM & Admin > Service Accounts`
+- crée un compte de service
+- génère une clé JSON
+- récupère:
+  - `client_email`
+  - `private_key`
+
+### 2. Partager le Google Sheet avec le service account
+
+Ouvre ton spreadsheet et partage-le en lecture avec l'adresse email du service account, par exemple:
+
+```text
+my-service-account@my-project.iam.gserviceaccount.com
+```
+
+### 3. Créer `.env.local`
+
+Exemple:
+
+```bash
+PORT=8080
+GOOGLE_SPREADSHEET_ID=ton_spreadsheet_id
+GOOGLE_SERVICE_ACCOUNT_JSON_PATH=C:\\path\\to\\service-account.json
+GOOGLE_SHEET_MEMBERS_RANGE=members!A1:Z
+GOOGLE_SHEET_MEETINGS_RANGE=meetings!A1:Z
+GOOGLE_SHEET_TRAINING_RANGE=
+```
+
+C'est la methode recommandee en local.
+
+Alternative possible si tu veux tout mettre en variables:
+
+```bash
+GOOGLE_CLIENT_EMAIL=service-account@your-project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY=\"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n\"
+```
+
+Mais cette methode est plus fragile, surtout sur Windows, a cause du format de la cle privee.
+
+`GOOGLE_SHEET_TRAINING_RANGE` est optionnel. Si ton onglet formation n'existe pas encore, laisse cette variable vide.
+
+### 4. Lancer l'application
+
+```bash
+node server.js
+```
+
+### Initialiser automatiquement le spreadsheet vide
+
+Si ton Google Sheet est vide, tu peux creer la structure attendue avec:
+
+```bash
+npm run setup:sheets
+```
+
+Le script cree ou verifie les onglets:
+
+- `members`
+- `meetings`
+- `training`
+
+Et il pose les en-tetes attendus par l'application.
+
+### 5. Vérifier la connexion
+
+Dans le navigateur:
+
+- [http://localhost:8080/api/connection-status](http://localhost:8080/api/connection-status)
+- [http://localhost:8080/api/test/google-sheets](http://localhost:8080/api/test/google-sheets)
+- [http://localhost:8080/api/test/google-calendar](http://localhost:8080/api/test/google-calendar)
+
+Le premier endpoint te dit si la config est présente.
+Le second teste réellement l'accès au Google Sheet et te retourne un échantillon de données.
+Le troisième teste l'accès au Google Calendar configuré.
+
+## Synchroniser Google Calendar vers Google Sheets
+
+Pour ton process actuel, on peut garder le bot sur Google Calendar puis synchroniser les événements vers l'onglet `meetings`.
+
+Configuration locale:
+
+```bash
+GOOGLE_CALENDAR_ID=primary
+GOOGLE_CALENDAR_PAST_DAYS=180
+GOOGLE_CALENDAR_FUTURE_DAYS=30
+```
+
+Test du calendrier:
+
+```bash
+http://localhost:8080/api/test/google-calendar
+```
+
+Synchronisation:
+
+```bash
+npm run sync:calendar
+```
+
+Ou via l'API:
+
+```bash
+http://localhost:8080/api/sync/calendar-to-sheets
+```
+
+Le synchroniseur:
+
+- lit les événements du calendrier;
+- convertit les événements en lignes `meetings`;
+- fusionne avec les lignes déjà présentes;
+- évite les doublons par `event.id`.
+
+## Rattachement automatique aux members
+
+La synchronisation enrichit aussi les lignes `meetings` avec:
+
+- `member_name_raw`: valeur brute venant du Calendar
+- `member_ids`: ids membres résolus
+- `member_names_canonical`: noms canoniques issus de `members`
+- `member_match_status`: `exact`, `fuzzy`, `partial` ou `unmatched`
+- `member_unmatched_names`: morceaux non reconnus
+
+Pour aider le matching, tu peux ajouter dans la feuille `members` une colonne `aliases`, avec des variantes séparées par `;`.
+
+Exemple:
+
+```text
+Stephane;Stéphane;Stephèn
+```
+
+## Preparation Sheets -> Firestore
+
+Une premiere couche est prête pour la phase 2:
+
+```bash
+npm run sync:firestore
+```
+
+Variables à prévoir quand tu activeras Firestore:
+
+```bash
+FIRESTORE_PROJECT_ID=ton-project-id
+FIRESTORE_DATABASE_ID=(default)
+```
+
+Le script synchronisera les collections:
+
+- `members`
+- `meetings`
+- `trainingSessions`
+
+## Rapport de matching members
+
+Pour voir quels noms n'ont pas été rattachés automatiquement:
+
+```bash
+npm run report:matching
+```
+
+Ce rapport aide à compléter la colonne `aliases` dans `members`.
+
 ### Format attendu des onglets
 
 `members`
@@ -86,6 +255,16 @@ Variables de repository:
 - `GCP_PROJECT_ID`
 - `GCP_REGION`
 - `CLOUD_RUN_SERVICE`
+- `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`
+- `GOOGLE_SPREADSHEET_ID`
+- `GOOGLE_SHEET_MEMBERS_RANGE`
+- `GOOGLE_SHEET_MEETINGS_RANGE`
+- `GOOGLE_SHEET_TRAINING_RANGE`
+- `GOOGLE_CALENDAR_ID`
+- `GOOGLE_CALENDAR_PAST_DAYS`
+- `GOOGLE_CALENDAR_FUTURE_DAYS`
+- `FIRESTORE_PROJECT_ID`
+- `FIRESTORE_DATABASE_ID`
 
 Secrets de repository:
 
@@ -106,32 +285,23 @@ Je recommande `Workload Identity Federation` entre GitHub et GCP, pas une clé J
 
 ### Variables runtime Cloud Run
 
-Les variables applicatives comme `GOOGLE_SPREADSHEET_ID`, `GOOGLE_CLIENT_EMAIL` et `GOOGLE_PRIVATE_KEY` ne doivent pas être mises dans GitHub.
+Le workflow est prêt pour une approche plus propre:
 
-Elles doivent être configurées côté Cloud Run:
-
-```bash
-gcloud run services update member-evolution-dashboard \
-  --region=europe-west9 \
-  --set-env-vars GOOGLE_SPREADSHEET_ID=... \
-  --set-env-vars GOOGLE_CLIENT_EMAIL=... \
-  --set-env-vars GOOGLE_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n'
-```
-
-Ou mieux encore:
-
-- `GOOGLE_SPREADSHEET_ID` en variable d'environnement;
-- le compte de service Cloud Run attaché au service pour lire Sheets;
-- éventuellement `Secret Manager` si tu veux externaliser certains secrets.
+- variables runtime injectées au déploiement;
+- compte de service Cloud Run attaché au service;
+- plus besoin de fichier JSON local sur Cloud Run si le compte de service a accès à Sheets, Calendar et Firestore.
 
 ### Pré-requis GCP
 
 - activer `Cloud Run`
 - activer `Artifact Registry`
 - activer `IAM Credentials API`
+- activer `Firestore API`
+- créer la base Firestore si elle n'existe pas encore
 - créer un service account pour le déploiement GitHub
 - autoriser GitHub via Workload Identity Federation
 - donner au service account les rôles nécessaires sur Cloud Run et Artifact Registry
+- partager le Google Sheet et le Google Calendar avec le service account runtime Cloud Run
 
 ### Initialiser le remote GitHub
 

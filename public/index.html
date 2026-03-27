@@ -24,11 +24,11 @@
         </div>
 
         <nav class="sidebar-nav" aria-label="Navigation principale">
-          <button class="nav-item is-active" type="button">Vue generale</button>
-          <button class="nav-item" type="button">Rencontres</button>
-          <button class="nav-item" type="button">Membres</button>
-          <button class="nav-item" type="button">Formation</button>
-          <button class="nav-item" type="button">Alertes</button>
+          <button class="nav-item is-active" type="button" data-target="top-bar">Vue generale</button>
+          <button class="nav-item" type="button" data-target="meetings-section">Rencontres</button>
+          <button class="nav-item" type="button" data-target="members-section">Membres</button>
+          <button class="nav-item" type="button" data-target="training-section">Formation</button>
+          <button class="nav-item" type="button" data-target="status-section">Alertes</button>
         </nav>
 
         <section class="sidebar-card">
@@ -72,8 +72,12 @@
               </div>
             </div>
             <div class="hero-actions">
-              <button class="primary-action">Connecter Google Sheets</button>
-              <button class="secondary-action">Configurer Telegram</button>
+              <button class="primary-action" type="button" data-action="sync-calendar">
+                Synchroniser Calendar
+              </button>
+              <button class="secondary-action" type="button" data-action="sync-firestore">
+                Synchroniser Firestore
+              </button>
             </div>
           </div>
 
@@ -101,11 +105,12 @@
         <main id="app" class="dashboard" aria-live="polite">
           <section class="loading-state">Chargement du tableau de bord...</section>
         </main>
+        <div id="app-feedback" class="app-feedback" hidden></div>
       </div>
     </div>
 
     <template id="dashboard-template">
-      <section class="top-bar">
+      <section class="top-bar" id="top-bar">
         <div>
           <p class="section-label" id="policy-name"></p>
           <h2 id="period-label"></h2>
@@ -146,13 +151,13 @@
           </select>
         </div>
         <div class="filter-group filter-actions">
-          <button class="secondary-action compact-action" type="button">Reinitialiser</button>
+          <button class="secondary-action compact-action" type="button" id="reset-filters">Reinitialiser</button>
         </div>
       </section>
 
       <section class="kpi-grid" id="kpi-grid"></section>
 
-      <section class="feature-grid feature-grid-wide">
+      <section class="feature-grid feature-grid-wide" id="meetings-section">
         <article class="card chart-card">
           <div class="card-head">
             <div>
@@ -176,7 +181,7 @@
         </article>
       </section>
 
-      <section class="feature-grid">
+      <section class="feature-grid" id="members-section">
         <article class="card">
           <div class="card-head">
             <div>
@@ -213,8 +218,8 @@
         </article>
       </section>
 
-      <section class="feature-grid">
-        <article class="card chart-card">
+      <section class="feature-grid" id="training-section">
+        <article class="card chart-card" id="status-section">
           <div class="card-head">
             <div>
               <p class="section-label">Formation</p>

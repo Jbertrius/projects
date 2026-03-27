@@ -41,6 +41,7 @@ body {
 
 .page-shell {
   min-width: 0;
+  position: relative;
 }
 
 .sidebar,
@@ -326,6 +327,12 @@ button:hover {
   transform: translateY(-1px);
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+}
+
 .primary-action {
   background: linear-gradient(135deg, var(--green), #0b9442);
   color: #f9fffb;
@@ -599,7 +606,11 @@ button:hover {
 }
 
 .table-wrap {
-  overflow-x: auto;
+  max-height: 420px;
+  overflow: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(34, 92, 136, 0.08);
+  background: rgba(255, 255, 255, 0.56);
 }
 
 table {
@@ -619,6 +630,11 @@ th {
   font-size: 0.83rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  position: sticky;
+  top: 0;
+  background: rgba(244, 250, 255, 0.95);
+  backdrop-filter: blur(8px);
+  z-index: 1;
 }
 
 .status-pill {
@@ -663,6 +679,42 @@ th {
   border-radius: 28px;
   padding: 36px;
   text-align: center;
+}
+
+.app-feedback {
+  position: sticky;
+  bottom: 18px;
+  margin-top: 16px;
+  margin-left: auto;
+  width: min(420px, 100%);
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+
+.app-feedback.is-success {
+  color: var(--green);
+  border-color: rgba(14, 125, 58, 0.18);
+}
+
+.app-feedback.is-error {
+  color: #b33a2b;
+  border-color: rgba(179, 58, 43, 0.18);
+}
+
+.app-feedback.is-info {
+  color: var(--sky-deep);
+  border-color: rgba(37, 137, 200, 0.18);
+}
+
+.empty-state,
+.empty-table {
+  color: var(--muted);
+  text-align: center;
+  padding: 24px 12px;
 }
 
 @media (max-width: 1200px) {

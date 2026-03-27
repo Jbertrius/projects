@@ -1,8 +1,27 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { loadLocalEnv } = require("./lib/env");
 const { buildDashboard } = require("./lib/dashboard");
-const { hasGoogleSheetsConfig, loadGoogleSheetsData } = require("./lib/sheets");
+const {
+  hasGoogleSheetsConfig,
+  loadGoogleSheetsData,
+  getGoogleSheetsConfigSummary
+} = require("./lib/sheets");
+const {
+  buildFirestoreDocuments,
+  getFirestoreConfigSummary,
+  hasFirestoreConfig,
+  syncSheetsToFirestore,
+  testFirestoreConnection
+} = require("./lib/firestore");
+const {
+  listAccessibleCalendars,
+  listCalendarEvents,
+  syncCalendarToMeetingsSheet
+} = require("./lib/calendar");
+
+loadLocalEnv();
 
 const PORT = process.env.PORT || 8080;
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -43,6 +62,176 @@ function serveFile(res, filePath) {
 }
 
 async function handleApi(req, res) {
+  if (req.url === "/api/connection-status") {
+    sendJson(res, 200, {
+      googleSheetsConfigured: hasGoogleSheetsConfig(),
+      firestoreConfigured: hasFirestoreConfig(),
+      config: {
+        sheets: getGoogleSheetsConfigSummary(),
+        firestore: getFirestoreConfigSummary()
+      }
+    });
+    return;
+  }
+
+  if (req.url === "/api/test/google-sheets") {
+    try {
+      if (!hasGoogleSheetsConfig()) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Google Sheets is not configured.",
+          config: getGoogleSheetsConfigSummary()
+        });
+        return;
+      }
+
+      const sheetsData = await loadGoogleSheetsData();
+      sendJson(res, 200, {
+        ok: true,
+        config: getGoogleSheetsConfigSummary(),
+        counts: {
+          members: sheetsData.members.length,
+          meetings: sheetsData.meetings.length,
+          trainingSessions: sheetsData.trainingSessions.length
+        },
+        sample: {
+          member: sheetsData.members[0] || null,
+          meeting: sheetsData.meetings[0] || null,
+          trainingSession: sheetsData.trainingSessions[0] || null
+        }
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getGoogleSheetsConfigSummary()
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/test/google-calendar") {
+    try {
+      const payload = await listCalendarEvents();
+      sendJson(res, 200, {
+        ok: true,
+        calendarId: payload.calendarId,
+        count: payload.items.length,
+        sample: payload.items[0] || null
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/test/google-calendar-list") {
+    try {
+      const calendars = await listAccessibleCalendars();
+      sendJson(res, 200, {
+        ok: true,
+        calendars
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/sync/calendar-to-sheets") {
+    try {
+      const result = await syncCalendarToMeetingsSheet();
+      sendJson(res, 200, {
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/test/firestore") {
+    try {
+      if (!hasFirestoreConfig()) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Firestore is not configured.",
+          config: getFirestoreConfigSummary()
+        });
+        return;
+      }
+
+      const result = await testFirestoreConnection();
+      sendJson(res, 200, {
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getFirestoreConfigSummary()
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/preview/firestore") {
+    try {
+      const sheetsData = await loadGoogleSheetsData();
+      const preview = buildFirestoreDocuments(sheetsData);
+      sendJson(res, 200, {
+        ok: true,
+        config: getFirestoreConfigSummary(),
+        counts: {
+          members: preview.members.length,
+          meetings: preview.meetings.length,
+          trainingSessions: preview.trainingSessions.length
+        },
+        sample: {
+          member: preview.members[0] || null,
+          meeting: preview.meetings[0] || null,
+          trainingSession: preview.trainingSessions[0] || null
+        }
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getFirestoreConfigSummary()
+      });
+    }
+    return;
+  }
+
+  if (req.url === "/api/sync/firestore") {
+    try {
+      const result = await syncSheetsToFirestore();
+      sendJson(res, 200, {
+        ok: true,
+        config: getFirestoreConfigSummary(),
+        ...result
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message,
+        config: getFirestoreConfigSummary()
+      });
+    }
+    return;
+  }
+
   if (req.url !== "/api/dashboard") {
     sendJson(res, 404, { error: "Not found" });
     return;
