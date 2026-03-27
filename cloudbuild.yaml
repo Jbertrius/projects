@@ -1,0 +1,49 @@
+substitutions:
+  _REGION: europe-west9
+  _SERVICE: member-evolution-dashboard
+  _AR_REPO: cloud-run-apps
+  _FIRESTORE_DATABASE_ID: dmdapp
+  _GOOGLE_SPREADSHEET_ID: 1KlICiwTOKARm3crV-dRQbLguQy-nM59yhWN3ip_r19A
+  _GOOGLE_CALENDAR_ID: 55d96ffebeaba7bbe1a3264b40d7479625bed6b44a2a5a242b61ee2cee58e8b7@group.calendar.google.com
+  _GOOGLE_SHEET_MEMBERS_RANGE: members!A1:Z
+  _GOOGLE_SHEET_MEETINGS_RANGE: meetings!A1:Z
+  _GOOGLE_SHEET_TRAINING_RANGE: training!A1:Z
+
+steps:
+  # Build the container image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
+      - .
+
+  # Push the container image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}
+
+  # Deploy to Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-secrets=GOOGLE_SERVICE_ACCOUNT_JSON=service-account-key:latest,GEMINI_API_KEY=gemini-api-key:latest
+      - --set-env-vars=FIRESTORE_PROJECT_ID=$PROJECT_ID,FIRESTORE_DATABASE_ID=${_FIRESTORE_DATABASE_ID},GOOGLE_SPREADSHEET_ID=${_GOOGLE_SPREADSHEET_ID},GOOGLE_CALENDAR_ID=${_GOOGLE_CALENDAR_ID},GOOGLE_SHEET_MEMBERS_RANGE=${_GOOGLE_SHEET_MEMBERS_RANGE},GOOGLE_SHEET_MEETINGS_RANGE=${_GOOGLE_SHEET_MEETINGS_RANGE},GOOGLE_SHEET_TRAINING_RANGE=${_GOOGLE_SHEET_TRAINING_RANGE}
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -6,7 +6,6 @@ COPY package.json ./
 COPY server.js ./
 COPY public ./public
 COPY data ./data
-COPY docs ./docs
 COPY lib ./lib
 
 ENV PORT=8080
