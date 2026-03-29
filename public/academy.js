@@ -11,6 +11,9 @@ const academyState = {
     studentId: "all",
     status: "all"
   },
+  entry: {
+    isSaving: false
+  },
   isLoading: false
 };
 
@@ -27,7 +30,7 @@ function showFeedback(message, tone = "info") {
   window.clearTimeout(showFeedback.timeoutId);
   showFeedback.timeoutId = window.setTimeout(() => {
     feedback.hidden = true;
-  }, 4000);
+  }, 5000);
 }
 
 function parseDateValue(value) {
@@ -63,9 +66,7 @@ function getChartBaseOptions() {
       borderColor: "rgba(37, 137, 200, 0.12)",
       strokeDashArray: 4
     },
-    tooltip: {
-      theme: "light"
-    }
+    tooltip: { theme: "light" }
   };
 }
 
@@ -104,11 +105,16 @@ function renderEmptyChart(key, elementId, message) {
 
 function updateRefreshButton() {
   const button = document.getElementById("academy-refresh");
-  if (!button) {
-    return;
+  if (button) {
+    button.disabled = academyState.isLoading;
+    button.textContent = academyState.isLoading ? "Actualisation..." : "Actualiser";
   }
-  button.disabled = academyState.isLoading;
-  button.textContent = academyState.isLoading ? "Actualisation..." : "Actualiser";
+
+  const saveButton = document.getElementById("academy-save-entry");
+  if (saveButton) {
+    saveButton.disabled = academyState.entry.isSaving;
+    saveButton.textContent = academyState.entry.isSaving ? "Enregistrement..." : "Enregistrer la lecon";
+  }
 }
 
 function buildView() {
@@ -135,7 +141,7 @@ function buildView() {
   });
 
   const presenceByDate = new Map();
-  const statusCounts = { present: 0, absent: 0, late: 0, excused: 0 };
+  const statusCounts = { present: 0, absent: 0, late: 0, excused: 0, unknown: 0 };
   const studentStats = new Map();
 
   attendance.forEach((row) => {
@@ -152,7 +158,15 @@ function buildView() {
     statusCounts[row.status] = (statusCounts[row.status] || 0) + 1;
 
     const studentKey = String(row.student_id || "");
-    const current = studentStats.get(studentKey) || { present: 0, absent: 0, late: 0, excused: 0, scoreTotal: 0, scoreCount: 0 };
+    const current = studentStats.get(studentKey) || {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      unknown: 0,
+      scoreTotal: 0,
+      scoreCount: 0
+    };
     current[row.status] = (current[row.status] || 0) + 1;
     if (Number.isFinite(Number(row.evaluation_score)) && Number(row.evaluation_score) > 0) {
       current.scoreTotal += Number(row.evaluation_score);
@@ -163,7 +177,15 @@ function buildView() {
 
   const studentRows = students
     .map((student) => {
-      const stats = studentStats.get(String(student.id)) || { present: 0, absent: 0, late: 0, excused: 0, scoreTotal: 0, scoreCount: 0 };
+      const stats = studentStats.get(String(student.id)) || {
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0,
+        unknown: 0,
+        scoreTotal: 0,
+        scoreCount: 0
+      };
       const academyClass = classesById.get(String(student.class_id || student.class_name));
       const averageScore = stats.scoreCount ? Math.round((stats.scoreTotal / stats.scoreCount) * 10) / 10 : 0;
       return {
@@ -174,6 +196,7 @@ function buildView() {
         absent: stats.absent || 0,
         late: stats.late || 0,
         excused: stats.excused || 0,
+        unknown: stats.unknown || 0,
         averageScore
       };
     })
@@ -294,11 +317,7 @@ async function renderPresenceChart(items) {
     stroke: { curve: "smooth", width: 4 },
     fill: {
       type: "gradient",
-      gradient: {
-        opacityFrom: 0.28,
-        opacityTo: 0.04,
-        stops: [0, 90, 100]
-      }
+      gradient: { opacityFrom: 0.28, opacityTo: 0.04, stops: [0, 90, 100] }
     },
     series: [{ name: "Presences", data: items.map((item) => item.value) }],
     xaxis: { categories: items.map((item) => item.label) },
@@ -319,10 +338,7 @@ async function renderClassesChart(items) {
     plotOptions: { bar: { horizontal: true, borderRadius: 8, barHeight: "52%" } },
     colors: ["#2589c8"],
     xaxis: { categories: items.map((item) => item.name), max: 100 },
-    tooltip: {
-      theme: "light",
-      y: { formatter: (value) => `${value}% de presence` }
-    },
+    tooltip: { theme: "light", y: { formatter: (value) => `${value}% de presence` } },
     legend: { show: false }
   });
 }
@@ -332,7 +348,8 @@ async function renderStatusChart(statusCounts) {
     ["Present", statusCounts.present || 0],
     ["Absent", statusCounts.absent || 0],
     ["Retard", statusCounts.late || 0],
-    ["Excuse", statusCounts.excused || 0]
+    ["Excuse", statusCounts.excused || 0],
+    ["Inconnu", statusCounts.unknown || 0]
   ].filter(([, value]) => value > 0);
 
   if (!labels.length) {
@@ -345,7 +362,7 @@ async function renderStatusChart(statusCounts) {
     chart: { ...getChartBaseOptions().chart, type: "donut", height: 320 },
     labels: labels.map(([label]) => label),
     series: labels.map(([, value]) => value),
-    colors: ["#0e7d3a", "#f5c32c", "#51b7ea", "#8ab8d0"],
+    colors: ["#0e7d3a", "#f5c32c", "#51b7ea", "#8ab8d0", "#95a7bd"],
     legend: { position: "bottom" },
     plotOptions: {
       pie: {
@@ -427,6 +444,179 @@ async function loadAcademy() {
   }
 }
 
+function normalizeIsoDate(rawValue) {
+  const value = String(rawValue || "").trim();
+  if (!value) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  const dmyMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return dmyMatch ? `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}` : "";
+}
+
+function parseStudentLine(line) {
+  const markerFirst = line.match(/^(✅|👍|✖️|✖|❌|X)\s*(\d*)\s*[-.\s]\s*(.*)$/u);
+  const numberFirst = line.match(/^(\d+)\s*[-. ]\s*(.*)$/u);
+
+  let name = "";
+  let status = "unknown";
+
+  if (markerFirst) {
+    name = markerFirst[3].trim();
+    status = ["✅", "👍"].includes(markerFirst[1]) ? "present" : "absent";
+  } else if (numberFirst) {
+    const rest = numberFirst[2].trim();
+    const inner = rest.match(/^(✅|👍|✖️|✖|❌)\s*(.*)$/u);
+    if (inner) {
+      status = ["✅", "👍"].includes(inner[1]) ? "present" : "absent";
+      name = inner[2].trim();
+    } else {
+      name = rest;
+    }
+  }
+
+  if (!name) {
+    return null;
+  }
+
+  const reasonMatch = name.match(/\s*\(([^)]+)\)\s*$/);
+  return {
+    name: reasonMatch ? name.slice(0, reasonMatch.index).trim() : name,
+    status
+  };
+}
+
+function validateEntry(rawText, rawDate) {
+  const lines = String(rawText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const issues = [];
+  const parsed = {
+    classCode: "",
+    instructor: "",
+    lessonTitle: "",
+    lessonDate: normalizeIsoDate(rawDate),
+    registeredCount: 0,
+    unregisteredCount: 0
+  };
+
+  let inNonRegistered = false;
+  let hasStudentLine = false;
+
+  for (const line of lines) {
+    if (line.includes("🔰")) {
+      const parts = line.split(" - ");
+      if (parts.length >= 3) {
+        parsed.classCode = parts[1].trim();
+      }
+      inNonRegistered = false;
+      continue;
+    }
+
+    if (line.includes("👩")) {
+      parsed.instructor = line.replace(/^[^\w]+/u, "").trim();
+      inNonRegistered = false;
+      continue;
+    }
+
+    if (line.includes("📝")) {
+      const titleMatch = line.match(/:\s*(.+)$/);
+      if (titleMatch) {
+        parsed.lessonTitle = titleMatch[1].trim();
+      }
+      inNonRegistered = false;
+      continue;
+    }
+
+    const orgDate = line.match(/📆(\d{6})/u);
+    if (orgDate) {
+      const code = orgDate[1];
+      parsed.lessonDate = `${1983 + Number(code.slice(0, 2))}-${code.slice(2, 4)}-${code.slice(4, 6)}`;
+      continue;
+    }
+
+    if (line.includes("▫️") && line.toLowerCase().includes("non")) {
+      inNonRegistered = true;
+      continue;
+    }
+
+    if (/^total\s*:/i.test(line)) {
+      continue;
+    }
+
+    const student = parseStudentLine(line);
+    if (student) {
+      hasStudentLine = true;
+      if (inNonRegistered) {
+        parsed.unregisteredCount += 1;
+      } else {
+        parsed.registeredCount += 1;
+      }
+    }
+  }
+
+  if (!parsed.classCode) {
+    issues.push("La ligne de classe est manquante.");
+  }
+  if (!parsed.instructor) {
+    issues.push("La ligne instructeur est manquante.");
+  }
+  if (!parsed.lessonTitle) {
+    issues.push("Le titre de la lecon est manquant.");
+  }
+  if (!hasStudentLine || parsed.registeredCount === 0) {
+    issues.push("Ajoute au moins un etudiant inscrit avec son statut.");
+  }
+
+  if (!parsed.lessonDate) {
+    parsed.lessonDate = new Date().toISOString().slice(0, 10);
+  }
+
+  return { ok: issues.length === 0, issues, parsed };
+}
+
+function renderEntryValidation(validation) {
+  const element = document.getElementById("academy-entry-validation");
+  if (!element) {
+    return;
+  }
+
+  if (!validation) {
+    element.innerHTML = "";
+    return;
+  }
+
+  const summary = validation.ok
+    ? `<div class="academy-validation-summary is-success">Bloc valide: ${validation.parsed.registeredCount} inscrit(s), ${validation.parsed.unregisteredCount} non inscrit(s), classe ${validation.parsed.classCode}.</div>`
+    : `<div class="academy-validation-summary is-error">Le bloc doit etre corrige avant enregistrement.</div>`;
+
+  const details = validation.ok
+    ? [
+        `Instructeur: ${validation.parsed.instructor || "-"}`,
+        `Lecon: ${validation.parsed.lessonTitle || "-"}`,
+        `Date: ${validation.parsed.lessonDate || "-"}`
+      ]
+    : validation.issues;
+
+  element.innerHTML = `
+    ${summary}
+    <ul class="academy-validation-list">
+      ${details.map((item) => `<li>${item}</li>`).join("")}
+    </ul>
+  `;
+}
+
+function getEntryPayload() {
+  return {
+    rawText: document.getElementById("academy-entry-text")?.value || "",
+    lessonDate: document.getElementById("academy-entry-date")?.value || ""
+  };
+}
+
 function attachNavigationHandlers() {
   const navItems = Array.from(document.querySelectorAll(".nav-item[data-target]"));
   navItems.forEach((button) => {
@@ -472,9 +662,68 @@ function attachFilterHandlers() {
   });
 }
 
+function attachEntryHandlers() {
+  const validate = () => {
+    const payload = getEntryPayload();
+    const result = validateEntry(payload.rawText, payload.lessonDate);
+    renderEntryValidation(result);
+    return result;
+  };
+
+  document.getElementById("academy-entry-text")?.addEventListener("input", validate);
+  document.getElementById("academy-entry-date")?.addEventListener("change", validate);
+
+  document.getElementById("academy-validate-entry")?.addEventListener("click", () => {
+    const result = validate();
+    showFeedback(result.ok ? "Bloc valide. Tu peux enregistrer la lecon." : "Bloc incomplet ou invalide.", result.ok ? "success" : "warning");
+  });
+
+  document.getElementById("academy-clear-entry")?.addEventListener("click", () => {
+    document.getElementById("academy-entry-text").value = "";
+    document.getElementById("academy-entry-date").value = "";
+    renderEntryValidation(null);
+  });
+
+  document.getElementById("academy-save-entry")?.addEventListener("click", async () => {
+    const validation = validate();
+    if (!validation.ok) {
+      showFeedback("Corrige les elements signales avant l'enregistrement.", "warning");
+      return;
+    }
+
+    academyState.entry.isSaving = true;
+    updateRefreshButton();
+
+    try {
+      const response = await fetch("/api/academy/record-lesson", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(getEntryPayload())
+      });
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false) {
+        const issues = payload.issues?.length ? ` ${payload.issues.join(" ")}` : "";
+        throw new Error((payload.error || "Impossible d'enregistrer la lecon.") + issues);
+      }
+
+      showFeedback(`Lecon enregistree pour ${payload.result.classCode} le ${payload.result.lessonDate}.`, "success");
+      document.getElementById("academy-entry-text").value = "";
+      document.getElementById("academy-entry-date").value = "";
+      renderEntryValidation(null);
+      await loadAcademy();
+    } catch (error) {
+      showFeedback(error.message, "error");
+    } finally {
+      academyState.entry.isSaving = false;
+      updateRefreshButton();
+    }
+  });
+}
+
 async function boot() {
   attachNavigationHandlers();
   attachFilterHandlers();
+  attachEntryHandlers();
   await loadAcademy();
 }
 

@@ -848,6 +848,74 @@ th {
   padding: 24px 12px;
 }
 
+.academy-entry-card {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.academy-entry-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px);
+  gap: 1rem;
+}
+
+.academy-textarea-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.academy-entry-textarea {
+  width: 100%;
+  min-height: 17rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 1.4rem;
+  border: 1px solid rgba(37, 137, 200, 0.18);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text-strong);
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.academy-entry-textarea:focus {
+  outline: none;
+  border-color: rgba(14, 125, 58, 0.45);
+  box-shadow: 0 0 0 4px rgba(14, 125, 58, 0.08);
+}
+
+.academy-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+
+.academy-entry-validation {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.academy-validation-summary {
+  padding: 0.95rem 1.1rem;
+  border-radius: 1rem;
+  font-weight: 600;
+}
+
+.academy-validation-summary.is-success {
+  background: rgba(14, 125, 58, 0.08);
+  color: #0d6b33;
+}
+
+.academy-validation-summary.is-error {
+  background: rgba(202, 79, 79, 0.08);
+  color: #a33434;
+}
+
+.academy-validation-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+
 @media (max-width: 1200px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -916,6 +984,12 @@ th {
   .hero-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .academy-entry-grid,
+  .academy-entry-actions {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 
   .trend-chart {

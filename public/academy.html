@@ -84,6 +84,41 @@
             </div>
           </section>
 
+          <section class="card academy-entry-card" id="academy-entry">
+            <div class="card-head">
+              <div>
+                <p class="section-label">Nouvelle lecon</p>
+                <h3>Saisir une presence de classe</h3>
+              </div>
+              <p class="muted">Colle le bloc du bot ou saisis-le dans le meme format.</p>
+            </div>
+
+            <div class="academy-entry-grid">
+              <div class="filter-group">
+                <label class="filter-label" for="academy-entry-date">Date optionnelle</label>
+                <input id="academy-entry-date" class="filter-control" type="date" />
+              </div>
+            </div>
+
+            <div class="filter-group academy-textarea-group">
+              <label class="filter-label" for="academy-entry-text">Bloc de presence</label>
+              <textarea
+                id="academy-entry-text"
+                class="academy-entry-textarea"
+                rows="12"
+                placeholder="🔰Classe Ouverte - 164-2C - Eglise...\n👩‍🏫Pst Fatoumata AMANKOU\n📝Titre de la leçon : Introduction à la foi\n📆430317\n\n👍1- Maxime AMANKOU\nX 2- Blandine LIDA (malade)\n▫️Non registered\n👍- Kelly NKATIAH"
+              ></textarea>
+            </div>
+
+            <div class="academy-entry-validation" id="academy-entry-validation"></div>
+
+            <div class="hero-actions academy-entry-actions">
+              <button class="primary-action compact-action" id="academy-validate-entry" type="button">Verifier</button>
+              <button class="secondary-action compact-action" id="academy-save-entry" type="button">Enregistrer la lecon</button>
+              <button class="secondary-action compact-action" id="academy-clear-entry" type="button">Vider</button>
+            </div>
+          </section>
+
           <section class="kpi-grid" id="academy-kpis"></section>
 
           <section class="feature-grid feature-grid-wide" id="academy-trajectory">

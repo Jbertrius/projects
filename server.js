@@ -10,15 +10,18 @@ const {
 } = require("./lib/sheets");
 const {
   buildFirestoreDocuments,
+  createAcademyLessonRecord,
   getFirestoreConfigSummary,
   hasFirestoreConfig,
   loadAcademyDataFromFirestore,
   loadDashboardDataFromFirestore,
   loadPastorsFromFirestore,
+  syncAcademySheetToFirestore,
   syncSheetsToFirestore,
   testFirestoreConnection,
   updatePastorInFirestore
 } = require("./lib/firestore");
+const { normalizeIsoDate, parseAttendanceBlock, parseStudentLine } = require("./lib/academy-parser");
 const {
   listAccessibleCalendars,
   listCalendarEvents,
@@ -478,6 +481,76 @@ async function handleApi(req, res) {
         ok: false,
         error: error.message,
         config: getFirestoreConfigSummary()
+      });
+    }
+    return;
+  }
+
+  if (pathname === "/api/academy/record-lesson" && req.method === "POST") {
+    try {
+      if (!hasFirestoreConfig()) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "La base academie n'est pas configuree."
+        });
+        return;
+      }
+
+      const payload = await readJsonBody(req);
+      const rawText = String(payload.rawText || "").trim();
+      const lessonDate = normalizeIsoDate(payload.lessonDate || "");
+      const parsed = parseAttendanceBlock(rawText, lessonDate);
+
+      const issues = [];
+      if (!parsed.class_code) {
+        issues.push("La ligne de classe est requise.");
+      }
+      if (!parsed.lesson_title) {
+        issues.push("Le titre de la lecon est requis.");
+      }
+      if (!parsed.teacher_name) {
+        issues.push("Le nom de l'instructeur est requis.");
+      }
+      if (!parsed.registered_students.length) {
+        issues.push("Au moins un etudiant inscrit doit etre detecte.");
+      }
+
+      if (issues.length) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "Validation impossible.",
+          issues,
+          parsed
+        });
+        return;
+      }
+
+      const result = await createAcademyLessonRecord(parsed);
+      sendJson(res, 200, {
+        ok: true,
+        parsed,
+        result
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (pathname === "/api/sync/academy-sheet") {
+    try {
+      const result = await syncAcademySheetToFirestore();
+      sendJson(res, 200, {
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
       });
     }
     return;
