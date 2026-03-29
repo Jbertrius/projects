@@ -12,6 +12,7 @@ const {
   buildFirestoreDocuments,
   getFirestoreConfigSummary,
   hasFirestoreConfig,
+  loadAcademyDataFromFirestore,
   loadDashboardDataFromFirestore,
   loadPastorsFromFirestore,
   syncSheetsToFirestore,
@@ -100,15 +101,133 @@ function readJsonBody(req) {
   });
 }
 
+function normalizeLookupValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function splitList(value, separators = /[|,;]/) {
+  return String(value || "")
+    .split(separators)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildPastorMemberContext(pastors, meetings, members) {
+  const pastorsById = new Map();
+  const pastorsByName = new Map();
+  const officialMembers = new Map();
+
+  (members || []).forEach((member) => {
+    const canonicalName = String(member.name || "").trim();
+    if (!canonicalName) {
+      return;
+    }
+
+    const lookupValues = new Set([
+      canonicalName,
+      ...splitList(member.aliases, /[|;,]/)
+    ]);
+
+    lookupValues.forEach((value) => {
+      const normalized = normalizeLookupValue(value);
+      if (normalized) {
+        officialMembers.set(normalized, canonicalName);
+      }
+    });
+  });
+
+  pastors.forEach((pastor) => {
+    const pastorId = String(pastor.id || "").trim();
+    const lookupValues = new Set([
+      pastor.name,
+      ...splitList(pastor.aliases, /[|;,]/),
+      ...splitList(pastor.source_variants, /\|/)
+    ]);
+
+    if (pastorId) {
+      pastorsById.set(pastorId, pastor);
+    }
+
+    lookupValues.forEach((value) => {
+      const normalized = normalizeLookupValue(value);
+      if (normalized) {
+        pastorsByName.set(normalized, pastor);
+      }
+    });
+  });
+
+  const memberOptions = new Set();
+  const membersByPastorId = new Map();
+
+  meetings.forEach((meeting) => {
+    const meetingMembers = splitList(
+      meeting.member_names_canonical || meeting.member_name || "",
+      /[,;|]/
+    )
+      .map((name) => {
+        const trimmed = name.trim();
+        return officialMembers.get(normalizeLookupValue(trimmed)) || "";
+      })
+      .filter(Boolean);
+    const uniqueMeetingMembers = Array.from(new Set(meetingMembers));
+
+    if (!uniqueMeetingMembers.length) {
+      return;
+    }
+
+    let pastor = null;
+    const pastorId = String(meeting.pastor_id || "").trim();
+    if (pastorId && pastorsById.has(pastorId)) {
+      pastor = pastorsById.get(pastorId);
+    }
+
+    if (!pastor) {
+      const pastorName = normalizeLookupValue(meeting.pastor_name || meeting.pastor_name_raw || "");
+      pastor = pastorsByName.get(pastorName) || null;
+    }
+
+    if (!pastor) {
+      return;
+    }
+
+    const bucket = membersByPastorId.get(pastor.id) || new Set();
+    uniqueMeetingMembers.forEach((memberName) => {
+      bucket.add(memberName);
+      memberOptions.add(memberName);
+    });
+    membersByPastorId.set(pastor.id, bucket);
+  });
+
+  const enrichedPastors = pastors.map((pastor) => ({
+    ...pastor,
+    member_names: Array.from(membersByPastorId.get(pastor.id) || []).sort((a, b) => a.localeCompare(b, "fr"))
+  }));
+
+  return {
+    pastors: enrichedPastors,
+    memberOptions: Array.from(memberOptions).sort((a, b) => a.localeCompare(b, "fr"))
+  };
+}
+
 async function handleApi(req, res) {
-  if (req.url === "/api/pastors" && req.method === "GET") {
+  const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
+
+  if (pathname === "/api/pastors" && req.method === "GET") {
     try {
       const source = hasFirestoreConfig() ? "firestore" : "sheets";
-      const pastors = hasFirestoreConfig() ? await loadPastorsFromFirestore() : await loadPastorsSheet();
+      const [pastors, dataSource] = hasFirestoreConfig()
+        ? await Promise.all([loadPastorsFromFirestore(), loadDashboardDataFromFirestore()])
+        : await Promise.all([loadPastorsSheet(), loadGoogleSheetsData()]);
+      const context = buildPastorMemberContext(pastors, dataSource.meetings || [], dataSource.members || []);
       sendJson(res, 200, {
         ok: true,
         source,
-        pastors
+        pastors: context.pastors,
+        memberOptions: context.memberOptions
       });
     } catch (error) {
       sendJson(res, 500, {
@@ -119,7 +238,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/pastors/update" && req.method === "POST") {
+  if (pathname === "/api/pastors/update" && req.method === "POST") {
     try {
       const payload = await readJsonBody(req);
       const pastor = hasFirestoreConfig() ? await updatePastorInFirestore(payload) : await updatePastorRecord(payload);
@@ -137,7 +256,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/connection-status") {
+  if (pathname === "/api/connection-status") {
     sendJson(res, 200, {
       googleSheetsConfigured: hasGoogleSheetsConfig(),
       firestoreConfigured: hasFirestoreConfig(),
@@ -149,7 +268,39 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/test/google-sheets") {
+  if (pathname === "/api/academy" && req.method === "GET") {
+    try {
+      if (!hasFirestoreConfig()) {
+        sendJson(res, 200, {
+          ok: true,
+          classes: [],
+          students: [],
+          attendance: [],
+          meta: {
+            refreshLabel: "Aucune base academie connectee"
+          }
+        });
+        return;
+      }
+
+      const academyData = await loadAcademyDataFromFirestore();
+      sendJson(res, 200, {
+        ok: true,
+        ...academyData,
+        meta: {
+          refreshLabel: "Donnees academie synchronisees"
+        }
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (pathname === "/api/test/google-sheets") {
     try {
       if (!hasGoogleSheetsConfig()) {
         sendJson(res, 400, {
@@ -185,7 +336,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/test/google-calendar") {
+  if (pathname === "/api/test/google-calendar") {
     try {
       const payload = await listCalendarEvents();
       sendJson(res, 200, {
@@ -203,7 +354,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/test/google-calendar-list") {
+  if (pathname === "/api/test/google-calendar-list") {
     try {
       const calendars = await listAccessibleCalendars();
       sendJson(res, 200, {
@@ -219,7 +370,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/sync/calendar-to-sheets") {
+  if (pathname === "/api/sync/calendar-to-sheets") {
     try {
       const result = await syncCalendarToMeetingsSheet();
       sendJson(res, 200, {
@@ -235,7 +386,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/sync/full" && req.method === "GET") {
+  if (pathname === "/api/sync/full" && req.method === "GET") {
     let calendarResult = null;
 
     try {
@@ -260,7 +411,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/test/firestore") {
+  if (pathname === "/api/test/firestore") {
     try {
       if (!hasFirestoreConfig()) {
         sendJson(res, 400, {
@@ -286,7 +437,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/preview/firestore") {
+  if (pathname === "/api/preview/firestore") {
     try {
       const sheetsData = await loadGoogleSheetsData();
       const preview = await buildFirestoreDocuments(sheetsData);
@@ -314,7 +465,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url === "/api/sync/firestore") {
+  if (pathname === "/api/sync/firestore") {
     try {
       const result = await syncSheetsToFirestore();
       sendJson(res, 200, {
@@ -332,7 +483,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (req.url !== "/api/dashboard") {
+  if (pathname !== "/api/dashboard") {
     sendJson(res, 404, { error: "Not found" });
     return;
   }

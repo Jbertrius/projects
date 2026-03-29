@@ -696,8 +696,8 @@ async function runAction(action) {
       url: '/api/sync/full',
       message: 'Synchronisation complete terminee.'
     },
-    'sync-calendar': { url: '/api/sync/calendar-to-sheets', message: 'Synchronisation Calendar terminee.' },
-    'sync-firestore': { url: '/api/sync/firestore', message: 'Synchronisation Firestore terminee.' }
+    'sync-calendar': { url: '/api/sync/calendar-to-sheets', message: 'Import des rencontres termine.' },
+    'sync-firestore': { url: '/api/sync/firestore', message: 'Mise a jour de la base terminee.' }
   };
 
   const config = routes[action];
@@ -718,7 +718,7 @@ async function runAction(action) {
     if (action === 'sync-full' && payload.steps) {
       const importedEvents = payload.steps.calendarToSheets?.importedEvents ?? 0;
       const syncedMeetings = payload.steps.sheetsToFirestore?.meetings ?? 0;
-      showFeedback(`${config.message} ${importedEvents} evenements importes, ${syncedMeetings} meetings pushes vers Firestore.`, 'success');
+      showFeedback(`${config.message} ${importedEvents} rencontres importees, ${syncedMeetings} rencontres consolidees.`, 'success');
     } else {
       showFeedback(config.message, 'success');
     }

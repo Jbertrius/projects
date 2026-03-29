@@ -321,8 +321,10 @@ h1 {
 
 .hero-actions {
   display: flex;
+  flex-wrap: nowrap;
   gap: 12px;
-  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 6px;
 }
 
 button {
@@ -348,6 +350,19 @@ button:disabled {
   background: linear-gradient(135deg, var(--green), #0b9442);
   color: #f9fffb;
   box-shadow: 0 16px 28px rgba(14, 125, 58, 0.22);
+}
+
+.hero-actions button {
+  min-height: 54px;
+  min-width: 0;
+  flex: 1 1 0;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  text-align: center;
+  line-height: 1.2;
+  padding: 14px 18px;
+  white-space: nowrap;
 }
 
 .secondary-action {
@@ -380,7 +395,7 @@ button:disabled {
 
 .filters-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
 }
 
@@ -401,6 +416,12 @@ button:disabled {
   color: var(--ink);
   padding: 14px 16px;
   font: inherit;
+}
+
+.filter-control[readonly] {
+  background: rgba(240, 247, 252, 0.92);
+  color: var(--muted);
+  cursor: default;
 }
 
 .kpi-grid,
@@ -885,12 +906,16 @@ th {
   .top-bar-actions,
   .brand-tags,
   .hero-metrics,
-  .hero-actions,
   .hero-panel-grid,
   .activity-meta,
   .progress-meta,
   .status-meta {
     display: grid;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .trend-chart {

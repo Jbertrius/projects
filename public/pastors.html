@@ -26,6 +26,7 @@
 
         <nav class="sidebar-nav" aria-label="Navigation principale">
           <a class="nav-item nav-link" href="/">Retour dashboard</a>
+          <a class="nav-item nav-link" href="/academy.html">Suivi academie</a>
           <button class="nav-item is-active" type="button" data-target="pastors-top">Base pasteurs</button>
           <button class="nav-item" type="button" data-target="review-queue">A revoir</button>
           <button class="nav-item" type="button" data-target="review-form">Edition</button>
@@ -74,6 +75,12 @@
                 <option value="all">Tous</option>
               </select>
             </div>
+            <div class="filter-group">
+              <label class="filter-label" for="member-filter">Membre</label>
+              <select id="member-filter" class="filter-control">
+                <option value="all">Tous</option>
+              </select>
+            </div>
             <div class="filter-group filter-actions">
               <button class="secondary-action compact-action" id="reset-pastor-filters" type="button">Reinitialiser</button>
             </div>
@@ -105,8 +112,8 @@
 
                 <div class="review-grid">
                   <label class="form-field">
-                    <span>Nom canonique</span>
-                    <input id="pastor-name" class="filter-control" type="text" />
+                    <span>Nom complet</span>
+                    <input id="pastor-name" class="filter-control" type="text" readonly />
                   </label>
                   <label class="form-field">
                     <span>Titre</span>

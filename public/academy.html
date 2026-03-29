@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Suivi academie</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Suivi academie</p>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Navigation principale">
+          <a class="nav-item nav-link" href="/">Retour dashboard</a>
+          <button class="nav-item is-active" type="button" data-target="academy-top">Vue academie</button>
+          <button class="nav-item" type="button" data-target="academy-trajectory">Presence</button>
+          <button class="nav-item" type="button" data-target="academy-students">Etudiants</button>
+          <button class="nav-item" type="button" data-target="academy-evaluation">Evaluations</button>
+        </nav>
+
+        <section class="sidebar-card">
+          <p class="section-label">Pilotage</p>
+          <h2 class="sidebar-card-title">Classes, presence, progression</h2>
+          <ul class="sidebar-points">
+            <li>Suivre l'assiduite par classe</li>
+            <li>Voir les etudiants a relancer</li>
+            <li>Mesurer l'evolution generale</li>
+          </ul>
+        </section>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="top-bar" id="academy-top">
+            <div>
+              <p class="section-label">Centre</p>
+              <h2>Suivi des presences academie</h2>
+            </div>
+            <div class="top-bar-actions">
+              <div class="sync-pill" id="academy-refresh-label">Chargement...</div>
+              <button class="secondary-action compact-action" id="academy-refresh" type="button">Actualiser</button>
+            </div>
+          </section>
+
+          <section class="filters-bar">
+            <div class="filter-group">
+              <label class="filter-label" for="academy-class-filter">Classe</label>
+              <select id="academy-class-filter" class="filter-control">
+                <option value="all">Toutes les classes</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label" for="academy-student-filter">Etudiant</label>
+              <select id="academy-student-filter" class="filter-control">
+                <option value="all">Tous les etudiants</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label" for="academy-status-filter">Presence</label>
+              <select id="academy-status-filter" class="filter-control">
+                <option value="all">Tous</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Retard</option>
+                <option value="excused">Excuse</option>
+              </select>
+            </div>
+            <div class="filter-group filter-actions">
+              <button class="secondary-action compact-action" id="academy-reset-filters" type="button">Reinitialiser</button>
+            </div>
+          </section>
+
+          <section class="kpi-grid" id="academy-kpis"></section>
+
+          <section class="feature-grid feature-grid-wide" id="academy-trajectory">
+            <article class="card chart-card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Presence</p>
+                  <h3>Evolution des presences</h3>
+                </div>
+                <p class="muted">Suivi des seances remontees dans le temps</p>
+              </div>
+              <div id="academy-presence-chart" class="trend-chart"></div>
+            </article>
+
+            <article class="card chart-card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Classes</p>
+                  <h3>Taux de presence par classe</h3>
+                </div>
+                <p class="muted">Comparaison rapide des groupes</p>
+              </div>
+              <div id="academy-classes-chart" class="activity-chart"></div>
+            </article>
+          </section>
+
+          <section class="feature-grid" id="academy-students">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Etudiants</p>
+                  <h3>Liste de suivi</h3>
+                </div>
+                <p class="muted">Presence, absences, evaluation moyenne</p>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Etudiant</th>
+                      <th>Classe</th>
+                      <th>Instructeur</th>
+                      <th>Presence</th>
+                      <th>Absences</th>
+                      <th>Evaluation</th>
+                    </tr>
+                  </thead>
+                  <tbody id="academy-students-table"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="card insight-card" id="academy-evaluation">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Evaluations</p>
+                  <h3>Repartition des statuts</h3>
+                </div>
+                <p class="muted">Vue synthetique des assiduites</p>
+              </div>
+              <div id="academy-status-chart" class="status-chart"></div>
+            </article>
+          </section>
+        </main>
+
+        <div id="app-feedback" class="app-feedback" hidden></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="/academy.js" defer></script>
+  </body>
+</html>

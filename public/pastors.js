@@ -2,12 +2,14 @@ const pastorState = {
   pastors: [],
   filtered: [],
   selectedId: "",
-  canonicalTouchedManually: false,
   source: "sheets",
+  memberOptions: [],
+  isLoading: false,
   filters: {
     search: "",
     review: "all",
-    title: "all"
+    title: "all",
+    member: "all"
   }
 };
 
@@ -43,10 +45,21 @@ function buildCanonicalSuggestion(firstName, lastName) {
   return [String(firstName || "").trim(), String(lastName || "").trim()].filter(Boolean).join(" ").trim();
 }
 
+function updateRefreshButton() {
+  const refreshButton = document.getElementById("refresh-pastors");
+  if (!refreshButton) {
+    return;
+  }
+
+  refreshButton.disabled = pastorState.isLoading;
+  refreshButton.textContent = pastorState.isLoading ? "Actualisation..." : "Actualiser";
+}
+
 function applyFilters() {
   const search = normalizeText(pastorState.filters.search);
   const review = pastorState.filters.review;
   const title = normalizeText(pastorState.filters.title);
+  const member = normalizeText(pastorState.filters.member);
 
   pastorState.filtered = pastorState.pastors.filter((pastor) => {
     const haystack = normalizeText(
@@ -62,6 +75,7 @@ function applyFilters() {
         pastor.notes
       ].join(" ")
     );
+    const pastorMembers = Array.isArray(pastor.member_names) ? pastor.member_names.map(normalizeText) : [];
 
     const searchOk = !search || haystack.includes(search);
     const reviewOk =
@@ -69,7 +83,8 @@ function applyFilters() {
       (review === "review" && String(pastor.needs_review).toLowerCase() === "true") ||
       (review === "clean" && String(pastor.needs_review).toLowerCase() !== "true");
     const titleOk = title === "all" || normalizeText(pastor.title) === title;
-    return searchOk && reviewOk && titleOk;
+    const memberOk = member === "all" || pastorMembers.includes(member);
+    return searchOk && reviewOk && titleOk && memberOk;
   });
 }
 
@@ -79,7 +94,7 @@ function renderPastorList() {
   const count = document.getElementById("pastors-count");
 
   summary.textContent = `${pastorState.filtered.length} fiches visibles`;
-  count.textContent = `${pastorState.pastors.length} pasteurs â€¢ ${pastorState.source}`;
+  count.textContent = `${pastorState.pastors.length} pasteurs detectes`;
 
   if (!pastorState.filtered.length) {
     container.innerHTML = `<div class="empty-state">Aucune fiche ne correspond aux filtres actuels.</div>`;
@@ -94,7 +109,7 @@ function renderPastorList() {
         <button class="pastor-row ${isActive ? "is-active" : ""}" type="button" data-pastor-id="${pastor.id}">
           <div class="pastor-row-main">
             <strong>${pastor.name || "Nom a corriger"}</strong>
-            <span>${pastor.title || "Sans titre"}${pastor.city ? ` â€¢ ${pastor.city}` : ""}</span>
+            <span>${pastor.title || "Sans titre"}${pastor.city ? ` • ${pastor.city}` : ""}</span>
           </div>
           <div class="pastor-row-side">
             <span>${pastor.meeting_count || 0} rencontres</span>
@@ -131,9 +146,9 @@ function renderEditor() {
 
   title.textContent = pastor.name || "Fiche a corriger";
   status.textContent = String(pastor.needs_review).toLowerCase() === "true" ? "A revoir" : "Valide";
-  pastorState.canonicalTouchedManually = false;
   document.getElementById("pastor-id").value = pastor.id || "";
-  document.getElementById("pastor-name").value = pastor.name || "";
+  document.getElementById("pastor-name").value =
+    buildCanonicalSuggestion(pastor.first_name, pastor.last_name) || pastor.name || "";
   document.getElementById("pastor-first-name").value = pastor.first_name || "";
   document.getElementById("pastor-last-name").value = pastor.last_name || "";
   document.getElementById("pastor-title").value = pastor.title || "";
@@ -146,7 +161,7 @@ function renderEditor() {
   document.getElementById("pastor-needs-review").checked = String(pastor.needs_review).toLowerCase() === "true";
   document.getElementById("pastor-source-variants").textContent = pastor.source_variants || "-";
   document.getElementById("pastor-history").textContent =
-    `${pastor.meeting_count || 0} rencontres â€¢ ${pastor.first_meeting_date || "-"} -> ${pastor.last_meeting_date || "-"}`;
+    `${pastor.meeting_count || 0} rencontres • ${pastor.first_meeting_date || "-"} -> ${pastor.last_meeting_date || "-"}`;
 }
 
 function populateTitleFilter() {
@@ -159,26 +174,49 @@ function populateTitleFilter() {
   titleFilter.value = pastorState.filters.title;
 }
 
+function populateMemberFilter() {
+  const memberFilter = document.getElementById("member-filter");
+  if (!memberFilter) {
+    return;
+  }
+
+  memberFilter.innerHTML = [
+    `<option value="all">Tous</option>`,
+    ...pastorState.memberOptions.map((memberName) => `<option value="${memberName}">${memberName}</option>`)
+  ].join("");
+  memberFilter.value = pastorState.filters.member;
+}
+
 async function loadPastors() {
-  const response = await fetch("/api/pastors");
-  const payload = await response.json();
-  if (!response.ok || payload.ok === false) {
-    throw new Error(payload.error || "Impossible de charger les pasteurs.");
-  }
+  pastorState.isLoading = true;
+  updateRefreshButton();
 
-  pastorState.pastors = payload.pastors || [];
-  pastorState.source = payload.source || "sheets";
-  if (!pastorState.selectedId && pastorState.pastors.length) {
-    pastorState.selectedId = pastorState.pastors[0].id;
-  }
-  if (!pastorState.pastors.some((pastor) => pastor.id === pastorState.selectedId)) {
-    pastorState.selectedId = pastorState.pastors[0]?.id || "";
-  }
+  try {
+    const response = await fetch(`/api/pastors?ts=${Date.now()}`, { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || payload.ok === false) {
+      throw new Error(payload.error || "Impossible de charger les pasteurs.");
+    }
 
-  populateTitleFilter();
-  applyFilters();
-  renderPastorList();
-  renderEditor();
+    pastorState.pastors = payload.pastors || [];
+    pastorState.source = payload.source || "sheets";
+    pastorState.memberOptions = payload.memberOptions || [];
+    if (!pastorState.selectedId && pastorState.pastors.length) {
+      pastorState.selectedId = pastorState.pastors[0].id;
+    }
+    if (!pastorState.pastors.some((pastor) => pastor.id === pastorState.selectedId)) {
+      pastorState.selectedId = pastorState.pastors[0]?.id || "";
+    }
+
+    populateTitleFilter();
+    populateMemberFilter();
+    applyFilters();
+    renderPastorList();
+    renderEditor();
+  } finally {
+    pastorState.isLoading = false;
+    updateRefreshButton();
+  }
 }
 
 async function savePastor(event) {
@@ -189,9 +227,15 @@ async function savePastor(event) {
     return;
   }
 
+  const canonicalName = buildCanonicalSuggestion(
+    document.getElementById("pastor-first-name").value,
+    document.getElementById("pastor-last-name").value
+  );
+  document.getElementById("pastor-name").value = canonicalName;
+
   const payload = {
     id: pastorId,
-    name: document.getElementById("pastor-name").value,
+    name: canonicalName,
     first_name: document.getElementById("pastor-first-name").value,
     last_name: document.getElementById("pastor-last-name").value,
     title: document.getElementById("pastor-title").value,
@@ -239,17 +283,29 @@ function attachFilters() {
     renderPastorList();
   });
 
-  document.getElementById("reset-pastor-filters")?.addEventListener("click", () => {
-    pastorState.filters = { search: "", review: "all", title: "all" };
-    document.getElementById("pastor-search").value = "";
-    document.getElementById("review-filter").value = "all";
-    populateTitleFilter();
+  document.getElementById("member-filter")?.addEventListener("change", (event) => {
+    pastorState.filters.member = event.target.value;
     applyFilters();
     renderPastorList();
   });
 
-  document.getElementById("refresh-pastors")?.addEventListener("click", () => {
-    loadPastors().catch((error) => showFeedback(error.message, "error"));
+  document.getElementById("reset-pastor-filters")?.addEventListener("click", () => {
+    pastorState.filters = { search: "", review: "all", title: "all", member: "all" };
+    document.getElementById("pastor-search").value = "";
+    document.getElementById("review-filter").value = "all";
+    populateTitleFilter();
+    populateMemberFilter();
+    applyFilters();
+    renderPastorList();
+  });
+
+  document.getElementById("refresh-pastors")?.addEventListener("click", async () => {
+    try {
+      await loadPastors();
+      showFeedback("Liste pasteurs actualisee.", "success");
+    } catch (error) {
+      showFeedback(error.message, "error");
+    }
   });
 
   document.getElementById("pastor-form")?.addEventListener("submit", (event) => {
@@ -260,26 +316,10 @@ function attachFilters() {
   const firstNameInput = document.getElementById("pastor-first-name");
   const lastNameInput = document.getElementById("pastor-last-name");
 
-  canonicalInput?.addEventListener("input", () => {
-    const suggested = buildCanonicalSuggestion(firstNameInput?.value, lastNameInput?.value);
-    pastorState.canonicalTouchedManually = normalizeText(canonicalInput.value) !== normalizeText(suggested);
-  });
-
   function syncCanonicalFromSplitName() {
     const suggested = buildCanonicalSuggestion(firstNameInput?.value, lastNameInput?.value);
-    if (!canonicalInput) {
-      return;
-    }
-
-    const current = String(canonicalInput.value || "").trim();
-    const shouldReplace =
-      !pastorState.canonicalTouchedManually ||
-      !current ||
-      normalizeText(current) === normalizeText(suggested);
-
-    if (shouldReplace) {
+    if (canonicalInput) {
       canonicalInput.value = suggested;
-      pastorState.canonicalTouchedManually = false;
     }
   }
 
@@ -302,6 +342,7 @@ function attachNavigationHandlers() {
 async function boot() {
   attachNavigationHandlers();
   attachFilters();
+  updateRefreshButton();
   await loadPastors();
 }
 
