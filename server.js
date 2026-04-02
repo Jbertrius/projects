@@ -32,6 +32,7 @@ const {
   loadAcademyDataFromFirestore,
   loadDashboardDataFromFirestore,
   loadPastorsFromFirestore,
+  replaceAcademyLessonRecord,
   syncAcademySheetToFirestore,
   syncSheetsToFirestore,
   testFirestoreConnection,
@@ -719,7 +720,9 @@ async function handleApi(req, res) {
         return;
       }
 
-      const result = await createAcademyLessonRecord(parsed);
+      const result = payload.replaceExisting
+        ? await replaceAcademyLessonRecord(parsed)
+        : await createAcademyLessonRecord(parsed);
       sendJson(res, 200, { ok: true, parsed, result });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });

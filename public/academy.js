@@ -57,6 +57,21 @@ function formatFullDate(value) {
   return date ? date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : value || "-";
 }
 
+function buildSparseLabels(items) {
+  if (!items.length) {
+    return [];
+  }
+
+  const targetVisibleLabels = 7;
+  const step = items.length <= targetVisibleLabels ? 1 : Math.ceil(items.length / targetVisibleLabels);
+
+  return items.map((item, index) => {
+    const isFirst = index === 0;
+    const isLast = index === items.length - 1;
+    return isFirst || isLast || index % step === 0 ? item.label : "";
+  });
+}
+
 function createKpiCard(kpi) {
   return `
     <article class="card kpi-card">
@@ -125,9 +140,12 @@ function updateRefreshButton() {
   }
 
   const saveButton = document.getElementById("academy-save-entry");
+  const replaceExisting = Boolean(document.getElementById("academy-entry-replace")?.checked);
   if (saveButton) {
     saveButton.disabled = academyState.entry.isSaving;
-    saveButton.textContent = academyState.entry.isSaving ? "Enregistrement..." : "Enregistrer la lecon";
+    saveButton.textContent = academyState.entry.isSaving
+      ? (replaceExisting ? "Mise a jour..." : "Enregistrement...")
+      : (replaceExisting ? "Mettre a jour la lecon" : "Enregistrer la lecon");
   }
 }
 
@@ -424,6 +442,8 @@ async function renderPresenceChart(items) {
     return;
   }
 
+  const sparseLabels = buildSparseLabels(items);
+
   await mountChart("academyPresence", "academy-presence-chart", {
     ...getChartBaseOptions(),
     chart: { ...getChartBaseOptions().chart, type: "area", height: 320 },
@@ -433,31 +453,28 @@ async function renderPresenceChart(items) {
       type: "gradient",
       gradient: { opacityFrom: 0.28, opacityTo: 0.04, stops: [0, 90, 100] }
     },
-    series: [
-      {
-        name: "Presences",
-        data: items.map((item) => ({
-          x: item.label,
-          y: item.value,
-          meta: item
-        }))
-      }
-    ],
+    series: [{ name: "Presences", data: items.map((item) => item.value) }],
     xaxis: {
-      type: "category",
-      labels: { rotate: -22 }
+      categories: sparseLabels,
+      labels: {
+        rotate: -22,
+        trim: true,
+        hideOverlappingLabels: true
+      },
+      tooltip: {
+        enabled: false
+      }
     },
     yaxis: { min: 0, forceNiceScale: true },
     tooltip: {
       theme: "light",
-      custom: ({ seriesIndex, dataPointIndex, w }) => {
-        const point = w.config.series[seriesIndex].data[dataPointIndex];
-        const meta = point?.meta || {};
+      custom: ({ dataPointIndex }) => {
+        const meta = items[dataPointIndex] || {};
         return `
           <div class="academy-tooltip">
             <div class="academy-tooltip-title">${meta.lessonTitle || "Lecon sans titre"}</div>
             <div class="academy-tooltip-row"><span>Date</span><strong>${formatFullDate(meta.date)}</strong></div>
-            <div class="academy-tooltip-row"><span>Presence</span><strong>${meta.value ?? point?.y ?? 0}</strong></div>
+            <div class="academy-tooltip-row"><span>Presence</span><strong>${meta.value ?? 0}</strong></div>
             <div class="academy-tooltip-row"><span>Pointages</span><strong>${meta.total || 0}</strong></div>
           </div>
         `;
@@ -603,42 +620,122 @@ function normalizeIsoDate(rawValue) {
   return dmyMatch ? `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}` : "";
 }
 
-function parseStudentLine(line) {
-  const markerFirst = line.match(/^(✅|👍|✖️|✖|❌|X)\s*(\d*)\s*[-.\s]\s*(.*)$/u);
-  const numberFirst = line.match(/^(\d+)\s*[-. ]\s*(.*)$/u);
+function normalizeEntryLine(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200B-\u200D\uFE0F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  let name = "";
-  let status = "unknown";
-
-  if (markerFirst) {
-    name = markerFirst[3].trim();
-    status = ["✅", "👍"].includes(markerFirst[1]) ? "present" : "absent";
-  } else if (numberFirst) {
-    const rest = numberFirst[2].trim();
-    const inner = rest.match(/^(✅|👍|✖️|✖|❌)\s*(.*)$/u);
-    if (inner) {
-      status = ["✅", "👍"].includes(inner[1]) ? "present" : "absent";
-      name = inner[2].trim();
-    } else {
-      name = rest;
-    }
+function stripTrailingNote(value) {
+  const normalized = normalizeEntryLine(value);
+  const noteMatch = normalized.match(/\s*\(([^)]+)\)\s*$/);
+  if (!noteMatch) {
+    return { value: normalized, note: "" };
   }
+  return {
+    value: normalized.slice(0, noteMatch.index).trim(),
+    note: noteMatch[1].trim()
+  };
+}
 
-  if (!name) {
+function detectEntryStatus(prefix) {
+  const rawPrefix = normalizeEntryLine(prefix);
+  if (!rawPrefix) {
+    return "unknown";
+  }
+  if (/[\u{274C}\u{2716}X]/u.test(rawPrefix) || /\b(absent|absence)\b/iu.test(rawPrefix)) {
+    return "absent";
+  }
+  if (
+    /[\u{2705}\u{1F44D}\u{1F3A5}]/u.test(rawPrefix) ||
+    /\b(present|présent|confirme|confirmé)\b/iu.test(rawPrefix) ||
+    /[^\p{L}\p{N}\s]/u.test(rawPrefix)
+  ) {
+    return "present";
+  }
+  return "unknown";
+}
+
+function parseStudentLine(line) {
+  const normalized = normalizeEntryLine(line);
+  if (!normalized || parseLegendLine(normalized) || /^total\s*:/iu.test(normalized)) {
     return null;
   }
 
-  const reasonMatch = name.match(/\s*\(([^)]+)\)\s*$/);
+  const indexedMatch = normalized.match(/^(?<prefix>.*?)(?<index>\d+)\s*[-.)]\s*(?<rest>.+)$/u);
+  if (!indexedMatch?.groups?.rest) {
+    return null;
+  }
+
   return {
-    name: reasonMatch ? name.slice(0, reasonMatch.index).trim() : name,
-    status
+    name: stripTrailingNote(indexedMatch.groups.rest.trim()).value,
+    status: detectEntryStatus(indexedMatch.groups.prefix)
   };
+}
+
+function parseLegendLine(line) {
+  const normalized = normalizeEntryLine(line).toLowerCase();
+  return (
+    normalized.includes("confirme") ||
+    normalized.includes("présent") ||
+    normalized.includes("present") ||
+    normalized.includes("caméra") ||
+    normalized.includes("camera") ||
+    normalized.includes("absent")
+  );
+}
+
+function parseFrenchInlineDate(line) {
+  const normalized = normalizeEntryLine(line);
+  const monthMap = {
+    janvier: "01",
+    fevrier: "02",
+    février: "02",
+    mars: "03",
+    avril: "04",
+    mai: "05",
+    juin: "06",
+    juillet: "07",
+    aout: "08",
+    août: "08",
+    septembre: "09",
+    octobre: "10",
+    novembre: "11",
+    decembre: "12",
+    décembre: "12"
+  };
+  const match = normalized.match(/(\d{1,2})\s+([A-Za-zÀ-ÿ?]+)/iu);
+  if (!match) {
+    return "";
+  }
+  const month = monthMap[String(match[2]).toLowerCase()];
+  if (!month) {
+    return "";
+  }
+  const day = String(match[1]).padStart(2, "0");
+  return `${new Date().getFullYear()}-${month}-${day}`;
+}
+
+function parseGroupHeader(line) {
+  const normalized = normalizeEntryLine(line);
+  const match = normalized.match(/^[^\p{L}\p{N}]*(?<label>[A-Za-z][A-Za-z0-9 ]{1,30}?)(?:\s*\(\/?\d+\))?$/u);
+  if (!match?.groups?.label) {
+    return "";
+  }
+  const label = String(match.groups.label || "").trim().toUpperCase();
+  if (!label || /\b(ATTENDANCE|TITRE|TOTAL|INSTRUCTEUR|PRESENT|ABSENT|CONFIRME)\b/u.test(label)) {
+    return "";
+  }
+  return label;
 }
 
 function validateEntry(rawText, rawDate) {
   const lines = String(rawText || "")
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => normalizeEntryLine(line))
     .filter(Boolean);
 
   const issues = [];
@@ -655,22 +752,26 @@ function validateEntry(rawText, rawDate) {
   let hasStudentLine = false;
 
   for (const line of lines) {
-    if (line.includes("🔰")) {
-      const parts = line.split(" - ");
-      if (parts.length >= 3) {
-        parsed.classCode = parts[1].trim();
+    const classMatch = line.match(/attendance\s*-\s*([^-]+?)\s*-\s*(.+)$/iu);
+    if (classMatch) {
+      parsed.classCode = classMatch[1].trim();
+      inNonRegistered = false;
+      continue;
+    }
+
+    if (/\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/iu.test(line) || /(\d{1,2})\s+[A-Za-zÀ-ÿ?]+/u.test(line)) {
+      const inferredDate = parseFrenchInlineDate(line);
+      if (inferredDate) {
+        parsed.lessonDate = inferredDate;
       }
-      inNonRegistered = false;
+      const teacherMatch = line.match(/-\s*(.+)$/);
+      if (teacherMatch) {
+        parsed.instructor = stripTrailingNote(teacherMatch[1]).value.replace(/\bInstructeur\b/iu, "").trim();
+      }
       continue;
     }
 
-    if (line.includes("👩")) {
-      parsed.instructor = line.replace(/^[^\w]+/u, "").trim();
-      inNonRegistered = false;
-      continue;
-    }
-
-    if (line.includes("📝")) {
+    if (/titre[^:]*:/iu.test(line)) {
       const titleMatch = line.match(/:\s*(.+)$/);
       if (titleMatch) {
         parsed.lessonTitle = titleMatch[1].trim();
@@ -679,14 +780,18 @@ function validateEntry(rawText, rawDate) {
       continue;
     }
 
-    const orgDate = line.match(/📆(\d{6})/u);
+    const orgDate = line.match(/\b(\d{6})\b/u);
     if (orgDate) {
       const code = orgDate[1];
       parsed.lessonDate = `${1983 + Number(code.slice(0, 2))}-${code.slice(2, 4)}-${code.slice(4, 6)}`;
       continue;
     }
 
-    if (line.includes("▫️") && line.toLowerCase().includes("non")) {
+    if (parseLegendLine(line) || /^.*total\s*:/iu.test(line) || parseGroupHeader(line)) {
+      continue;
+    }
+
+    if (/non[- ]inscrit/iu.test(line)) {
       inNonRegistered = true;
       continue;
     }
@@ -760,7 +865,8 @@ function renderEntryValidation(validation) {
 function getEntryPayload() {
   return {
     rawText: document.getElementById("academy-entry-text")?.value || "",
-    lessonDate: document.getElementById("academy-entry-date")?.value || ""
+    lessonDate: document.getElementById("academy-entry-date")?.value || "",
+    replaceExisting: Boolean(document.getElementById("academy-entry-replace")?.checked)
   };
 }
 
@@ -858,6 +964,9 @@ function attachEntryHandlers() {
 
   document.getElementById("academy-entry-text")?.addEventListener("input", validate);
   document.getElementById("academy-entry-date")?.addEventListener("change", validate);
+  document.getElementById("academy-entry-replace")?.addEventListener("change", () => {
+    updateRefreshButton();
+  });
 
   document.getElementById("academy-validate-entry")?.addEventListener("click", () => {
     const result = validate();
@@ -870,7 +979,12 @@ function attachEntryHandlers() {
   document.getElementById("academy-clear-entry")?.addEventListener("click", () => {
     document.getElementById("academy-entry-text").value = "";
     document.getElementById("academy-entry-date").value = "";
+    const replaceInput = document.getElementById("academy-entry-replace");
+    if (replaceInput) {
+      replaceInput.checked = false;
+    }
     renderEntryValidation(null);
+    updateRefreshButton();
   });
 
   document.getElementById("academy-save-entry")?.addEventListener("click", async () => {
@@ -895,9 +1009,14 @@ function attachEntryHandlers() {
         throw new Error((payload.error || "Impossible d'enregistrer la lecon.") + issues);
       }
 
-      showFeedback(`Lecon enregistree pour ${payload.result.classCode} le ${payload.result.lessonDate}.`, "success");
+      const actionLabel = getEntryPayload().replaceExisting ? "Lecon mise a jour" : "Lecon enregistree";
+      showFeedback(`${actionLabel} pour ${payload.result.classCode} le ${payload.result.lessonDate}.`, "success");
       document.getElementById("academy-entry-text").value = "";
       document.getElementById("academy-entry-date").value = "";
+      const replaceInput = document.getElementById("academy-entry-replace");
+      if (replaceInput) {
+        replaceInput.checked = false;
+      }
       renderEntryValidation(null);
       setEntryOpen(false);
       await loadAcademy();
