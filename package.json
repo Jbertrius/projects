@@ -10,6 +10,7 @@
     "sync:calendar": "node scripts/sync-calendar-to-sheets.js",
     "sync:firestore": "node scripts/sync-sheets-to-firestore.js",
     "sync:academy": "node scripts/sync-academy-sheet-to-firestore.js",
+    "migrate:members:users": "node scripts/migrate-members-to-users.js",
     "report:matching": "node scripts/report-member-matching.js",
     "update:aliases": "node scripts/update-member-aliases.js"
   },

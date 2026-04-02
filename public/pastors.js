@@ -109,7 +109,7 @@ function renderPastorList() {
         <button class="pastor-row ${isActive ? "is-active" : ""}" type="button" data-pastor-id="${pastor.id}">
           <div class="pastor-row-main">
             <strong>${pastor.name || "Nom a corriger"}</strong>
-            <span>${pastor.title || "Sans titre"}${pastor.city ? ` • ${pastor.city}` : ""}</span>
+            <span>${pastor.title || "Sans titre"}${pastor.city ? ` ï¿½ ${pastor.city}` : ""}</span>
           </div>
           <div class="pastor-row-side">
             <span>${pastor.meeting_count || 0} rencontres</span>
@@ -161,7 +161,7 @@ function renderEditor() {
   document.getElementById("pastor-needs-review").checked = String(pastor.needs_review).toLowerCase() === "true";
   document.getElementById("pastor-source-variants").textContent = pastor.source_variants || "-";
   document.getElementById("pastor-history").textContent =
-    `${pastor.meeting_count || 0} rencontres • ${pastor.first_meeting_date || "-"} -> ${pastor.last_meeting_date || "-"}`;
+    `${pastor.meeting_count || 0} rencontres ï¿½ ${pastor.first_meeting_date || "-"} -> ${pastor.last_meeting_date || "-"}`;
 }
 
 function populateTitleFilter() {
@@ -340,6 +340,7 @@ function attachNavigationHandlers() {
 }
 
 async function boot() {
+  await window.AppAuth.requireAuth();
   attachNavigationHandlers();
   attachFilters();
   updateRefreshButton();

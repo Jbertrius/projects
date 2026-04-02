@@ -853,6 +853,20 @@ th {
   gap: 1.2rem;
 }
 
+.academy-entry-card-secondary {
+  margin-top: 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(246, 251, 255, 0.76));
+}
+
+.academy-entry-summary {
+  max-width: 62ch;
+}
+
+.academy-entry-body {
+  display: grid;
+  gap: 1.2rem;
+}
+
 .academy-entry-grid {
   display: grid;
   grid-template-columns: minmax(220px, 320px);
@@ -889,6 +903,50 @@ th {
   gap: 0.9rem;
 }
 
+.academy-chart-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.academy-range-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(170px, 1fr));
+  gap: 12px;
+  width: min(100%, 390px);
+}
+
+.academy-tooltip {
+  min-width: 220px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(37, 137, 200, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 18px 36px rgba(18, 49, 74, 0.12);
+}
+
+.academy-tooltip-title {
+  font-family: "Sora", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+
+.academy-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.academy-tooltip-row strong {
+  color: var(--ink);
+}
+
 .academy-entry-validation {
   display: grid;
   gap: 0.7rem;
@@ -914,6 +972,78 @@ th {
   margin: 0;
   padding-left: 1.2rem;
   color: var(--muted);
+}
+
+.sidebar-user-card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.sidebar-user-meta {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--muted);
+}
+
+.login-body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at top, rgba(81, 183, 234, 0.2), transparent 42%),
+    linear-gradient(180deg, #f4fbff 0%, #eaf6ff 50%, #f8fcff 100%);
+}
+
+.login-shell {
+  width: min(100% - 32px, 520px);
+}
+
+.login-card {
+  display: grid;
+  gap: 1.4rem;
+  padding: 2rem;
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(37, 137, 200, 0.14);
+  box-shadow: var(--shadow);
+}
+
+.login-brand {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.login-brand h1 {
+  margin: 0.2rem 0 0;
+  font-size: 2rem;
+}
+
+.login-copy,
+.login-help {
+  color: var(--muted);
+}
+
+.login-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.user-row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.table-subline {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+#users-filters {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 @media (max-width: 1200px) {
@@ -986,10 +1116,16 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .academy-chart-toolbar,
   .academy-entry-grid,
   .academy-entry-actions {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .academy-range-fields {
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .trend-chart {

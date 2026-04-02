@@ -24,9 +24,19 @@
           </div>
         </div>
 
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
         <nav class="sidebar-nav" aria-label="Navigation principale">
           <a class="nav-item nav-link" href="/">Retour dashboard</a>
           <a class="nav-item nav-link" href="/academy.html">Suivi academie</a>
+          <a class="nav-item nav-link" href="/users.html" data-manage-users-link hidden>Utilisateurs</a>
           <button class="nav-item is-active" type="button" data-target="pastors-top">Base pasteurs</button>
           <button class="nav-item" type="button" data-target="review-queue">A revoir</button>
           <button class="nav-item" type="button" data-target="review-form">Edition</button>
@@ -41,6 +51,7 @@
             <li>Lever les fiches a revoir</li>
           </ul>
         </section>
+
       </aside>
 
       <div class="page-shell">
@@ -192,6 +203,7 @@
       </div>
     </div>
 
+    <script src="/auth-client.js" defer></script>
     <script src="/pastors.js" defer></script>
   </body>
 </html>

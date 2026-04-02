@@ -15,6 +15,30 @@ node server.js
 
 L'application sera disponible sur `http://localhost:8080`.
 
+## Authentification et roles
+
+L'application expose maintenant:
+
+- une page de connexion: `http://localhost:8080/login.html`
+- une page d'administration utilisateurs: `http://localhost:8080/users.html`
+
+Roles supportes:
+
+- `admin`: gere les roles et tous les acces
+- `gerant`: ajoute ou retire des acces membre
+- `membre`: consulte l'application
+
+Pour initialiser le premier admin, configure au minimum:
+
+```bash
+APP_SESSION_SECRET=change-me
+APP_INITIAL_ADMIN_EMAIL=admin@example.com
+APP_INITIAL_ADMIN_PASSWORD=motdepassefort
+APP_INITIAL_ADMIN_NAME=Administrateur
+```
+
+Le premier compte admin est cree automatiquement si aucun utilisateur n'existe encore dans Firestore.
+
 ## Variables d'environnement Google Sheets
 
 Pour brancher la vraie donnée Google Sheets, configure:

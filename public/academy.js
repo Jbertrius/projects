@@ -9,10 +9,14 @@ const academyState = {
   filters: {
     classId: "all",
     studentId: "all",
-    status: "all"
+    status: "all",
+    rangePreset: "all",
+    startDate: "",
+    endDate: ""
   },
   entry: {
-    isSaving: false
+    isSaving: false,
+    isOpen: false
   },
   isLoading: false
 };
@@ -38,9 +42,19 @@ function parseDateValue(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function isoDate(value) {
+  const date = parseDateValue(value);
+  return date ? date.toISOString().slice(0, 10) : "";
+}
+
 function formatDateLabel(value) {
   const date = parseDateValue(value);
   return date ? date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : value || "-";
+}
+
+function formatFullDate(value) {
+  const date = parseDateValue(value);
+  return date ? date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : value || "-";
 }
 
 function createKpiCard(kpi) {
@@ -117,10 +131,92 @@ function updateRefreshButton() {
   }
 }
 
+function setEntryOpen(isOpen) {
+  academyState.entry.isOpen = Boolean(isOpen);
+  const body = document.getElementById("academy-entry-body");
+  const toggle = document.getElementById("academy-toggle-entry");
+  const openButton = document.getElementById("academy-open-entry");
+
+  if (body) {
+    body.hidden = !academyState.entry.isOpen;
+  }
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", academyState.entry.isOpen ? "true" : "false");
+    toggle.textContent = academyState.entry.isOpen ? "Masquer le formulaire" : "Afficher le formulaire";
+  }
+  if (openButton) {
+    openButton.textContent = academyState.entry.isOpen ? "Lecon ouverte" : "Nouvelle lecon";
+  }
+}
+
+function getDataDateBounds() {
+  const dates = academyState.rawData.attendance
+    .map((row) => isoDate(row.session_date))
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right));
+
+  return {
+    min: dates[0] || "",
+    max: dates[dates.length - 1] || ""
+  };
+}
+
+function syncRangeInputs() {
+  const startInput = document.getElementById("academy-start-date");
+  const endInput = document.getElementById("academy-end-date");
+  if (startInput) {
+    startInput.value = academyState.filters.startDate || "";
+  }
+  if (endInput) {
+    endInput.value = academyState.filters.endDate || "";
+  }
+
+  document.querySelectorAll("[data-range-preset]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.rangePreset === academyState.filters.rangePreset);
+  });
+}
+
+function applyRangePreset(preset) {
+  const { min, max } = getDataDateBounds();
+  academyState.filters.rangePreset = preset;
+
+  if (!max) {
+    academyState.filters.startDate = "";
+    academyState.filters.endDate = "";
+    syncRangeInputs();
+    return;
+  }
+
+  if (preset === "all") {
+    academyState.filters.startDate = min;
+    academyState.filters.endDate = max;
+    syncRangeInputs();
+    return;
+  }
+
+  const maxDate = parseDateValue(max);
+  if (!maxDate) {
+    academyState.filters.startDate = "";
+    academyState.filters.endDate = "";
+    syncRangeInputs();
+    return;
+  }
+
+  const days = preset === "7d" ? 6 : 29;
+  const startDate = new Date(maxDate);
+  startDate.setDate(startDate.getDate() - days);
+
+  academyState.filters.startDate = startDate.toISOString().slice(0, 10);
+  academyState.filters.endDate = max;
+  syncRangeInputs();
+}
+
 function buildView() {
   const classFilter = academyState.filters.classId;
   const studentFilter = academyState.filters.studentId;
   const statusFilter = academyState.filters.status;
+  const startDate = academyState.filters.startDate;
+  const endDate = academyState.filters.endDate;
 
   const classesById = new Map(academyState.rawData.classes.map((item) => [String(item.id), item]));
   const students = academyState.rawData.students.filter((student) => {
@@ -131,29 +227,36 @@ function buildView() {
 
   const studentIds = new Set(students.map((student) => String(student.id)));
   const attendance = academyState.rawData.attendance.filter((row) => {
-    const belongsToStudent = studentIds.size === 0 ? false : studentIds.has(String(row.student_id));
+    const rowDate = isoDate(row.session_date);
+    const belongsToStudent = studentIds.size > 0 && studentIds.has(String(row.student_id));
     const classOk =
       classFilter === "all" ||
       String(row.class_id || row.class_name) === classFilter ||
       students.some((student) => String(student.id) === String(row.student_id));
     const statusOk = statusFilter === "all" || String(row.status) === statusFilter;
-    return belongsToStudent && classOk && statusOk;
+    const startOk = !startDate || (rowDate && rowDate >= startDate);
+    const endOk = !endDate || (rowDate && rowDate <= endDate);
+    return belongsToStudent && classOk && statusOk && startOk && endOk;
   });
 
-  const presenceByDate = new Map();
+  const presenceByLesson = new Map();
   const statusCounts = { present: 0, absent: 0, late: 0, excused: 0, unknown: 0 };
   const studentStats = new Map();
 
   attendance.forEach((row) => {
-    const dateKey = String(row.session_date || "").slice(0, 10);
-    if (dateKey) {
-      const bucket = presenceByDate.get(dateKey) || { present: 0, total: 0 };
-      bucket.total += 1;
-      if (row.status === "present") {
-        bucket.present += 1;
-      }
-      presenceByDate.set(dateKey, bucket);
+    const lessonKey = String(row.lesson_id || `${row.session_date || ""}-${row.lesson_title || ""}`).trim();
+    const bucket = presenceByLesson.get(lessonKey) || {
+      key: lessonKey,
+      lessonTitle: row.lesson_title || "Lecon sans titre",
+      date: isoDate(row.session_date),
+      present: 0,
+      total: 0
+    };
+    bucket.total += 1;
+    if (row.status === "present") {
+      bucket.present += 1;
     }
+    presenceByLesson.set(lessonKey, bucket);
 
     statusCounts[row.status] = (statusCounts[row.status] || 0) + 1;
 
@@ -212,7 +315,7 @@ function buildView() {
       }
 
       const classStudentIds = new Set(classStudents.map((student) => String(student.id)));
-      const classAttendance = academyState.rawData.attendance.filter((row) => classStudentIds.has(String(row.student_id)));
+      const classAttendance = attendance.filter((row) => classStudentIds.has(String(row.student_id)));
       const presentCount = classAttendance.filter((row) => row.status === "present").length;
       const rate = classAttendance.length ? Math.round((presentCount / classAttendance.length) * 100) : 0;
       return {
@@ -225,12 +328,19 @@ function buildView() {
     .filter(Boolean)
     .sort((a, b) => b.rate - a.rate || a.name.localeCompare(b.name, "fr"));
 
-  const trajectory = Array.from(presenceByDate.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([date, values]) => ({
-      label: formatDateLabel(date),
-      value: values.present,
-      total: values.total
+  const trajectory = Array.from(presenceByLesson.values())
+    .sort((left, right) => {
+      const leftDate = left.date || "";
+      const rightDate = right.date || "";
+      return leftDate.localeCompare(rightDate) || left.lessonTitle.localeCompare(right.lessonTitle, "fr");
+    })
+    .map((item) => ({
+      key: item.key,
+      label: item.date ? `${formatDateLabel(item.date)}` : item.lessonTitle,
+      value: item.present,
+      total: item.total,
+      lessonTitle: item.lessonTitle,
+      date: item.date
     }));
 
   const totalAttendance = attendance.length;
@@ -238,6 +348,10 @@ function buildView() {
   const absenceCount = statusCounts.absent || 0;
   const presenceRate = totalAttendance ? Math.round((presentCount / totalAttendance) * 100) : 0;
   const lateCount = statusCounts.late || 0;
+  const rangeDescription =
+    academyState.filters.rangePreset === "all"
+      ? "toute la periode"
+      : `${academyState.filters.startDate || "-"} au ${academyState.filters.endDate || "-"}`;
 
   return {
     kpis: [
@@ -250,19 +364,19 @@ function buildView() {
       {
         label: "Taux de presence",
         value: `${presenceRate}%`,
-        delta: `${presentCount} presences enregistrees`,
+        delta: `${presentCount} presences sur ${rangeDescription}`,
         tone: presenceRate >= 80 ? "positive" : "warning"
       },
       {
         label: "Absences",
         value: absenceCount,
-        delta: `${lateCount} retards sur la periode`,
+        delta: `${lateCount} retards sur la plage`,
         tone: absenceCount > 0 ? "warning" : "positive"
       },
       {
-        label: "Evaluations",
-        value: studentRows.filter((student) => student.averageScore > 0).length,
-        delta: "etudiants avec note moyenne",
+        label: "Lecons visibles",
+        value: trajectory.length,
+        delta: trajectory.length ? trajectory[trajectory.length - 1].lessonTitle : "Aucune lecon",
         tone: "neutral"
       }
     ],
@@ -319,9 +433,36 @@ async function renderPresenceChart(items) {
       type: "gradient",
       gradient: { opacityFrom: 0.28, opacityTo: 0.04, stops: [0, 90, 100] }
     },
-    series: [{ name: "Presences", data: items.map((item) => item.value) }],
-    xaxis: { categories: items.map((item) => item.label) },
-    yaxis: { min: 0, forceNiceScale: true }
+    series: [
+      {
+        name: "Presences",
+        data: items.map((item) => ({
+          x: item.label,
+          y: item.value,
+          meta: item
+        }))
+      }
+    ],
+    xaxis: {
+      type: "category",
+      labels: { rotate: -22 }
+    },
+    yaxis: { min: 0, forceNiceScale: true },
+    tooltip: {
+      theme: "light",
+      custom: ({ seriesIndex, dataPointIndex, w }) => {
+        const point = w.config.series[seriesIndex].data[dataPointIndex];
+        const meta = point?.meta || {};
+        return `
+          <div class="academy-tooltip">
+            <div class="academy-tooltip-title">${meta.lessonTitle || "Lecon sans titre"}</div>
+            <div class="academy-tooltip-row"><span>Date</span><strong>${formatFullDate(meta.date)}</strong></div>
+            <div class="academy-tooltip-row"><span>Presence</span><strong>${meta.value ?? point?.y ?? 0}</strong></div>
+            <div class="academy-tooltip-row"><span>Pointages</span><strong>${meta.total || 0}</strong></div>
+          </div>
+        `;
+      }
+    }
   });
 }
 
@@ -410,6 +551,7 @@ function populateFilters() {
     ? academyState.filters.studentId
     : "all";
   academyState.filters.studentId = studentFilter.value;
+  syncRangeInputs();
 }
 
 async function renderAcademy() {
@@ -437,6 +579,11 @@ async function loadAcademy() {
 
     academyState.rawData = payload;
     document.getElementById("academy-refresh-label").textContent = payload.meta?.refreshLabel || "Donnees academie";
+    if (!academyState.filters.startDate && !academyState.filters.endDate) {
+      applyRangePreset(academyState.filters.rangePreset || "all");
+    } else {
+      syncRangeInputs();
+    }
     await renderAcademy();
   } finally {
     academyState.isLoading = false;
@@ -646,9 +793,34 @@ function attachFilterHandlers() {
     await renderAcademy();
   });
 
+  document.getElementById("academy-start-date")?.addEventListener("change", async (event) => {
+    academyState.filters.startDate = event.target.value || "";
+    academyState.filters.rangePreset = "custom";
+    syncRangeInputs();
+    await renderAcademy();
+  });
+
+  document.getElementById("academy-end-date")?.addEventListener("change", async (event) => {
+    academyState.filters.endDate = event.target.value || "";
+    academyState.filters.rangePreset = "custom";
+    syncRangeInputs();
+    await renderAcademy();
+  });
+
+  document.querySelectorAll("[data-range-preset]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      applyRangePreset(button.dataset.rangePreset);
+      await renderAcademy();
+    });
+  });
+
   document.getElementById("academy-reset-filters")?.addEventListener("click", async () => {
-    academyState.filters = { classId: "all", studentId: "all", status: "all" };
+    academyState.filters.classId = "all";
+    academyState.filters.studentId = "all";
+    academyState.filters.status = "all";
+    academyState.filters.rangePreset = "all";
     document.getElementById("academy-status-filter").value = "all";
+    applyRangePreset("all");
     await renderAcademy();
   });
 
@@ -670,12 +842,29 @@ function attachEntryHandlers() {
     return result;
   };
 
+  const openEntry = () => {
+    setEntryOpen(true);
+    document.getElementById("academy-entry-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  document.getElementById("academy-open-entry")?.addEventListener("click", openEntry);
+  document.getElementById("academy-toggle-entry")?.addEventListener("click", () => {
+    const nextState = !academyState.entry.isOpen;
+    setEntryOpen(nextState);
+    if (nextState) {
+      document.getElementById("academy-entry-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+
   document.getElementById("academy-entry-text")?.addEventListener("input", validate);
   document.getElementById("academy-entry-date")?.addEventListener("change", validate);
 
   document.getElementById("academy-validate-entry")?.addEventListener("click", () => {
     const result = validate();
-    showFeedback(result.ok ? "Bloc valide. Tu peux enregistrer la lecon." : "Bloc incomplet ou invalide.", result.ok ? "success" : "warning");
+    showFeedback(
+      result.ok ? "Bloc valide. Tu peux enregistrer la lecon." : "Bloc incomplet ou invalide.",
+      result.ok ? "success" : "warning"
+    );
   });
 
   document.getElementById("academy-clear-entry")?.addEventListener("click", () => {
@@ -710,6 +899,7 @@ function attachEntryHandlers() {
       document.getElementById("academy-entry-text").value = "";
       document.getElementById("academy-entry-date").value = "";
       renderEntryValidation(null);
+      setEntryOpen(false);
       await loadAcademy();
     } catch (error) {
       showFeedback(error.message, "error");
@@ -721,9 +911,11 @@ function attachEntryHandlers() {
 }
 
 async function boot() {
+  await window.AppAuth.requireAuth();
   attachNavigationHandlers();
   attachFilterHandlers();
   attachEntryHandlers();
+  setEntryOpen(false);
   await loadAcademy();
 }
 

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Utilisateurs</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Utilisateurs</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation principale">
+          <a class="nav-item nav-link" href="/">Retour dashboard</a>
+          <a class="nav-item nav-link" href="/academy.html">Suivi academie</a>
+          <a class="nav-item nav-link" href="/pastors.html">Fiches pasteurs</a>
+          <button class="nav-item is-active" type="button" data-target="users-top">Acces</button>
+          <button class="nav-item" type="button" data-target="users-create">Nouvel utilisateur</button>
+          <button class="nav-item" type="button" data-target="users-list">Liste</button>
+        </nav>
+
+        <section class="sidebar-card">
+          <p class="section-label">Roles</p>
+          <h2 class="sidebar-card-title">Admin, gerant, membre</h2>
+          <ul class="sidebar-points">
+            <li>Admin donne les droits</li>
+            <li>Gerant ajoute ou retire les acces</li>
+            <li>Membre consulte les donnees</li>
+          </ul>
+        </section>
+
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="top-bar" id="users-top">
+            <div>
+              <p class="section-label">Administration</p>
+              <h2>Gestion des acces utilisateurs</h2>
+            </div>
+            <div class="top-bar-actions">
+              <div class="sync-pill" id="users-summary">Chargement...</div>
+              <button class="secondary-action compact-action" id="users-import-members" type="button" hidden>Importer les membres</button>
+              <button class="secondary-action compact-action" id="users-refresh" type="button">Actualiser</button>
+            </div>
+          </section>
+
+          <section class="filters-bar" id="users-filters">
+            <label class="filter-group">
+              <span class="filter-label">Recherche</span>
+              <input id="users-search" class="filter-control" type="search" placeholder="Nom, email, zone..." />
+            </label>
+            <label class="filter-group">
+              <span class="filter-label">Statut acces</span>
+              <select id="users-status-filter" class="filter-control">
+                <option value="all">Tous</option>
+                <option value="active">Actifs</option>
+                <option value="inactive">Inactifs</option>
+              </select>
+            </label>
+            <label class="filter-group">
+              <span class="filter-label">Role</span>
+              <select id="users-role-filter" class="filter-control">
+                <option value="all">Tous</option>
+                <option value="admin">Admin</option>
+                <option value="gerant">Gerant</option>
+                <option value="membre">Membre</option>
+              </select>
+            </label>
+            <label class="filter-group">
+              <span class="filter-label">A completer</span>
+              <select id="users-completion-filter" class="filter-control">
+                <option value="all">Tous</option>
+                <option value="missing">A completer</option>
+                <option value="ready">Complets</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="feature-grid" id="users-create">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Creation</p>
+                  <h3>Ajouter un utilisateur</h3>
+                </div>
+                <p class="muted">Le gerant ajoute des acces. L'admin peut aussi attribuer les roles.</p>
+              </div>
+
+              <form id="user-create-form" class="pastor-form">
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Nom affiché</span>
+                    <input id="create-display-name" class="filter-control" type="text" required />
+                  </label>
+                  <label class="form-field">
+                    <span>Email</span>
+                    <input id="create-email" class="filter-control" type="email" required />
+                  </label>
+                </div>
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Mot de passe</span>
+                    <input id="create-password" class="filter-control" type="password" required />
+                  </label>
+                  <label class="form-field">
+                    <span>Role</span>
+                    <select id="create-role" class="filter-control">
+                      <option value="membre">Membre</option>
+                      <option value="gerant">Gerant</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="hero-actions">
+                  <button class="primary-action" id="create-user-submit" type="submit">Ajouter l'utilisateur</button>
+                </div>
+              </form>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Edition</p>
+                  <h3 id="user-editor-title">Selectionner un utilisateur</h3>
+                </div>
+                <p class="muted" id="user-editor-role">-</p>
+              </div>
+
+              <form id="user-edit-form" class="pastor-form">
+                <input id="edit-user-id" type="hidden" />
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Nom affiché</span>
+                    <input id="edit-display-name" class="filter-control" type="text" />
+                  </label>
+                  <label class="form-field">
+                    <span>Email</span>
+                    <input id="edit-email" class="filter-control" type="email" />
+                  </label>
+                </div>
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Zone membre</span>
+                    <input id="edit-member-zone" class="filter-control" type="text" readonly />
+                  </label>
+                  <label class="form-field">
+                    <span>Fonction departement</span>
+                    <input id="edit-member-role" class="filter-control" type="text" readonly />
+                  </label>
+                </div>
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Role</span>
+                    <select id="edit-role" class="filter-control">
+                      <option value="membre">Membre</option>
+                      <option value="gerant">Gerant</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>Nouveau mot de passe</span>
+                    <input id="edit-password" class="filter-control" type="password" placeholder="Laisser vide pour ne pas changer" />
+                  </label>
+                </div>
+
+                <label class="review-toggle">
+                  <input id="edit-active" type="checkbox" />
+                  <span>Acces actif</span>
+                </label>
+
+                <div class="hero-actions">
+                  <button class="secondary-action" id="generate-temp-password" type="button">Mot de passe temporaire</button>
+                  <button class="secondary-action" id="activate-member-button" type="button">Activer et enregistrer</button>
+                </div>
+
+                <p class="muted" id="user-editor-help">Selectionne un utilisateur pour modifier ses acces.</p>
+
+                <div class="hero-actions">
+                  <button class="primary-action" id="save-user-button" type="submit">Enregistrer</button>
+                  <button class="secondary-action" id="delete-user-button" type="button">Supprimer l'acces</button>
+                </div>
+              </form>
+            </article>
+          </section>
+
+          <section class="card" id="users-list">
+            <div class="card-head">
+              <div>
+                <p class="section-label">Liste</p>
+                <h3>Utilisateurs existants</h3>
+              </div>
+              <p class="muted" id="users-role-hint">-</p>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nom</th>
+                    <th>Email</th>
+                    <th>Zone</th>
+                    <th>Role</th>
+                    <th>Statut</th>
+                    <th>Derniere connexion</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+
+        <div id="app-feedback" class="app-feedback" hidden></div>
+      </div>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/users.js" defer></script>
+  </body>
+</html>

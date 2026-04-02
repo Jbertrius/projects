@@ -766,6 +766,7 @@ async function loadDashboard() {
   const app = document.getElementById('app');
 
   try {
+    await window.AppAuth.requireAuth();
     app.innerHTML = document.getElementById('dashboard-template').innerHTML;
     attachActionHandlers();
     attachNavigationHandlers();
@@ -781,4 +782,4 @@ async function loadDashboard() {
   }
 }
 
-loadDashboard();
+loadDashboard().catch((error) => showFeedback(error.message, 'error'));

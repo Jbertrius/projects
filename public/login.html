@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connexion</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="login-body">
+    <main class="login-shell">
+      <section class="login-card">
+        <div class="login-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <h1>Connexion a l'application</h1>
+          </div>
+        </div>
+
+        <p class="login-copy">
+          Connecte-toi pour acceder au tableau de bord, au suivi academie et a l'administration des utilisateurs.
+        </p>
+
+        <form id="login-form" class="login-form">
+          <label class="form-field">
+            <span>Email</span>
+            <input id="login-email" class="filter-control" type="email" autocomplete="username" required />
+          </label>
+
+          <label class="form-field">
+            <span>Mot de passe</span>
+            <input id="login-password" class="filter-control" type="password" autocomplete="current-password" required />
+          </label>
+
+          <button id="login-submit" class="primary-action" type="submit">Se connecter</button>
+        </form>
+
+        <div class="login-help" id="login-help">
+          Si aucun compte n'existe encore, configure `APP_INITIAL_ADMIN_EMAIL` et `APP_INITIAL_ADMIN_PASSWORD` cote serveur.
+        </div>
+      </section>
+    </main>
+
+    <div id="app-feedback" class="app-feedback" hidden></div>
+    <script src="/auth-client.js" defer></script>
+    <script src="/login.js" defer></script>
+  </body>
+</html>

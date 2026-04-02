@@ -2,6 +2,22 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { loadLocalEnv } = require("./lib/env");
+const {
+  ROLES,
+  authenticateUser,
+  canAssignRoles,
+  canManageContent,
+  canManageUsers,
+  clearSessionCookie,
+  createUser,
+  deleteUser,
+  getSessionUserFromRequest,
+  hasAuthStoreConfig,
+  listUsers,
+  setSessionCookie,
+  syncMembersToUsers,
+  updateUser
+} = require("./lib/auth");
 const { buildDashboard } = require("./lib/dashboard");
 const {
   hasGoogleSheetsConfig,
@@ -21,7 +37,7 @@ const {
   testFirestoreConnection,
   updatePastorInFirestore
 } = require("./lib/firestore");
-const { normalizeIsoDate, parseAttendanceBlock, parseStudentLine } = require("./lib/academy-parser");
+const { normalizeIsoDate, parseAttendanceBlock } = require("./lib/academy-parser");
 const {
   listAccessibleCalendars,
   listCalendarEvents,
@@ -54,9 +70,16 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function sendRedirect(res, location) {
+  res.writeHead(302, {
+    Location: location,
+    "Cache-Control": "no-store"
+  });
+  res.end();
+}
+
 function readLocalDashboard() {
-  const content = fs.readFileSync(DATA_FILE, "utf8");
-  return JSON.parse(content);
+  return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
 }
 
 function serveFile(res, filePath) {
@@ -130,11 +153,7 @@ function buildPastorMemberContext(pastors, meetings, members) {
       return;
     }
 
-    const lookupValues = new Set([
-      canonicalName,
-      ...splitList(member.aliases, /[|;,]/)
-    ]);
-
+    const lookupValues = new Set([canonicalName, ...splitList(member.aliases, /[|;,]/)]);
     lookupValues.forEach((value) => {
       const normalized = normalizeLookupValue(value);
       if (normalized) {
@@ -167,14 +186,8 @@ function buildPastorMemberContext(pastors, meetings, members) {
   const membersByPastorId = new Map();
 
   meetings.forEach((meeting) => {
-    const meetingMembers = splitList(
-      meeting.member_names_canonical || meeting.member_name || "",
-      /[,;|]/
-    )
-      .map((name) => {
-        const trimmed = name.trim();
-        return officialMembers.get(normalizeLookupValue(trimmed)) || "";
-      })
+    const meetingMembers = splitList(meeting.member_names_canonical || meeting.member_name || "", /[,;|]/)
+      .map((name) => officialMembers.get(normalizeLookupValue(name.trim())) || "")
       .filter(Boolean);
     const uniqueMeetingMembers = Array.from(new Set(meetingMembers));
 
@@ -205,19 +218,200 @@ function buildPastorMemberContext(pastors, meetings, members) {
     membersByPastorId.set(pastor.id, bucket);
   });
 
-  const enrichedPastors = pastors.map((pastor) => ({
-    ...pastor,
-    member_names: Array.from(membersByPastorId.get(pastor.id) || []).sort((a, b) => a.localeCompare(b, "fr"))
-  }));
-
   return {
-    pastors: enrichedPastors,
+    pastors: pastors.map((pastor) => ({
+      ...pastor,
+      member_names: Array.from(membersByPastorId.get(pastor.id) || []).sort((a, b) => a.localeCompare(b, "fr"))
+    })),
     memberOptions: Array.from(memberOptions).sort((a, b) => a.localeCompare(b, "fr"))
+  };
+}
+
+function authCapabilities(user) {
+  return {
+    canManageContent: canManageContent(user),
+    canManageUsers: canManageUsers(user),
+    canAssignRoles: canAssignRoles(user)
   };
 }
 
 async function handleApi(req, res) {
   const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
+  const sessionUser = await getSessionUserFromRequest(req);
+
+  const sendUnauthorized = (message = "Authentification requise.") =>
+    sendJson(res, 401, { ok: false, error: message });
+  const sendForbidden = (message = "Acces refuse.") =>
+    sendJson(res, 403, { ok: false, error: message });
+
+  if (pathname === "/api/auth/session" && req.method === "GET") {
+    sendJson(res, 200, {
+      ok: true,
+      authenticated: Boolean(sessionUser),
+      authConfigured: hasAuthStoreConfig(),
+      user: sessionUser,
+      capabilities: authCapabilities(sessionUser)
+    });
+    return;
+  }
+
+  if (pathname === "/api/auth/login" && req.method === "POST") {
+    try {
+      if (!hasAuthStoreConfig()) {
+        sendJson(res, 500, {
+          ok: false,
+          error: "La base d'authentification n'est pas configuree."
+        });
+        return;
+      }
+
+      const payload = await readJsonBody(req);
+      const user = await authenticateUser(payload.email, payload.password);
+      if (!user) {
+        sendUnauthorized("Email ou mot de passe invalide.");
+        return;
+      }
+
+      setSessionCookie(res, req, user);
+      sendJson(res, 200, {
+        ok: true,
+        user,
+        capabilities: authCapabilities(user)
+      });
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (pathname === "/api/auth/logout" && req.method === "POST") {
+    clearSessionCookie(res, req);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (pathname === "/api/users" && req.method === "GET") {
+    if (!sessionUser) {
+      sendUnauthorized();
+      return;
+    }
+    if (!canManageUsers(sessionUser)) {
+      sendForbidden();
+      return;
+    }
+
+    try {
+      const users = await listUsers();
+      sendJson(res, 200, {
+        ok: true,
+        users: users.map((user) => ({
+          id: user.id,
+          email: user.email,
+          display_name: user.display_name,
+          role: user.role,
+          is_active: user.is_active,
+          member_source_id: user.member_source_id || "",
+          member_zone: user.member_zone || "",
+          member_department_role: user.member_department_role || "",
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+          last_login_at: user.last_login_at
+        })),
+        currentUser: sessionUser,
+        capabilities: authCapabilities(sessionUser)
+      });
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  if (pathname === "/api/users" && req.method === "POST") {
+    if (!sessionUser) {
+      sendUnauthorized();
+      return;
+    }
+    if (!canManageUsers(sessionUser)) {
+      sendForbidden();
+      return;
+    }
+
+    try {
+      const payload = await readJsonBody(req);
+      const user = await createUser(sessionUser, payload);
+      sendJson(res, 200, { ok: true, user });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  if (pathname === "/api/users/import-members" && req.method === "POST") {
+    if (!sessionUser) {
+      sendUnauthorized();
+      return;
+    }
+    if (sessionUser.role !== ROLES.ADMIN) {
+      sendForbidden();
+      return;
+    }
+
+    try {
+      const result = await syncMembersToUsers(sessionUser);
+      sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  const userMatch = pathname.match(/^\/api\/users\/([^/]+)$/);
+  if (userMatch && req.method === "PATCH") {
+    if (!sessionUser) {
+      sendUnauthorized();
+      return;
+    }
+    if (!canManageUsers(sessionUser)) {
+      sendForbidden();
+      return;
+    }
+
+    try {
+      const payload = await readJsonBody(req);
+      const user = await updateUser(sessionUser, decodeURIComponent(userMatch[1]), payload);
+      sendJson(res, 200, { ok: true, user });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  if (userMatch && req.method === "DELETE") {
+    if (!sessionUser) {
+      sendUnauthorized();
+      return;
+    }
+    if (!canManageUsers(sessionUser)) {
+      sendForbidden();
+      return;
+    }
+
+    try {
+      const user = await deleteUser(sessionUser, decodeURIComponent(userMatch[1]));
+      sendJson(res, 200, { ok: true, user });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  if (!sessionUser) {
+    sendUnauthorized();
+    return;
+  }
 
   if (pathname === "/api/pastors" && req.method === "GET") {
     try {
@@ -233,15 +427,16 @@ async function handleApi(req, res) {
         memberOptions: context.memberOptions
       });
     } catch (error) {
-      sendJson(res, 500, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 500, { ok: false, error: error.message });
     }
     return;
   }
 
   if (pathname === "/api/pastors/update" && req.method === "POST") {
+    if (!canManageContent(sessionUser)) {
+      sendForbidden();
+      return;
+    }
     try {
       const payload = await readJsonBody(req);
       const pastor = hasFirestoreConfig() ? await updatePastorInFirestore(payload) : await updatePastorRecord(payload);
@@ -251,15 +446,16 @@ async function handleApi(req, res) {
         pastor
       });
     } catch (error) {
-      sendJson(res, 400, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 400, { ok: false, error: error.message });
     }
     return;
   }
 
   if (pathname === "/api/connection-status") {
+    if (sessionUser.role !== ROLES.ADMIN) {
+      sendForbidden();
+      return;
+    }
     sendJson(res, 200, {
       googleSheetsConfigured: hasGoogleSheetsConfig(),
       firestoreConfigured: hasFirestoreConfig(),
@@ -279,9 +475,7 @@ async function handleApi(req, res) {
           classes: [],
           students: [],
           attendance: [],
-          meta: {
-            refreshLabel: "Aucune base academie connectee"
-          }
+          meta: { refreshLabel: "Aucune base academie connectee" }
         });
         return;
       }
@@ -290,20 +484,19 @@ async function handleApi(req, res) {
       sendJson(res, 200, {
         ok: true,
         ...academyData,
-        meta: {
-          refreshLabel: "Donnees academie synchronisees"
-        }
+        meta: { refreshLabel: "Donnees academie synchronisees" }
       });
     } catch (error) {
-      sendJson(res, 500, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 500, { ok: false, error: error.message });
     }
     return;
   }
 
   if (pathname === "/api/test/google-sheets") {
+    if (sessionUser.role !== ROLES.ADMIN) {
+      sendForbidden();
+      return;
+    }
     try {
       if (!hasGoogleSheetsConfig()) {
         sendJson(res, 400, {
@@ -340,6 +533,10 @@ async function handleApi(req, res) {
   }
 
   if (pathname === "/api/test/google-calendar") {
+    if (sessionUser.role !== ROLES.ADMIN) {
+      sendForbidden();
+      return;
+    }
     try {
       const payload = await listCalendarEvents();
       sendJson(res, 200, {
@@ -349,47 +546,44 @@ async function handleApi(req, res) {
         sample: payload.items[0] || null
       });
     } catch (error) {
-      sendJson(res, 500, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 500, { ok: false, error: error.message });
     }
     return;
   }
 
   if (pathname === "/api/test/google-calendar-list") {
+    if (sessionUser.role !== ROLES.ADMIN) {
+      sendForbidden();
+      return;
+    }
     try {
       const calendars = await listAccessibleCalendars();
-      sendJson(res, 200, {
-        ok: true,
-        calendars
-      });
+      sendJson(res, 200, { ok: true, calendars });
     } catch (error) {
-      sendJson(res, 500, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 500, { ok: false, error: error.message });
     }
     return;
   }
 
   if (pathname === "/api/sync/calendar-to-sheets") {
+    if (!canManageContent(sessionUser)) {
+      sendForbidden();
+      return;
+    }
     try {
       const result = await syncCalendarToMeetingsSheet();
-      sendJson(res, 200, {
-        ok: true,
-        ...result
-      });
+      sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
-      sendJson(res, 500, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 500, { ok: false, error: error.message });
     }
     return;
   }
 
   if (pathname === "/api/sync/full" && req.method === "GET") {
+    if (!canManageContent(sessionUser)) {
+      sendForbidden();
+      return;
+    }
     let calendarResult = null;
 
     try {
@@ -406,15 +600,17 @@ async function handleApi(req, res) {
       sendJson(res, 500, {
         ok: false,
         error: error.message,
-        steps: {
-          calendarToSheets: calendarResult
-        }
+        steps: { calendarToSheets: calendarResult }
       });
     }
     return;
   }
 
   if (pathname === "/api/test/firestore") {
+    if (sessionUser.role !== ROLES.ADMIN) {
+      sendForbidden();
+      return;
+    }
     try {
       if (!hasFirestoreConfig()) {
         sendJson(res, 400, {
@@ -426,10 +622,7 @@ async function handleApi(req, res) {
       }
 
       const result = await testFirestoreConnection();
-      sendJson(res, 200, {
-        ok: true,
-        ...result
-      });
+      sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
       sendJson(res, 500, {
         ok: false,
@@ -441,6 +634,10 @@ async function handleApi(req, res) {
   }
 
   if (pathname === "/api/preview/firestore") {
+    if (sessionUser.role !== ROLES.ADMIN) {
+      sendForbidden();
+      return;
+    }
     try {
       const sheetsData = await loadGoogleSheetsData();
       const preview = await buildFirestoreDocuments(sheetsData);
@@ -469,6 +666,10 @@ async function handleApi(req, res) {
   }
 
   if (pathname === "/api/sync/firestore") {
+    if (!canManageContent(sessionUser)) {
+      sendForbidden();
+      return;
+    }
     try {
       const result = await syncSheetsToFirestore();
       sendJson(res, 200, {
@@ -487,6 +688,10 @@ async function handleApi(req, res) {
   }
 
   if (pathname === "/api/academy/record-lesson" && req.method === "POST") {
+    if (!canManageContent(sessionUser)) {
+      sendForbidden();
+      return;
+    }
     try {
       if (!hasFirestoreConfig()) {
         sendJson(res, 400, {
@@ -497,23 +702,12 @@ async function handleApi(req, res) {
       }
 
       const payload = await readJsonBody(req);
-      const rawText = String(payload.rawText || "").trim();
-      const lessonDate = normalizeIsoDate(payload.lessonDate || "");
-      const parsed = parseAttendanceBlock(rawText, lessonDate);
-
+      const parsed = parseAttendanceBlock(String(payload.rawText || "").trim(), normalizeIsoDate(payload.lessonDate || ""));
       const issues = [];
-      if (!parsed.class_code) {
-        issues.push("La ligne de classe est requise.");
-      }
-      if (!parsed.lesson_title) {
-        issues.push("Le titre de la lecon est requis.");
-      }
-      if (!parsed.teacher_name) {
-        issues.push("Le nom de l'instructeur est requis.");
-      }
-      if (!parsed.registered_students.length) {
-        issues.push("Au moins un etudiant inscrit doit etre detecte.");
-      }
+      if (!parsed.class_code) issues.push("La ligne de classe est requise.");
+      if (!parsed.lesson_title) issues.push("Le titre de la lecon est requis.");
+      if (!parsed.teacher_name) issues.push("Le nom de l'instructeur est requis.");
+      if (!parsed.registered_students.length) issues.push("Au moins un etudiant inscrit doit etre detecte.");
 
       if (issues.length) {
         sendJson(res, 400, {
@@ -526,32 +720,23 @@ async function handleApi(req, res) {
       }
 
       const result = await createAcademyLessonRecord(parsed);
-      sendJson(res, 200, {
-        ok: true,
-        parsed,
-        result
-      });
+      sendJson(res, 200, { ok: true, parsed, result });
     } catch (error) {
-      sendJson(res, 400, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 400, { ok: false, error: error.message });
     }
     return;
   }
 
   if (pathname === "/api/sync/academy-sheet") {
+    if (!canManageContent(sessionUser)) {
+      sendForbidden();
+      return;
+    }
     try {
       const result = await syncAcademySheetToFirestore();
-      sendJson(res, 200, {
-        ok: true,
-        ...result
-      });
+      sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
-      sendJson(res, 500, {
-        ok: false,
-        error: error.message
-      });
+      sendJson(res, 500, { ok: false, error: error.message });
     }
     return;
   }
@@ -563,14 +748,12 @@ async function handleApi(req, res) {
 
   try {
     if (hasFirestoreConfig()) {
-      const firestoreData = await loadDashboardDataFromFirestore();
-      sendJson(res, 200, buildDashboard(firestoreData));
+      sendJson(res, 200, buildDashboard(await loadDashboardDataFromFirestore()));
       return;
     }
 
     if (hasGoogleSheetsConfig()) {
-      const sheetsData = await loadGoogleSheetsData();
-      sendJson(res, 200, buildDashboard(sheetsData));
+      sendJson(res, 200, buildDashboard(await loadGoogleSheetsData()));
       return;
     }
 
@@ -583,8 +766,27 @@ async function handleApi(req, res) {
   }
 }
 
-function handleStatic(req, res) {
-  const requestedPath = req.url === "/" ? "/index.html" : req.url;
+async function handleStatic(req, res) {
+  const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
+  const requestedPath = pathname === "/" ? "/index.html" : pathname;
+  const isHtmlPage = requestedPath === "/index.html" || requestedPath.endsWith(".html");
+  const sessionUser = isHtmlPage ? await getSessionUserFromRequest(req) : null;
+
+  if (requestedPath === "/login.html" && sessionUser) {
+    sendRedirect(res, "/");
+    return;
+  }
+
+  if (isHtmlPage && requestedPath !== "/login.html" && !sessionUser) {
+    sendRedirect(res, "/login.html");
+    return;
+  }
+
+  if (requestedPath === "/users.html" && sessionUser && !canManageUsers(sessionUser)) {
+    sendRedirect(res, "/");
+    return;
+  }
+
   const safePath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, "");
   const filePath = path.join(PUBLIC_DIR, safePath);
 
@@ -609,7 +811,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  handleStatic(req, res);
+  await handleStatic(req, res);
 });
 
 server.listen(PORT, () => {
