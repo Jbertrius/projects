@@ -1170,7 +1170,7 @@ function parseFrenchInlineDate(line) {
 
 function parseGroupHeader(line) {
   const normalized = normalizeEntryLine(line);
-  const match = normalized.match(/^[^\p{L}\p{N}]*(?<label>[A-Za-z][A-Za-z0-9 ]{1,30}?)(?:\s*\(\/?\d+\))?$/u);
+  const match = normalized.match(/\b(?<label>CEP|DMD|R[ÉE]{2}COUTE|REECOUTE)\b/iu);
   if (!match?.groups?.label) {
     return "";
   }
@@ -1179,6 +1179,18 @@ function parseGroupHeader(line) {
     return "";
   }
   return label;
+}
+
+function normalizeSectionLabel(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function isSupervisorHeader(line) {
+  const normalized = normalizeEntryLine(line);
+  return /^[^\p{L}\p{N}]*(?:[A-Za-zÀ-ÿ' -]{2,})\s*\(\d+\s*\/\s*\d+\)$/u.test(normalized);
 }
 
 function validateEntry(rawText, rawDate) {
@@ -1199,6 +1211,7 @@ function validateEntry(rawText, rawDate) {
 
   let inNonRegistered = false;
   let hasStudentLine = false;
+  let skipSection = false;
 
   for (const line of lines) {
     const classMatch = line.match(/(?:attendance|classe\s+ouverte)\s*-\s*(.+)$/iu);
@@ -1253,11 +1266,23 @@ function validateEntry(rawText, rawDate) {
     }
 
     if (parseLegendLine(line) || /^.*total\s*:/iu.test(line) || parseGroupHeader(line)) {
+      const detectedGroup = parseGroupHeader(line);
+      if (detectedGroup && normalizeSectionLabel(detectedGroup) === "REECOUTE") {
+        skipSection = true;
+        inNonRegistered = false;
+      } else if (detectedGroup) {
+        skipSection = false;
+      }
       continue;
     }
 
     if (/non[- ]inscrit/iu.test(line)) {
       inNonRegistered = true;
+      skipSection = false;
+      continue;
+    }
+
+    if (skipSection || isSupervisorHeader(line)) {
       continue;
     }
 
