@@ -666,6 +666,13 @@ button:disabled {
   background: rgba(255, 255, 255, 0.56);
 }
 
+.academy-students-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(170px, 0.8fr) minmax(190px, 1fr);
+  gap: 12px;
+  margin: 10px 0 16px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1194,6 +1201,10 @@ th {
   .app-shell {
     width: min(100% - 24px, 1460px);
     padding-top: 18px;
+
+  .academy-students-toolbar {
+    grid-template-columns: 1fr;
+  }
   }
 
   .sidebar,

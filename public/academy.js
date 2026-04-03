@@ -21,6 +21,7 @@ const academyState = {
     selectedLessonId: "",
     selectedLessonMeta: null
   },
+  studentRows: [],
   isLoading: false
 };
 
@@ -71,6 +72,14 @@ function normalizeClassKey(value) {
 
 function normalizeStudentKey(value) {
   return normalizeClassKey(value);
+}
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function normalizeAcademyDataset(payload) {
@@ -683,16 +692,70 @@ function buildView() {
   };
 }
 
-function renderStudentsTable(rows) {
+function getFilteredAndSortedStudentRows() {
+  const rows = Array.isArray(academyState.studentRows) ? [...academyState.studentRows] : [];
+  const searchValue = normalizeSearchText(document.getElementById("academy-students-search")?.value || "");
+  const presenceFilter = String(document.getElementById("academy-students-presence-filter")?.value || "all");
+  const sortMode = String(document.getElementById("academy-students-sort")?.value || "present_desc");
+
+  const filtered = rows.filter((student) => {
+    if (presenceFilter === "absent" && Number(student.absent || 0) <= 0) {
+      return false;
+    }
+    if (presenceFilter === "perfect" && Number(student.absent || 0) > 0) {
+      return false;
+    }
+
+    if (!searchValue) {
+      return true;
+    }
+
+    const haystack = normalizeSearchText([student.name, student.class_label, student.instructor_name].join(" "));
+    return haystack.includes(searchValue);
+  });
+
+  filtered.sort((a, b) => {
+    if (sortMode === "name_asc") {
+      return String(a.name || "").localeCompare(String(b.name || ""), "fr");
+    }
+    if (sortMode === "name_desc") {
+      return String(b.name || "").localeCompare(String(a.name || ""), "fr");
+    }
+    if (sortMode === "class_asc") {
+      return String(a.class_label || "").localeCompare(String(b.class_label || ""), "fr")
+        || String(a.name || "").localeCompare(String(b.name || ""), "fr");
+    }
+    if (sortMode === "absent_desc") {
+      return Number(b.absent || 0) - Number(a.absent || 0)
+        || Number(b.present || 0) - Number(a.present || 0)
+        || String(a.name || "").localeCompare(String(b.name || ""), "fr");
+    }
+    if (sortMode === "score_desc") {
+      return Number(b.averageScore || 0) - Number(a.averageScore || 0)
+        || Number(b.present || 0) - Number(a.present || 0)
+        || String(a.name || "").localeCompare(String(b.name || ""), "fr");
+    }
+
+    return Number(b.present || 0) - Number(a.present || 0)
+      || Number(a.absent || 0) - Number(b.absent || 0)
+      || String(a.name || "").localeCompare(String(b.name || ""), "fr");
+  });
+
+  return filtered;
+}
+
+function renderStudentsTable() {
   const tbody = document.getElementById("academy-students-table");
   if (!tbody) {
     return;
   }
 
+  const rows = getFilteredAndSortedStudentRows();
+
   if (!rows.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="empty-table">Aucune donnee academie ne correspond aux filtres actuels.</td>
+        <td colspan="6" class="empty-table">Aucune donnee ne correspond au filtre ou au tri selectionne.</td>
       </tr>
     `;
     return;
@@ -712,6 +775,13 @@ function renderStudentsTable(rows) {
       `
     )
     .join("");
+}
+
+function attachStudentsTableHandlers() {
+  const rerender = () => renderStudentsTable();
+  document.getElementById("academy-students-search")?.addEventListener("input", rerender);
+  document.getElementById("academy-students-presence-filter")?.addEventListener("change", rerender);
+  document.getElementById("academy-students-sort")?.addEventListener("change", rerender);
 }
 
 function renderLessonLibrary() {
@@ -1017,8 +1087,9 @@ function populateFilters() {
 async function renderAcademy() {
   populateFilters();
   const view = buildView();
+  academyState.studentRows = view.studentRows;
   document.getElementById("academy-kpis").innerHTML = view.kpis.map(createKpiCard).join("");
-  renderStudentsTable(view.studentRows);
+  renderStudentsTable();
   renderLessonLibrary();
   await Promise.all([
     renderPresenceChart(view.trajectory),
@@ -1602,6 +1673,7 @@ async function boot() {
   await window.AppAuth.requireAuth();
   attachNavigationHandlers();
   attachFilterHandlers();
+  attachStudentsTableHandlers();
   attachEntryHandlers();
   setEntryOpen(false);
   await loadAcademy();
