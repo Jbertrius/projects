@@ -145,6 +145,71 @@ function splitList(value, separators = /[|,;]/) {
     .filter(Boolean);
 }
 
+function parseDeclaredAttendanceTotals(rawText) {
+  const normalizedLines = String(rawText || "")
+    .split("\n")
+    .map((line) =>
+      String(line || "")
+        .normalize("NFKC")
+        .replace(/\u00a0/g, " ")
+        .replace(/[\u200B-\u200D\uFE0F]/g, "")
+        .trim()
+    )
+    .filter(Boolean);
+
+  let totalLine = null;
+  const sectionTotals = [];
+
+  for (const line of normalizedLines) {
+    const totalMatch = line.match(/\bTOTAL\b\s*:\s*(\d+)\s*\/\s*(\d+)/iu);
+    if (totalMatch) {
+      totalLine = {
+        present: Number(totalMatch[1]),
+        expected: Number(totalMatch[2])
+      };
+      continue;
+    }
+
+    const sectionMatch = line.match(/\b(CEP|DMD)\b\s*\(\s*(\d+)\s*\/\s*(\d+)\s*\)/iu);
+    if (sectionMatch) {
+      sectionTotals.push({
+        section: String(sectionMatch[1] || "").toUpperCase(),
+        present: Number(sectionMatch[2]),
+        expected: Number(sectionMatch[3])
+      });
+    }
+  }
+
+  const hasCep = sectionTotals.some((item) => item.section === "CEP");
+  const hasDmd = sectionTotals.some((item) => item.section === "DMD");
+
+  if (hasCep && hasDmd) {
+    return {
+      source: "sections-both",
+      present: sectionTotals.reduce((sum, item) => sum + item.present, 0),
+      expected: sectionTotals.reduce((sum, item) => sum + item.expected, 0)
+    };
+  }
+
+  if (totalLine) {
+    return {
+      source: "total",
+      present: totalLine.present,
+      expected: totalLine.expected
+    };
+  }
+
+  if (sectionTotals.length) {
+    return {
+      source: "sections-partial",
+      present: sectionTotals.reduce((sum, item) => sum + item.present, 0),
+      expected: sectionTotals.reduce((sum, item) => sum + item.expected, 0)
+    };
+  }
+
+  return null;
+}
+
 function buildPastorMemberContext(pastors, meetings, members) {
   const pastorsById = new Map();
   const pastorsByName = new Map();
@@ -737,6 +802,21 @@ async function handleApi(req, res) {
         if (!payload.deleteExisting && !parsed.teacher_name) issues.push("Le nom de l'instructeur est requis.");
         if (!payload.deleteExisting && !parsed.registered_students.length) {
           issues.push("Au moins un etudiant inscrit doit etre detecte.");
+        }
+
+        if (!payload.deleteExisting && parsed.registered_students.length) {
+          const declaredTotals = parseDeclaredAttendanceTotals(payload.rawText);
+          if (declaredTotals) {
+            const parsedTotal = parsed.registered_students.length;
+            const parsedPresent = parsed.registered_students.filter(([, status]) => status === "present").length;
+
+            if (parsedTotal !== declaredTotals.expected || parsedPresent !== declaredTotals.present) {
+              const sourceLabel = declaredTotals.source.startsWith("sections") ? "sections" : "TOTAL";
+              issues.push(
+                `Incoherence detectee avec ${sourceLabel}: parse=${parsedPresent}/${parsedTotal}, declare=${declaredTotals.present}/${declaredTotals.expected}.`
+              );
+            }
+          }
         }
 
       if (issues.length) {
