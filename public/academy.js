@@ -1214,6 +1214,7 @@ function validateEntry(rawText, rawDate) {
   let skipSection = false;
 
   for (const line of lines) {
+    const isIndexedEntryLine = /^[^\p{L}\p{N}]*(?:[Xx]\s*)?\d+\s*[-.)]\s*.+$/u.test(line);
     const classMatch = line.match(/(?:attendance|classe\s+ouverte)\s*-\s*(.+)$/iu);
     if (classMatch) {
       const parts = line.split(/\s+-\s+/);
@@ -1231,7 +1232,11 @@ function validateEntry(rawText, rawDate) {
       continue;
     }
 
-    if (/\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/iu.test(line) || /(\d{1,2})\s+[A-Za-zÀ-ÿ?]+/u.test(line)) {
+    if (
+      !isIndexedEntryLine &&
+      (/\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/iu.test(line) ||
+        /(\d{1,2})\s+[A-Za-zÀ-ÿ?]+/u.test(line))
+    ) {
       const inferredDate = parseFrenchInlineDate(line);
       if (inferredDate) {
         parsed.lessonDate = inferredDate;
