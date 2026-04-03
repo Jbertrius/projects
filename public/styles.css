@@ -949,6 +949,81 @@ th {
   gap: 0.9rem;
 }
 
+.academy-lesson-library {
+  display: grid;
+  gap: 1rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(37, 137, 200, 0.12);
+}
+
+.academy-lesson-library-head {
+  margin-bottom: 0;
+}
+
+.academy-lesson-library-filters {
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 280px);
+}
+
+.academy-lesson-list {
+  display: grid;
+  gap: 0.9rem;
+  max-height: 380px;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.academy-lesson-item {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(37, 137, 200, 0.12);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.academy-lesson-item.is-selected {
+  border-color: rgba(14, 125, 58, 0.28);
+  box-shadow: 0 0 0 3px rgba(14, 125, 58, 0.08);
+}
+
+.academy-lesson-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.academy-lesson-title {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.academy-lesson-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.academy-lesson-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(81, 183, 234, 0.12);
+  color: var(--sky-deep);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.academy-lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
 .academy-chart-toolbar {
   display: flex;
   justify-content: space-between;

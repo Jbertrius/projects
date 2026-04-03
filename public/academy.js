@@ -3,6 +3,7 @@ const academyState = {
     classes: [],
     students: [],
     attendance: [],
+    unregistered: [],
     meta: {}
   },
   charts: {},
@@ -16,7 +17,9 @@ const academyState = {
   },
   entry: {
     isSaving: false,
-    isOpen: false
+    isOpen: false,
+    selectedLessonId: "",
+    selectedLessonMeta: null
   },
   isLoading: false
 };
@@ -57,6 +60,148 @@ function formatFullDate(value) {
   return date ? date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : value || "-";
 }
 
+function normalizeClassKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeStudentKey(value) {
+  return normalizeClassKey(value);
+}
+
+function normalizeAcademyDataset(payload) {
+  const classes = Array.isArray(payload?.classes) ? payload.classes : [];
+  const students = Array.isArray(payload?.students) ? payload.students : [];
+  const attendance = Array.isArray(payload?.attendance) ? payload.attendance : [];
+  const unregistered = Array.isArray(payload?.unregistered) ? payload.unregistered : [];
+  const classesByKey = new Map();
+  const classAliases = new Map();
+
+  classes.forEach((academyClass) => {
+    const key = normalizeClassKey(academyClass.name || academyClass.class_code || academyClass.id);
+    if (!key) {
+      classAliases.set(String(academyClass.id), String(academyClass.id));
+      return;
+    }
+
+    if (!classesByKey.has(key)) {
+      classesByKey.set(key, { ...academyClass });
+    } else {
+      const canonical = classesByKey.get(key);
+      canonical.student_ids = Array.from(
+        new Set([...(canonical.student_ids || []), ...(academyClass.student_ids || [])].filter(Boolean))
+      );
+      canonical.evaluator_names = Array.from(
+        new Set([...(canonical.evaluator_names || []), ...(academyClass.evaluator_names || [])].filter(Boolean))
+      );
+      if (!canonical.instructor_name && academyClass.instructor_name) {
+        canonical.instructor_name = academyClass.instructor_name;
+      }
+    }
+
+    classAliases.set(String(academyClass.id), String(classesByKey.get(key).id));
+  });
+
+  const normalizedClasses = Array.from(classesByKey.values());
+
+  const classesById = new Map(normalizedClasses.map((item) => [String(item.id), item]));
+  const studentsByKey = new Map();
+  const studentAliases = new Map();
+
+  students.forEach((student) => {
+    const rawStudentId = String(student.id || "").trim();
+    const nextClassId = classAliases.get(String(student.class_id || student.class_name)) || String(student.class_id || "");
+    const canonicalClass = classesById.get(String(nextClassId));
+    const studentName = String(student.name || "").trim();
+    const studentNameKey = normalizeStudentKey(studentName);
+    const fallbackId = rawStudentId || `${nextClassId || "unknown"}_stu_${studentNameKey || "unknown"}`;
+    const dedupeKey = nextClassId && studentNameKey ? `${nextClassId}::${studentNameKey}` : `id::${fallbackId}`;
+    const existing = studentsByKey.get(dedupeKey);
+
+    if (!existing) {
+      const canonicalStudent = {
+        ...student,
+        id: fallbackId,
+        class_id: nextClassId,
+        class_name: canonicalClass?.name || student.class_name || student.class_id || "",
+        source_ids: [fallbackId]
+      };
+      studentsByKey.set(dedupeKey, canonicalStudent);
+      if (rawStudentId) {
+        studentAliases.set(rawStudentId, fallbackId);
+      }
+      return;
+    }
+
+    existing.source_ids = Array.from(new Set([...(existing.source_ids || []), fallbackId]));
+    if (!String(existing.subgroup || "").trim() && String(student.subgroup || "").trim()) {
+      existing.subgroup = student.subgroup;
+    }
+    if (String(existing.status || "").toLowerCase() !== "actif" && String(student.status || "").trim()) {
+      existing.status = student.status;
+    }
+    if (!String(existing.class_name || "").trim()) {
+      existing.class_name = canonicalClass?.name || student.class_name || student.class_id || "";
+    }
+    if (rawStudentId) {
+      studentAliases.set(rawStudentId, existing.id);
+    }
+  });
+
+  const normalizedStudents = Array.from(studentsByKey.values()).map((student) => ({
+    ...student,
+    source_ids: Array.from(new Set(student.source_ids || [String(student.id || "")].filter(Boolean)))
+  }));
+  const studentsByClassAndName = new Map(
+    normalizedStudents
+      .map((student) => {
+        const key = `${String(student.class_id || "")}::${normalizeStudentKey(student.name || "")}`;
+        return key ? [key, student] : null;
+      })
+      .filter(Boolean)
+  );
+
+  const normalizedAttendance = attendance.map((row) => {
+    const nextClassId = classAliases.get(String(row.class_id || row.class_name)) || String(row.class_id || "");
+    const canonicalClass = classesById.get(String(nextClassId));
+    const aliasStudentId = studentAliases.get(String(row.student_id || "").trim()) || "";
+    const studentByName = studentsByClassAndName.get(
+      `${nextClassId}::${normalizeStudentKey(row.student_name || "")}`
+    );
+    const nextStudentId = aliasStudentId || studentByName?.id || String(row.student_id || "");
+    return {
+      ...row,
+      student_id: nextStudentId,
+      student_name: studentByName?.name || row.student_name || "",
+      class_id: nextClassId,
+      class_name: canonicalClass?.name || row.class_name || row.class_id || ""
+    };
+  });
+
+  const normalizedUnregistered = unregistered.map((row) => {
+    const nextClassId = classAliases.get(String(row.class_id || row.class_name)) || String(row.class_id || "");
+    const canonicalClass = normalizedClasses.find((item) => String(item.id) === String(nextClassId));
+    return {
+      ...row,
+      class_id: nextClassId,
+      class_name: canonicalClass?.name || row.class_name || row.class_id || ""
+    };
+  });
+
+  return {
+    ...payload,
+    classes: normalizedClasses,
+    students: normalizedStudents,
+    attendance: normalizedAttendance,
+    unregistered: normalizedUnregistered,
+    classAliases
+  };
+}
+
 function buildSparseLabels(items) {
   if (!items.length) {
     return [];
@@ -70,6 +215,133 @@ function buildSparseLabels(items) {
     const isLast = index === items.length - 1;
     return isFirst || isLast || index % step === 0 ? item.label : "";
   });
+}
+
+function buildLessonLibrary() {
+  const classesById = new Map(academyState.rawData.classes.map((item) => [String(item.id), item]));
+  const lessons = new Map();
+
+  academyState.rawData.attendance.forEach((row) => {
+    const lessonId = String(row.lesson_id || "").trim();
+    if (!lessonId) {
+      return;
+    }
+
+      const existing = lessons.get(lessonId) || {
+        id: lessonId,
+        classId: String(row.class_id || ""),
+        className: row.class_name || classesById.get(String(row.class_id || ""))?.name || "-",
+        churchName: classesById.get(String(row.class_id || ""))?.church_name || "",
+        title: row.lesson_title || "Lecon sans titre",
+        date: isoDate(row.session_date),
+        instructorName: classesById.get(String(row.class_id || ""))?.instructor_name || "-",
+        attendanceCount: 0,
+        presentCount: 0
+    };
+
+    existing.attendanceCount += 1;
+    if (row.status === "present") {
+      existing.presentCount += 1;
+    }
+    lessons.set(lessonId, existing);
+  });
+
+  return Array.from(lessons.values()).sort((left, right) => {
+    return (right.date || "").localeCompare(left.date || "") || left.title.localeCompare(right.title, "fr");
+  });
+}
+
+function formatInstructorLine(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  return /^(pst|pasteur|ev|instructeur)\b/iu.test(trimmed) ? trimmed : `Pst ${trimmed}`;
+}
+
+function getSubgroupHeader(groupName, count) {
+  const normalized = String(groupName || "").trim().toUpperCase();
+  if (!normalized || normalized === "SANS GROUPE") {
+    return "";
+  }
+
+  const icon = normalized === "DMD" ? "⛪️" : "🕊";
+  return `${icon}${normalized} (/${count})`;
+}
+
+function buildLessonTemplate(lesson) {
+  const lessonRows = academyState.rawData.attendance
+    .filter((row) => String(row.lesson_id || "") === String(lesson.id))
+    .sort((left, right) => {
+      const subgroupDelta = String(left.subgroup || "").localeCompare(String(right.subgroup || ""), "fr");
+      if (subgroupDelta !== 0) {
+        return subgroupDelta;
+      }
+      return String(left.student_name || "").localeCompare(String(right.student_name || ""), "fr");
+    });
+  const unregisteredRows = (academyState.rawData.unregistered || [])
+    .filter((row) => String(row.lesson_id || "") === String(lesson.id))
+    .sort((left, right) => {
+      return String(left.student_name || "").localeCompare(String(right.student_name || ""), "fr");
+    });
+  const total = lessonRows.length;
+  const presentCount = lessonRows.filter((row) => row.status === "present").length;
+  const groups = new Map();
+
+  lessonRows.forEach((row) => {
+    const key = String(row.subgroup || "").trim() || "Sans groupe";
+    const bucket = groups.get(key) || [];
+    bucket.push(row);
+    groups.set(key, bucket);
+  });
+
+  let runningIndex = 1;
+  const groupBlocks = Array.from(groups.entries()).map(([groupName, rows]) => {
+    const header = getSubgroupHeader(groupName, rows.length);
+    const lines = rows.map((row, index) => {
+      const prefix = row.status === "absent" ? "✖️" : "👍";
+      const note = String(row.evaluation_note || "").trim();
+      const line = `${prefix}${runningIndex}- ${row.student_name}${note ? ` (${note})` : ""}`;
+      runningIndex += 1;
+      return line;
+    });
+
+    if (!header) {
+      return lines.join("\n");
+    }
+
+    return [header, ...lines].join("\n");
+  });
+
+  const unregisteredBlock = unregisteredRows.length
+    ? [
+        "▫️Non inscrit",
+        ...unregisteredRows.map((row, index) => {
+          const note = String(row.note || row.evaluation_note || "").trim();
+          return `👍${index + 1}- ${row.student_name}${note ? ` (${note})` : ""}`;
+        })
+      ].join("\n")
+    : "";
+
+  return [
+    `🔰Classe Ouverte - ${lesson.className} - ${lesson.churchName || "Centre academie"}`,
+    `👩‍🏫${formatInstructorLine(lesson.instructorName)}`,
+    `📝Titre de la leçon : ${lesson.title}`,
+    `📆${lesson.date || ""}`,
+    "",
+    "✅ Confirmé",
+    "👍 Présent",
+    "❌ Absent",
+    "",
+    `Total :${presentCount}/${total}`,
+    "",
+    ...groupBlocks,
+    unregisteredBlock ? "" : null,
+    unregisteredBlock || null
+  ]
+    .filter((line) => line !== null)
+    .filter((line, index, array) => !(line === "" && array[index - 1] === ""))
+    .join("\n");
 }
 
 function createKpiCard(kpi) {
@@ -146,6 +418,12 @@ function updateRefreshButton() {
     saveButton.textContent = academyState.entry.isSaving
       ? (replaceExisting ? "Mise a jour..." : "Enregistrement...")
       : (replaceExisting ? "Mettre a jour la lecon" : "Enregistrer la lecon");
+  }
+
+  const deleteButton = document.getElementById("academy-delete-entry");
+  if (deleteButton) {
+    deleteButton.disabled = academyState.entry.isSaving;
+    deleteButton.textContent = academyState.entry.isSaving ? "Suppression..." : "Supprimer la lecon";
   }
 }
 
@@ -436,6 +714,171 @@ function renderStudentsTable(rows) {
     .join("");
 }
 
+function renderLessonLibrary() {
+  const listElement = document.getElementById("academy-lesson-list");
+  const classFilter = document.getElementById("academy-lesson-class-filter");
+  const searchInput = document.getElementById("academy-lesson-search");
+  if (!listElement || !classFilter || !searchInput) {
+    return;
+  }
+
+  const lessons = buildLessonLibrary();
+  const previousClassValue = classFilter.value || "all";
+  classFilter.innerHTML = [
+    `<option value="all">Toutes les classes</option>`,
+    ...academyState.rawData.classes.map((academyClass) => `<option value="${academyClass.id}">${academyClass.name}</option>`)
+  ].join("");
+  classFilter.value = academyState.rawData.classes.some((academyClass) => String(academyClass.id) === previousClassValue)
+    ? previousClassValue
+    : "all";
+
+  if (!classFilter.dataset.bound) {
+    classFilter.addEventListener("change", renderLessonLibrary);
+    classFilter.dataset.bound = "true";
+  }
+  if (!searchInput.dataset.bound) {
+    searchInput.addEventListener("input", renderLessonLibrary);
+    searchInput.dataset.bound = "true";
+  }
+
+  const searchTerm = String(searchInput.value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  const selectedClass = classFilter.value || "all";
+  const filteredLessons = lessons.filter((lesson) => {
+    const classOk = selectedClass === "all" || String(lesson.classId) === selectedClass;
+    if (!classOk) {
+      return false;
+    }
+    if (!searchTerm) {
+      return true;
+    }
+    const haystack = [lesson.title, lesson.className, lesson.date, lesson.instructorName]
+      .join(" ")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+
+  if (!filteredLessons.length) {
+    listElement.innerHTML = `<div class="empty-state">Aucune lecon ne correspond a la recherche.</div>`;
+    return;
+  }
+
+  listElement.innerHTML = filteredLessons
+    .map((lesson) => {
+      const isSelected = academyState.entry.selectedLessonId === lesson.id;
+      return `
+        <article class="academy-lesson-item${isSelected ? " is-selected" : ""}">
+          <div class="academy-lesson-row">
+            <div>
+              <h4 class="academy-lesson-title">${lesson.title}</h4>
+              <div class="academy-lesson-meta">
+                <span class="academy-lesson-chip">${lesson.className}</span>
+                <span class="academy-lesson-chip">${formatFullDate(lesson.date)}</span>
+                <span class="academy-lesson-chip">${lesson.presentCount}/${lesson.attendanceCount} presents</span>
+              </div>
+            </div>
+            <span class="academy-lesson-chip">${lesson.instructorName || "-"}</span>
+          </div>
+          <div class="academy-lesson-actions">
+            <button class="secondary-action compact-action" type="button" data-lesson-load="${lesson.id}">Charger</button>
+            <button class="secondary-action compact-action" type="button" data-lesson-delete="${lesson.id}">Supprimer</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  listElement.querySelectorAll("[data-lesson-load]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const lesson = lessons.find((item) => item.id === button.dataset.lessonLoad);
+      if (!lesson) {
+        return;
+      }
+      academyState.entry.selectedLessonId = lesson.id;
+      academyState.entry.selectedLessonMeta = {
+        lessonId: lesson.id,
+        classId: lesson.classId,
+        classCode: lesson.className,
+        lessonTitle: lesson.title,
+        teacherName: lesson.instructorName
+      };
+      const textarea = document.getElementById("academy-entry-text");
+      const dateInput = document.getElementById("academy-entry-date");
+      const replaceInput = document.getElementById("academy-entry-replace");
+      if (textarea) {
+        textarea.value = buildLessonTemplate(lesson);
+      }
+      if (dateInput) {
+        dateInput.value = lesson.date || "";
+      }
+      if (replaceInput) {
+        replaceInput.checked = true;
+      }
+      setEntryOpen(true);
+      updateRefreshButton();
+      renderLessonLibrary();
+      renderEntryValidation(
+        validateEntry(textarea?.value || "", dateInput?.value || "")
+      );
+      showFeedback(`Lecon chargee: ${lesson.title}. Tu peux maintenant la mettre a jour ou la supprimer.`, "success");
+      document.getElementById("academy-entry-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  listElement.querySelectorAll("[data-lesson-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const lesson = lessons.find((item) => item.id === button.dataset.lessonDelete);
+      if (!lesson) {
+        return;
+      }
+      const confirmed = window.confirm(
+        `Supprimer la lecon "${lesson.title}" du ${lesson.date} pour la classe ${lesson.className} ?`
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      academyState.entry.isSaving = true;
+      updateRefreshButton();
+        try {
+          const response = await fetch("/api/academy/record-lesson", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              rawText: buildLessonTemplate(lesson),
+              lessonDate: lesson.date,
+              lessonId: lesson.id,
+              classId: lesson.classId,
+              classCode: lesson.className,
+              lessonTitle: lesson.title,
+              teacherName: lesson.instructorName,
+              deleteExisting: true,
+              replaceExisting: false
+            })
+          });
+        const payload = await response.json();
+        if (!response.ok || payload.ok === false) {
+          throw new Error(payload.error || "Impossible de supprimer la lecon.");
+        }
+        academyState.entry.selectedLessonId = "";
+        academyState.entry.selectedLessonMeta = null;
+        showFeedback(`Lecon supprimee: ${lesson.title}.`, "success");
+        await loadAcademy();
+      } catch (error) {
+        showFeedback(error.message, "error");
+      } finally {
+        academyState.entry.isSaving = false;
+        updateRefreshButton();
+      }
+    });
+  });
+}
+
 async function renderPresenceChart(items) {
   if (!items.length) {
     renderEmptyChart("academyPresence", "academy-presence-chart", "Aucune presence disponible pour le moment.");
@@ -576,6 +1019,7 @@ async function renderAcademy() {
   const view = buildView();
   document.getElementById("academy-kpis").innerHTML = view.kpis.map(createKpiCard).join("");
   renderStudentsTable(view.studentRows);
+  renderLessonLibrary();
   await Promise.all([
     renderPresenceChart(view.trajectory),
     renderClassesChart(view.classesSummary),
@@ -594,8 +1038,13 @@ async function loadAcademy() {
       throw new Error(payload.error || "Impossible de charger les donnees academie.");
     }
 
-    academyState.rawData = payload;
-    document.getElementById("academy-refresh-label").textContent = payload.meta?.refreshLabel || "Donnees academie";
+      const normalizedPayload = normalizeAcademyDataset(payload);
+      academyState.rawData = normalizedPayload;
+      if (academyState.filters.classId !== "all") {
+        academyState.filters.classId =
+          normalizedPayload.classAliases?.get(String(academyState.filters.classId)) || academyState.filters.classId;
+      }
+      document.getElementById("academy-refresh-label").textContent = payload.meta?.refreshLabel || "Donnees academie";
     if (!academyState.filters.startDate && !academyState.filters.endDate) {
       applyRangePreset(academyState.filters.rangePreset || "all");
     } else {
@@ -752,9 +1201,19 @@ function validateEntry(rawText, rawDate) {
   let hasStudentLine = false;
 
   for (const line of lines) {
-    const classMatch = line.match(/attendance\s*-\s*([^-]+?)\s*-\s*(.+)$/iu);
+    const classMatch = line.match(/(?:attendance|classe\s+ouverte)\s*-\s*(.+)$/iu);
     if (classMatch) {
-      parsed.classCode = classMatch[1].trim();
+      const parts = line.split(/\s+-\s+/);
+      if (parts.length >= 3) {
+        parsed.classCode = parts[1].trim();
+      }
+      inNonRegistered = false;
+      continue;
+    }
+
+    const directTeacherMatch = line.match(/^(?:[^\p{L}\p{N}]*)?(?:pst|pasteur|ev|instructeur)\.?\s+(.+)$/iu);
+    if (directTeacherMatch) {
+      parsed.instructor = stripTrailingNote(directTeacherMatch[1]).value.trim();
       inNonRegistered = false;
       continue;
     }
@@ -777,6 +1236,12 @@ function validateEntry(rawText, rawDate) {
         parsed.lessonTitle = titleMatch[1].trim();
       }
       inNonRegistered = false;
+      continue;
+    }
+
+    const isoDateMatch = line.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+    if (isoDateMatch) {
+      parsed.lessonDate = isoDateMatch[1];
       continue;
     }
 
@@ -863,10 +1328,17 @@ function renderEntryValidation(validation) {
 }
 
 function getEntryPayload() {
+  const selected = academyState.entry.selectedLessonMeta || null;
   return {
     rawText: document.getElementById("academy-entry-text")?.value || "",
     lessonDate: document.getElementById("academy-entry-date")?.value || "",
-    replaceExisting: Boolean(document.getElementById("academy-entry-replace")?.checked)
+    lessonId: selected?.lessonId || "",
+    classId: selected?.classId || "",
+    classCode: selected?.classCode || "",
+    lessonTitle: selected?.lessonTitle || "",
+    teacherName: selected?.teacherName || "",
+    replaceExisting: Boolean(document.getElementById("academy-entry-replace")?.checked),
+    deleteExisting: false
   };
 }
 
@@ -983,8 +1455,11 @@ function attachEntryHandlers() {
     if (replaceInput) {
       replaceInput.checked = false;
     }
+    academyState.entry.selectedLessonId = "";
+    academyState.entry.selectedLessonMeta = null;
     renderEntryValidation(null);
     updateRefreshButton();
+    renderLessonLibrary();
   });
 
   document.getElementById("academy-save-entry")?.addEventListener("click", async () => {
@@ -1017,6 +1492,70 @@ function attachEntryHandlers() {
       if (replaceInput) {
         replaceInput.checked = false;
       }
+      academyState.entry.selectedLessonId = "";
+      academyState.entry.selectedLessonMeta = null;
+      renderEntryValidation(null);
+      setEntryOpen(false);
+      await loadAcademy();
+    } catch (error) {
+      showFeedback(error.message, "error");
+    } finally {
+      academyState.entry.isSaving = false;
+      updateRefreshButton();
+    }
+  });
+
+  document.getElementById("academy-delete-entry")?.addEventListener("click", async () => {
+    const validation = validate();
+    const metadataIssues = [];
+    if (!validation.parsed.classCode) metadataIssues.push("la classe");
+    if (!validation.parsed.lessonTitle) metadataIssues.push("le titre");
+    if (!validation.parsed.lessonDate) metadataIssues.push("la date");
+
+    if (metadataIssues.length) {
+      showFeedback(`Pour supprimer, il faut au minimum ${metadataIssues.join(", ")}.`, "warning");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Supprimer la lecon "${validation.parsed.lessonTitle}" du ${validation.parsed.lessonDate} pour la classe ${validation.parsed.classCode} ?`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    academyState.entry.isSaving = true;
+    updateRefreshButton();
+
+    try {
+      const payloadToSend = {
+        ...getEntryPayload(),
+        deleteExisting: true,
+        replaceExisting: false
+      };
+      const response = await fetch("/api/academy/record-lesson", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payloadToSend)
+      });
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false) {
+        const issues = payload.issues?.length ? ` ${payload.issues.join(" ")}` : "";
+        throw new Error((payload.error || "Impossible de supprimer la lecon.") + issues);
+      }
+
+      showFeedback(
+        `Lecon supprimee pour ${payload.result.classCode} le ${payload.result.lessonDate}.`,
+        "success"
+      );
+      document.getElementById("academy-entry-text").value = "";
+      document.getElementById("academy-entry-date").value = "";
+      const replaceInput = document.getElementById("academy-entry-replace");
+      if (replaceInput) {
+        replaceInput.checked = false;
+      }
+      academyState.entry.selectedLessonId = "";
+      academyState.entry.selectedLessonMeta = null;
       renderEntryValidation(null);
       setEntryOpen(false);
       await loadAcademy();

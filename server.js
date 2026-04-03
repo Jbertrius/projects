@@ -27,6 +27,8 @@ const {
 const {
   buildFirestoreDocuments,
   createAcademyLessonRecord,
+  deleteAcademyLessonRecordById,
+  deleteAcademyLessonRecord,
   getFirestoreConfigSummary,
   hasFirestoreConfig,
   loadAcademyDataFromFirestore,
@@ -702,13 +704,40 @@ async function handleApi(req, res) {
         return;
       }
 
-      const payload = await readJsonBody(req);
-      const parsed = parseAttendanceBlock(String(payload.rawText || "").trim(), normalizeIsoDate(payload.lessonDate || ""));
-      const issues = [];
-      if (!parsed.class_code) issues.push("La ligne de classe est requise.");
-      if (!parsed.lesson_title) issues.push("Le titre de la lecon est requis.");
-      if (!parsed.teacher_name) issues.push("Le nom de l'instructeur est requis.");
-      if (!parsed.registered_students.length) issues.push("Au moins un etudiant inscrit doit etre detecte.");
+        const payload = await readJsonBody(req);
+        if (payload.deleteExisting && payload.lessonId) {
+          const result = await deleteAcademyLessonRecordById({
+            lesson_id: payload.lessonId,
+            class_id: payload.classId,
+            class_code: String(payload.classCode || "").trim(),
+            lesson_title: String(payload.lessonTitle || "").trim(),
+            lesson_date: normalizeIsoDate(payload.lessonDate || "") || String(payload.lessonDate || "").trim()
+          });
+          sendJson(res, 200, { ok: true, parsed: null, result });
+          return;
+        }
+
+        const parsed = parseAttendanceBlock(String(payload.rawText || "").trim(), normalizeIsoDate(payload.lessonDate || ""));
+        if (payload.classCode && !parsed.class_code) {
+          parsed.class_code = String(payload.classCode || "").trim();
+        }
+        if (payload.lessonTitle && !parsed.lesson_title) {
+          parsed.lesson_title = String(payload.lessonTitle || "").trim();
+        }
+        if (payload.lessonDate && !parsed.lesson_date) {
+          parsed.lesson_date = normalizeIsoDate(payload.lessonDate || "") || String(payload.lessonDate || "").trim();
+        }
+        if (payload.teacherName && !parsed.teacher_name) {
+          parsed.teacher_name = String(payload.teacherName || "").trim();
+        }
+        const issues = [];
+        if (!parsed.class_code) issues.push("La ligne de classe est requise.");
+        if (!parsed.lesson_title) issues.push("Le titre de la lecon est requis.");
+        if (!parsed.lesson_date) issues.push("La date de la lecon est requise.");
+        if (!payload.deleteExisting && !parsed.teacher_name) issues.push("Le nom de l'instructeur est requis.");
+        if (!payload.deleteExisting && !parsed.registered_students.length) {
+          issues.push("Au moins un etudiant inscrit doit etre detecte.");
+        }
 
       if (issues.length) {
         sendJson(res, 400, {
@@ -720,10 +749,15 @@ async function handleApi(req, res) {
         return;
       }
 
-      const result = payload.replaceExisting
-        ? await replaceAcademyLessonRecord(parsed)
-        : await createAcademyLessonRecord(parsed);
-      sendJson(res, 200, { ok: true, parsed, result });
+          const result = payload.deleteExisting
+            ? await deleteAcademyLessonRecord(parsed)
+            : payload.replaceExisting
+              ? await replaceAcademyLessonRecord(parsed, {
+                  lessonId: payload.lessonId,
+                  classId: payload.classId
+                })
+              : await createAcademyLessonRecord(parsed);
+        sendJson(res, 200, { ok: true, parsed, result });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });
     }

@@ -220,8 +220,32 @@
               <div class="hero-actions academy-entry-actions">
                 <button class="primary-action compact-action" id="academy-validate-entry" type="button">Verifier</button>
                 <button class="secondary-action compact-action" id="academy-save-entry" type="button">Enregistrer la lecon</button>
+                <button class="secondary-action compact-action" id="academy-delete-entry" type="button">Supprimer la lecon</button>
                 <button class="secondary-action compact-action" id="academy-clear-entry" type="button">Vider</button>
               </div>
+
+              <section class="academy-lesson-library">
+                <div class="card-head academy-lesson-library-head">
+                  <div>
+                    <p class="section-label">Lecons existantes</p>
+                    <h3>Choisir une lecon deja enregistree</h3>
+                  </div>
+                  <p class="muted">Recherche rapide pour charger, mettre a jour ou supprimer sans recoller tout le bloc.</p>
+                </div>
+                <div class="academy-entry-grid academy-lesson-library-filters">
+                  <div class="filter-group">
+                    <label class="filter-label" for="academy-lesson-search">Recherche</label>
+                    <input id="academy-lesson-search" class="filter-control" type="search" placeholder="Titre, classe, date..." />
+                  </div>
+                  <div class="filter-group">
+                    <label class="filter-label" for="academy-lesson-class-filter">Classe</label>
+                    <select id="academy-lesson-class-filter" class="filter-control">
+                      <option value="all">Toutes les classes</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="academy-lesson-list" id="academy-lesson-list"></div>
+              </section>
             </div>
           </section>
         </main>
