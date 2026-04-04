@@ -1669,8 +1669,33 @@ function attachEntryHandlers() {
   });
 }
 
+function initializeEntryTextareaPlaceholder() {
+  const textarea = document.getElementById("academy-entry-text");
+  if (!textarea) {
+    return;
+  }
+
+  textarea.placeholder = `🔰 ATTENDANCE - 165P - CLASSE DE MARS
+📝Titre de la lecon : La vraie Fondation
+📅 Jeudi 02 avril a 19:45 - Seojune JGSN (Instructeur)
+
+🧮 TOTAL : 33/40
+
+🕊CEP (27/33)
+▪️Aera JJDSN (13/17)
+👍🎥⭕️1. BONHEUR Kenson
+❌2. NOM Prenom
+
+⛪️DMD (5/5)
+▪️Heejeong (2/2)
+👍🎥1. NOM Prenom
+
+🛎Reecoute (2/2)`;
+}
+
 async function boot() {
   await window.AppAuth.requireAuth();
+  initializeEntryTextareaPlaceholder();
   attachNavigationHandlers();
   attachFilterHandlers();
   attachStudentsTableHandlers();
