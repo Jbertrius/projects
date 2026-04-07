@@ -1,15 +1,10 @@
 const { Router } = require("express");
 const { requireAuth, requireContentManager } = require("../middleware/auth");
-const {
-  createAcademyLessonRecord,
-  deleteAcademyLessonRecord,
-  deleteAcademyLessonRecordById,
-  hasFirestoreConfig,
-  loadAcademyDataFromFirestore,
-  replaceAcademyLessonRecord
-} = require("../../lib/firestore");
+const academyRepo = require("../repositories/academy.repository");
+const { hasFirestoreConfig } = require("../../lib/firestore");
 const { normalizeIsoDate, parseAttendanceBlock } = require("../../lib/academy-parser");
 const { AppError } = require("../middleware/errorHandler");
+const { appCache } = require("../utils/cache");
 
 const router = Router();
 
@@ -69,17 +64,17 @@ function parseDeclaredAttendanceTotals(rawText) {
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    if (!hasFirestoreConfig()) {
-      return res.json({
-        ok: true,
-        classes: [],
-        students: [],
-        attendance: [],
-        meta: { refreshLabel: "Aucune base academie connectee" }
-      });
-    }
-    const academyData = await loadAcademyDataFromFirestore();
-    res.json({ ok: true, ...academyData, meta: { refreshLabel: "Donnees academie synchronisees" } });
+    const data = await academyRepo.findAll();
+    const isEmpty = !hasFirestoreConfig();
+    res.json({
+      ok: true,
+      ...data,
+      meta: {
+        refreshLabel: isEmpty
+          ? "Aucune base academie connectee"
+          : "Donnees academie synchronisees"
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -93,42 +88,50 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
 
     const payload = req.body;
 
+    // Fast-path: delete by ID
     if (payload.deleteExisting && payload.lessonId) {
-      const result = await deleteAcademyLessonRecordById({
-        lesson_id: payload.lessonId,
-        class_id: payload.classId,
-        class_code: String(payload.classCode || "").trim(),
-        lesson_title: String(payload.lessonTitle || "").trim(),
-        lesson_date: normalizeIsoDate(payload.lessonDate || "") || String(payload.lessonDate || "").trim()
-      });
+      const result = await academyRepo.recordLesson(
+        {
+          lesson_id: payload.lessonId,
+          class_id: payload.classId,
+          class_code: String(payload.classCode || "").trim(),
+          lesson_title: String(payload.lessonTitle || "").trim(),
+          lesson_date: normalizeIsoDate(payload.lessonDate || "") || String(payload.lessonDate || "").trim()
+        },
+        { mode: "delete-by-id", lessonId: payload.lessonId, classId: payload.classId }
+      );
+      appCache.invalidate("academy");
       return res.json({ ok: true, parsed: null, result });
     }
 
+    // Parse the raw attendance block
     const parsed = parseAttendanceBlock(
       String(payload.rawText || "").trim(),
       normalizeIsoDate(payload.lessonDate || "")
     );
-    if (payload.classCode && !parsed.class_code) parsed.class_code = String(payload.classCode || "").trim();
+    if (payload.classCode && !parsed.class_code)   parsed.class_code   = String(payload.classCode   || "").trim();
     if (payload.lessonTitle && !parsed.lesson_title) parsed.lesson_title = String(payload.lessonTitle || "").trim();
     if (payload.lessonDate && !parsed.lesson_date) {
       parsed.lesson_date = normalizeIsoDate(payload.lessonDate || "") || String(payload.lessonDate || "").trim();
     }
     if (payload.teacherName && !parsed.teacher_name) parsed.teacher_name = String(payload.teacherName || "").trim();
 
+    // Validate required fields
     const issues = [];
-    if (!parsed.class_code) issues.push("La ligne de classe est requise.");
+    if (!parsed.class_code)   issues.push("La ligne de classe est requise.");
     if (!parsed.lesson_title) issues.push("Le titre de la lecon est requis.");
-    if (!parsed.lesson_date) issues.push("La date de la lecon est requise.");
+    if (!parsed.lesson_date)  issues.push("La date de la lecon est requise.");
     if (!payload.deleteExisting && !parsed.teacher_name) issues.push("Le nom de l'instructeur est requis.");
     if (!payload.deleteExisting && !parsed.registered_students.length) {
       issues.push("Au moins un etudiant inscrit doit etre detecte.");
     }
 
+    // Cross-check against declared totals
     if (!payload.deleteExisting && parsed.registered_students.length) {
       const declaredTotals = parseDeclaredAttendanceTotals(payload.rawText);
       if (declaredTotals) {
-        const parsedTotal = parsed.registered_students.length;
-        const parsedPresent = parsed.registered_students.filter(([, status]) => status === "present").length;
+        const parsedTotal   = parsed.registered_students.length;
+        const parsedPresent = parsed.registered_students.filter(([, s]) => s === "present").length;
         if (parsedTotal !== declaredTotals.expected || parsedPresent !== declaredTotals.present) {
           const sourceLabel = declaredTotals.source.startsWith("sections") ? "sections" : "TOTAL";
           issues.push(
@@ -142,15 +145,14 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
       throw new AppError(400, "Validation impossible.", { issues, parsed });
     }
 
-    const result = payload.deleteExisting
-      ? await deleteAcademyLessonRecord(parsed)
-      : payload.replaceExisting
-        ? await replaceAcademyLessonRecord(parsed, {
-            lessonId: payload.lessonId,
-            classId: payload.classId
-          })
-        : await createAcademyLessonRecord(parsed);
+    const mode = payload.deleteExisting ? "delete" : payload.replaceExisting ? "replace" : "create";
+    const result = await academyRepo.recordLesson(parsed, {
+      mode,
+      lessonId: payload.lessonId,
+      classId: payload.classId
+    });
 
+    appCache.invalidate("academy");
     res.json({ ok: true, parsed, result });
   } catch (error) {
     if (!error.status) error.status = 400;

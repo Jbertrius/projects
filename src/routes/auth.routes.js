@@ -9,8 +9,12 @@ const {
   setSessionCookie
 } = require("../../lib/auth");
 const { validate, required, isEmail } = require("../utils/validate");
+const { rateLimit } = require("../middleware/rateLimit");
 
 const router = Router();
+
+// 10 attempts per minute per IP before lockout
+const loginRateLimit = rateLimit({ windowMs: 60_000, max: 10 });
 
 function authCapabilities(user) {
   return {
@@ -30,7 +34,7 @@ router.get("/session", (req, res) => {
   });
 });
 
-router.post("/login", async (req, res, next) => {
+router.post("/login", loginRateLimit, async (req, res, next) => {
   try {
     if (!hasAuthStoreConfig()) {
       return res.status(500).json({
