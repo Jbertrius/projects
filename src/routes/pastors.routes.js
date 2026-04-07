@@ -1,15 +1,12 @@
 const { Router } = require("express");
 const { requireAuth, requireContentManager } = require("../middleware/auth");
-const {
-  hasFirestoreConfig,
-  loadDashboardDataFromFirestore,
-  loadPastorsFromFirestore,
-  updatePastorInFirestore
-} = require("../../lib/firestore");
-const { hasGoogleSheetsConfig, loadGoogleSheetsData } = require("../../lib/sheets");
-const { loadPastorsSheet, updatePastorRecord } = require("../../lib/pastors");
+const pastorRepo = require("../repositories/pastor.repository");
+const dashboardRepo = require("../repositories/dashboard.repository");
+const { appCache } = require("../utils/cache");
 
 const router = Router();
+
+const PASTORS_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 function normalizeLookupValue(value) {
   return String(value || "")
@@ -59,7 +56,10 @@ function buildPastorMemberContext(pastors, meetings, members) {
   const membersByPastorId = new Map();
 
   meetings.forEach((meeting) => {
-    const meetingMembers = splitList(meeting.member_names_canonical || meeting.member_name || "", /[,;|]/)
+    const meetingMembers = splitList(
+      meeting.member_names_canonical || meeting.member_name || "",
+      /[,;|]/
+    )
       .map((name) => officialMembers.get(normalizeLookupValue(name.trim())) || "")
       .filter(Boolean);
     const uniqueMeetingMembers = Array.from(new Set(meetingMembers));
@@ -85,7 +85,9 @@ function buildPastorMemberContext(pastors, meetings, members) {
   return {
     pastors: pastors.map((pastor) => ({
       ...pastor,
-      member_names: Array.from(membersByPastorId.get(pastor.id) || []).sort((a, b) => a.localeCompare(b, "fr"))
+      member_names: Array.from(membersByPastorId.get(pastor.id) || []).sort((a, b) =>
+        a.localeCompare(b, "fr")
+      )
     })),
     memberOptions: Array.from(memberOptions).sort((a, b) => a.localeCompare(b, "fr"))
   };
@@ -93,12 +95,16 @@ function buildPastorMemberContext(pastors, meetings, members) {
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const source = hasFirestoreConfig() ? "firestore" : "sheets";
-    const [pastors, dataSource] = hasFirestoreConfig()
-      ? await Promise.all([loadPastorsFromFirestore(), loadDashboardDataFromFirestore()])
-      : await Promise.all([loadPastorsSheet(), loadGoogleSheetsData()]);
-    const context = buildPastorMemberContext(pastors, dataSource.meetings || [], dataSource.members || []);
-    res.json({ ok: true, source, pastors: context.pastors, memberOptions: context.memberOptions });
+    const [pastors, sourceData] = await Promise.all([
+      appCache.get("pastors", PASTORS_TTL_MS, () => pastorRepo.findAll()),
+      appCache.get("dashboard:source", PASTORS_TTL_MS, () => dashboardRepo.loadSourceData())
+    ]);
+    const context = buildPastorMemberContext(
+      pastors,
+      sourceData.meetings || [],
+      sourceData.members || []
+    );
+    res.json({ ok: true, pastors: context.pastors, memberOptions: context.memberOptions });
   } catch (error) {
     next(error);
   }
@@ -106,14 +112,10 @@ router.get("/", requireAuth, async (req, res, next) => {
 
 router.post("/update", requireContentManager, async (req, res, next) => {
   try {
-    const pastor = hasFirestoreConfig()
-      ? await updatePastorInFirestore(req.body)
-      : await updatePastorRecord(req.body);
-    res.json({
-      ok: true,
-      source: hasFirestoreConfig() ? "firestore" : "sheets",
-      pastor
-    });
+    const pastor = await pastorRepo.update(req.body);
+    // Invalidate so next read reflects the change
+    appCache.invalidate("pastors");
+    res.json({ ok: true, pastor });
   } catch (error) {
     error.status = 400;
     next(error);

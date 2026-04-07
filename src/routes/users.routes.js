@@ -11,6 +11,7 @@ const {
   syncMembersToUsers,
   updateUser
 } = require("../../lib/auth");
+const { validate, required, isEmail, minLength, oneOf } = require("../utils/validate");
 
 const router = Router();
 
@@ -50,6 +51,15 @@ router.get("/", requireUserManager, async (req, res, next) => {
 
 router.post("/", requireUserManager, async (req, res, next) => {
   try {
+    const errors = validate(req.body, {
+      email: [required(), isEmail()],
+      display_name: [required()],
+      password: [required(), minLength(8)],
+      role: [oneOf([ROLES.ADMIN, ROLES.GERANT, ROLES.MEMBRE])]
+    });
+    if (errors) {
+      return res.status(400).json({ ok: false, error: errors[0], errors });
+    }
     const user = await createUser(req.sessionUser, req.body);
     res.json({ ok: true, user });
   } catch (error) {

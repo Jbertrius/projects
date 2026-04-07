@@ -2,11 +2,11 @@ const { Router } = require("express");
 const { requireContentManager } = require("../middleware/auth");
 const {
   getFirestoreConfigSummary,
-  hasFirestoreConfig,
   syncAcademySheetToFirestore,
   syncSheetsToFirestore
 } = require("../../lib/firestore");
 const { syncCalendarToMeetingsSheet } = require("../../lib/calendar");
+const { appCache } = require("../utils/cache");
 
 const router = Router();
 
@@ -24,6 +24,7 @@ router.get("/full", requireContentManager, async (req, res, next) => {
   try {
     calendarResult = await syncCalendarToMeetingsSheet();
     const firestoreResult = await syncSheetsToFirestore();
+    appCache.clear();
     res.json({
       ok: true,
       steps: { calendarToSheets: calendarResult, sheetsToFirestore: firestoreResult }
@@ -40,6 +41,7 @@ router.get("/full", requireContentManager, async (req, res, next) => {
 router.post("/firestore", requireContentManager, async (req, res, next) => {
   try {
     const result = await syncSheetsToFirestore();
+    appCache.clear();
     res.json({ ok: true, config: getFirestoreConfigSummary(), ...result });
   } catch (error) {
     next(error);

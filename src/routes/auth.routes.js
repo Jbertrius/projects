@@ -8,6 +8,7 @@ const {
   hasAuthStoreConfig,
   setSessionCookie
 } = require("../../lib/auth");
+const { validate, required, isEmail } = require("../utils/validate");
 
 const router = Router();
 
@@ -36,6 +37,14 @@ router.post("/login", async (req, res, next) => {
         ok: false,
         error: "La base d'authentification n'est pas configuree."
       });
+    }
+
+    const errors = validate(req.body, {
+      email: [required(), isEmail()],
+      password: [required()]
+    });
+    if (errors) {
+      return res.status(400).json({ ok: false, error: errors[0], errors });
     }
 
     const { email, password } = req.body;

@@ -4,6 +4,7 @@ const { loadLocalEnv } = require("../lib/env");
 const { sessionAuth } = require("./middleware/auth");
 const { apiKeyAuth } = require("./middleware/apiKey");
 const { errorHandler } = require("./middleware/errorHandler");
+const { requestLogger } = require("./middleware/logger");
 const { canManageUsers } = require("../lib/auth");
 
 // Routes
@@ -14,6 +15,7 @@ const pastorsRoutes = require("./routes/pastors.routes");
 const academyRoutes = require("./routes/academy.routes");
 const syncRoutes = require("./routes/sync.routes");
 const adminRoutes = require("./routes/admin.routes");
+const botRoutes = require("./routes/bot.routes");
 
 loadLocalEnv();
 
@@ -23,11 +25,12 @@ const PUBLIC_DIR = path.join(__dirname, "..", "public");
 // ---------------------------------------------------------------------------
 // Core middleware
 // ---------------------------------------------------------------------------
+app.use(requestLogger);
 app.use(express.json({ limit: "1mb" }));
 app.use(sessionAuth);
 app.use(apiKeyAuth);
 
-// Disable caching for API responses
+// Disable HTTP caching for all API responses
 app.use("/api", (req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
@@ -42,6 +45,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/pastors", pastorsRoutes);
 app.use("/api/academy", academyRoutes);
 app.use("/api/sync", syncRoutes);
+app.use("/api/bot", botRoutes);
 app.use("/api", adminRoutes);
 
 // Catch-all for unknown API routes
