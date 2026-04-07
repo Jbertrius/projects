@@ -3,6 +3,7 @@ const path = require("path");
 const { loadLocalEnv } = require("../lib/env");
 const { sessionAuth } = require("./middleware/auth");
 const { apiKeyAuth } = require("./middleware/apiKey");
+const { csrfProtection } = require("./middleware/csrf");
 const { errorHandler } = require("./middleware/errorHandler");
 const { requestLogger } = require("./middleware/logger");
 const { securityHeaders } = require("./middleware/securityHeaders");
@@ -31,6 +32,7 @@ app.use(requestLogger);
 app.use(express.json({ limit: "1mb" }));
 app.use(sessionAuth);
 app.use(apiKeyAuth);
+app.use(csrfProtection);
 
 // Disable HTTP caching for all API responses
 app.use("/api", (req, res, next) => {

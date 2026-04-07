@@ -10,6 +10,7 @@ const {
 } = require("../../lib/auth");
 const { validate, required, isEmail } = require("../utils/validate");
 const { rateLimit } = require("../middleware/rateLimit");
+const { getCsrfToken } = require("../middleware/csrf");
 
 const router = Router();
 
@@ -30,7 +31,8 @@ router.get("/session", (req, res) => {
     authenticated: Boolean(req.sessionUser),
     authConfigured: hasAuthStoreConfig(),
     user: req.sessionUser,
-    capabilities: authCapabilities(req.sessionUser)
+    capabilities: authCapabilities(req.sessionUser),
+    csrfToken: getCsrfToken(req.sessionUser)
   });
 });
 
@@ -58,7 +60,7 @@ router.post("/login", loginRateLimit, async (req, res, next) => {
     }
 
     setSessionCookie(res, req, user);
-    res.json({ ok: true, user, capabilities: authCapabilities(user) });
+    res.json({ ok: true, user, capabilities: authCapabilities(user), csrfToken: getCsrfToken(user) });
   } catch (error) {
     next(error);
   }

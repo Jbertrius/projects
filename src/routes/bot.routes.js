@@ -18,10 +18,15 @@ const attendanceRepo = require("../repositories/attendance.repository");
 const { appCache } = require("../utils/cache");
 const { AppError } = require("../middleware/errorHandler");
 const { validate, required } = require("../utils/validate");
-const { hasFirestoreConfig, deleteMeetingDocument } = require("../../lib/firestore");
+const { hasFirestoreConfig, deleteMeetingDocument, refreshDashboardAggregate } = require("../../lib/firestore");
 const { getAccessToken, fetchJson, getEnv } = require("../../lib/google-auth");
+const { rateLimit } = require("../middleware/rateLimit");
 
 const router = Router();
+
+// Rate limit: 120 requests per minute per IP — generous for legitimate bots
+// (a single lesson submit = 1 req), restrictive for scripted abuse.
+router.use(rateLimit({ windowMs: 60_000, max: 120, message: "Trop de requetes bot. Veuillez reessayer dans une minute." }));
 
 // All bot routes require either an API key or a logged-in session
 router.use(requireBotOrAuth);
@@ -43,10 +48,7 @@ router.use(requireBotOrAuth);
 // ---------------------------------------------------------------------------
 router.post("/lessons", async (req, res, next) => {
   try {
-    if (!hasFirestoreConfig()) {
-      throw new AppError(503, "La base academie n'est pas configuree.");
-    }
-
+    // Validate input first so callers get 400, not 503, for missing fields
     const errors = validate(req.body, {
       classCode: [required()],
       date: [required()],
@@ -55,6 +57,10 @@ router.post("/lessons", async (req, res, next) => {
     });
     if (errors) {
       return res.status(400).json({ ok: false, error: errors[0], errors });
+    }
+
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base academie n'est pas configuree.");
     }
 
     const {
@@ -90,6 +96,8 @@ router.post("/lessons", async (req, res, next) => {
 
     const result = await academyRepo.recordLesson(parsed, { mode, lessonId, classId });
     appCache.invalidate("academy");
+    // Fire-and-forget: keep aggregate in sync without blocking the response
+    refreshDashboardAggregate().catch(() => {});
 
     res.json({
       ok: true,
@@ -125,16 +133,17 @@ router.post("/lessons", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 router.post("/meetings", async (req, res, next) => {
   try {
-    if (!hasFirestoreConfig()) {
-      throw new AppError(503, "La base de donnees n'est pas configuree.");
-    }
-
+    // Validate input first so callers get 400, not 503, for missing fields
     const errors = validate(req.body, {
       summary: [required()],
       date: [required()]
     });
     if (errors) {
       return res.status(400).json({ ok: false, error: errors[0], errors });
+    }
+
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base de donnees n'est pas configuree.");
     }
 
     const {
@@ -184,6 +193,7 @@ router.post("/meetings", async (req, res, next) => {
 
     appCache.invalidate("dashboard");
     appCache.invalidate("dashboard:source");
+    refreshDashboardAggregate().catch(() => {});
 
     res.json({
       ok: true,

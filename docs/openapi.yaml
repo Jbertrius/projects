@@ -1,0 +1,842 @@
+openapi: 3.1.0
+info:
+  title: DMD Church Management API
+  version: 2.0.0
+  description: |
+    Central API for the DMD church management system.
+
+    ## Authentication
+
+    Two authentication mechanisms are supported:
+
+    ### Session (web users)
+    1. `POST /api/auth/login` → receive a signed HMAC session cookie + CSRF token.
+    2. Include the cookie automatically on every subsequent request.
+    3. Include the `X-CSRF-Token` header (value from login response) on all
+       state-changing requests (POST / PATCH / DELETE).
+
+    ### API Key (Telegram bots)
+    Include `Authorization: Bearer <BOT_API_KEY>` on every request.
+    Bot keys bypass CSRF validation.
+
+servers:
+  - url: https://member-evolution-dashboard-xxxx-ew.a.run.app
+    description: Production (Cloud Run)
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: auth
+    description: Session management
+  - name: bot
+    description: Bot-facing write / read endpoints (API key required)
+  - name: dashboard
+    description: KPI dashboard
+  - name: members
+    description: Church member directory
+  - name: meetings
+    description: Evangelism meeting records
+  - name: pastors
+    description: External pastor / shepherd records
+  - name: academy
+    description: Academy lesson recording and attendance
+  - name: users
+    description: App user management (admin only)
+  - name: sync
+    description: Manual data sync triggers (admin only)
+
+# ---------------------------------------------------------------------------
+# Shared components
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+    bearerApiKey:
+      type: http
+      scheme: bearer
+
+  schemas:
+    OkTrue:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+
+    ErrorResponse:
+      type: object
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          enum: [false]
+        error:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+
+    User:
+      type: object
+      properties:
+        id:         { type: string }
+        email:      { type: string, format: email }
+        displayName:{ type: string }
+        role:       { type: string, enum: [admin, gerant, membre] }
+        memberId:   { type: string, nullable: true }
+
+    Member:
+      type: object
+      properties:
+        id:    { type: string }
+        name:  { type: string }
+        zone:  { type: string }
+        aliases: { type: string }
+
+    Pastor:
+      type: object
+      properties:
+        id:           { type: string }
+        name:         { type: string }
+        title:        { type: string }
+        church_name:  { type: string }
+        meeting_count:{ type: string }
+        needs_review: { type: string }
+
+    Student:
+      type: object
+      properties:
+        name:    { type: string }
+        class_id:{ type: string }
+        subgroup:{ type: string }
+        status:  { type: string }
+
+    Lesson:
+      type: object
+      properties:
+        lesson_id:    { type: string }
+        lesson_title: { type: string }
+        lesson_date:  { type: string, format: date }
+        class_id:     { type: string }
+
+    AttendanceEvent:
+      type: object
+      properties:
+        event_id:    { type: string }
+        event_name:  { type: string }
+        date:        { type: string, format: date }
+        description: { type: string }
+
+    AttendanceCategory:
+      type: object
+      properties:
+        category_id:   { type: string }
+        category_name: { type: string }
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+  /api/auth/session:
+    get:
+      tags: [auth]
+      summary: Get current session state
+      description: Returns current user, capabilities, and a CSRF token if authenticated.
+      responses:
+        '200':
+          description: Session info
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkTrue'
+                  - type: object
+                    properties:
+                      authenticated: { type: boolean }
+                      authConfigured: { type: boolean }
+                      user:
+                        $ref: '#/components/schemas/User'
+                        nullable: true
+                      capabilities:
+                        type: object
+                        properties:
+                          canManageContent: { type: boolean }
+                          canManageUsers:   { type: boolean }
+                          canAssignRoles:   { type: boolean }
+                      csrfToken:
+                        type: string
+                        nullable: true
+                        description: Include as X-CSRF-Token on state-changing requests.
+
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Log in
+      description: |
+        Authenticates the user and sets a signed session cookie.
+        Returns a CSRF token that must be sent as `X-CSRF-Token` on subsequent
+        POST / PATCH / DELETE requests (when APP_CSRF_ENABLED=true).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:    { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Authenticated
+          headers:
+            Set-Cookie:
+              description: Signed HMAC session cookie (HttpOnly)
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkTrue'
+                  - type: object
+                    properties:
+                      user:        { $ref: '#/components/schemas/User' }
+                      csrfToken:   { type: string }
+                      capabilities:
+                        type: object
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Wrong credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429':
+          description: Rate limited (10 attempts/min per IP)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: Log out
+      description: Clears the session cookie.
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkTrue' }
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+  /api/dashboard:
+    get:
+      tags: [dashboard]
+      summary: Get KPI dashboard
+      description: |
+        Returns aggregated KPIs. Reads from a pre-computed `aggregates/dashboard`
+        Firestore document (1 read) when available; falls back to full scan on
+        first load. Result is cached for 5 minutes.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  totalMembers:  { type: integer }
+                  totalMeetings: { type: integer }
+                  totalLessons:  { type: integer }
+                  lastUpdated:   { type: string }
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Pastors ───────────────────────────────────────────────────────────────
+  /api/pastors:
+    get:
+      tags: [pastors]
+      summary: List pastors
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Pastor list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:      { type: boolean }
+                  pastors:
+                    type: array
+                    items: { $ref: '#/components/schemas/Pastor' }
+
+  /api/pastors/{id}:
+    patch:
+      tags: [pastors]
+      summary: Update a pastor record
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:         { type: string }
+                title:        { type: string }
+                church_name:  { type: string }
+                needs_review: { type: boolean }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkTrue' }
+
+  # ── Academy ───────────────────────────────────────────────────────────────
+  /api/academy:
+    get:
+      tags: [academy]
+      summary: Load all academy data
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Classes, students, attendance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:         { type: boolean }
+                  classes:    { type: array }
+                  students:   { type: array }
+                  attendance: { type: array }
+
+  /api/academy/record-lesson:
+    post:
+      tags: [academy]
+      summary: Record / replace / delete a lesson (web UI)
+      security:
+        - sessionCookie: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rawText:        { type: string, description: "Raw attendance block text" }
+                classCode:      { type: string }
+                lessonTitle:    { type: string }
+                lessonDate:     { type: string, format: date }
+                teacherName:    { type: string }
+                replaceExisting:{ type: boolean }
+                deleteExisting: { type: boolean }
+                lessonId:       { type: string }
+                classId:        { type: string }
+      responses:
+        '200':
+          description: Lesson recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkTrue' }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Users ─────────────────────────────────────────────────────────────────
+  /api/users:
+    get:
+      tags: [users]
+      summary: List app users (admin/manager only)
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  users:
+                    type: array
+                    items: { $ref: '#/components/schemas/User' }
+
+    post:
+      tags: [users]
+      summary: Create a user
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:       { type: string, format: email }
+                password:    { type: string, minLength: 8 }
+                displayName: { type: string }
+                role:        { type: string, enum: [admin, gerant, membre] }
+                memberId:    { type: string }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkTrue' }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/users/{id}:
+    patch:
+      tags: [users]
+      summary: Update a user
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName: { type: string }
+                role:        { type: string }
+                password:    { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [users]
+      summary: Delete a user
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  # ── Bot endpoints ─────────────────────────────────────────────────────────
+  /api/bot/lessons:
+    post:
+      tags: [bot]
+      summary: Record a lesson (attendance bot)
+      description: |
+        Attendance bot submits a parsed lesson block.
+        Rate limited: 120 req/min per IP.
+      security:
+        - bearerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [classCode, date, title, instructor]
+              properties:
+                classCode:  { type: string, example: "164-2C" }
+                date:       { type: string, format: date }
+                title:      { type: string, example: "Introduction à la foi" }
+                instructor: { type: string }
+                students:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, status]
+                    properties:
+                      name:     { type: string }
+                      status:   { type: string, enum: [present, absent, unknown] }
+                      subgroup: { type: string }
+                      note:     { type: string }
+                mode:    { type: string, enum: [create, replace, delete], default: create }
+                lessonId:{ type: string }
+                classId: { type: string }
+                source:  { type: string, example: attendance_bot }
+      responses:
+        '200':
+          description: Lesson recorded
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkTrue'
+                  - type: object
+                    properties:
+                      source:  { type: string }
+                      summary: { type: object }
+                      result:  { type: object }
+        '400':
+          description: Missing required field
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Firestore not configured
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/bot/meetings:
+    post:
+      tags: [bot]
+      summary: Record a meeting (mannam bot)
+      security:
+        - bearerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [summary, date]
+              properties:
+                summary:         { type: string }
+                date:            { type: string, format: date }
+                time:            { type: string, example: "14:30" }
+                location:        { type: string }
+                description:     { type: string }
+                participants:
+                  type: array
+                  items: { type: string }
+                calendarEventId: { type: string }
+                source:          { type: string, default: mannam_bot }
+      responses:
+        '200':
+          description: Meeting recorded
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkTrue'
+                  - type: object
+                    properties:
+                      meetingId: { type: string }
+                      summary:   { type: object }
+        '400':
+          description: Missing required field
+        '401':
+          description: Missing or invalid API key
+        '503':
+          description: Firestore not configured
+
+  /api/bot/meetings/{id}:
+    delete:
+      tags: [bot]
+      summary: Delete a meeting (mannam bot)
+      security:
+        - bearerApiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkTrue'
+                  - type: object
+                    properties:
+                      meetingId: { type: string }
+        '401':
+          description: Missing or invalid API key
+        '503':
+          description: Firestore not configured
+
+  /api/bot/members:
+    get:
+      tags: [bot]
+      summary: Get member list (both bots)
+      description: Used by bots to resolve member names before submitting records.
+      security:
+        - bearerApiKey: []
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:      { type: boolean }
+                  members:
+                    type: array
+                    items: { $ref: '#/components/schemas/Member' }
+
+  /api/bot/events:
+    get:
+      tags: [bot]
+      summary: List attendance events
+      security:
+        - bearerApiKey: []
+      responses:
+        '200':
+          description: Event list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  events:
+                    type: array
+                    items: { $ref: '#/components/schemas/AttendanceEvent' }
+
+  /api/bot/categories:
+    get:
+      tags: [bot]
+      summary: List attendance categories
+      security:
+        - bearerApiKey: []
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:         { type: boolean }
+                  categories:
+                    type: array
+                    items: { $ref: '#/components/schemas/AttendanceCategory' }
+
+  /api/bot/events/{eventName}/attendance:
+    get:
+      tags: [bot]
+      summary: Get participants for an attendance event
+      security:
+        - bearerApiKey: []
+      parameters:
+        - name: eventName
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Participants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:         { type: boolean }
+                  event_name: { type: string }
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        participant_name: { type: string }
+                        category:         { type: string }
+                        timestamp:        { type: string }
+
+  /api/bot/events/{eventName}/participants:
+    post:
+      tags: [bot]
+      summary: Add participants to an event
+      security:
+        - bearerApiKey: []
+      parameters:
+        - name: eventName
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [participants]
+              properties:
+                participants:
+                  type: array
+                  items: { type: string }
+                category:
+                  type: string
+                  default: Guest
+      responses:
+        '200':
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:      { type: boolean }
+                  added:   { type: array, items: { type: string } }
+                  skipped: { type: array, items: { type: string } }
+
+  /api/bot/events/{eventName}/participants/{participantName}:
+    delete:
+      tags: [bot]
+      summary: Remove a participant from an event
+      security:
+        - bearerApiKey: []
+      parameters:
+        - name: eventName
+          in: path
+          required: true
+          schema: { type: string }
+        - name: participantName
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:               { type: boolean }
+                  removed:          { type: boolean }
+                  participant_name: { type: string }
+
+  /api/bot/academy/report/class/{code}:
+    get:
+      tags: [bot]
+      summary: Full class attendance report
+      security:
+        - bearerApiKey: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+          example: "164-2C"
+      responses:
+        '200':
+          description: Class report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:         { type: boolean }
+                  cls:        { type: object }
+                  lessons:
+                    type: array
+                    items: { $ref: '#/components/schemas/Lesson' }
+                  students:
+                    type: array
+                    items: { $ref: '#/components/schemas/Student' }
+                  att_lookup: { type: object }
+        '404':
+          description: Class not found
+
+  /api/bot/academy/report/student/{name}:
+    get:
+      tags: [bot]
+      summary: Student attendance history
+      security:
+        - bearerApiKey: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+          example: "Marie%20Dupont"
+      responses:
+        '200':
+          description: Student records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:           { type: boolean }
+                  student_name: { type: string }
+                  records:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        lesson_title: { type: string }
+                        lesson_date:  { type: string }
+                        class_code:   { type: string }
+                        status:       { type: string }
+        '404':
+          description: No data for this student
+
+  /api/bot/academy/report/absentees/{code}:
+    get:
+      tags: [bot]
+      summary: Absentees grouped by lesson
+      security:
+        - bearerApiKey: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+        - name: lesson
+          in: query
+          required: false
+          schema: { type: string }
+          description: Optional substring filter on lesson title
+      responses:
+        '200':
+          description: Absentee report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:           { type: boolean }
+                  cls:          { type: object }
+                  lessons:      { type: array }
+                  att_by_lesson:{ type: object }
+        '404':
+          description: Class not found
