@@ -5,6 +5,7 @@ const { sessionAuth } = require("./middleware/auth");
 const { apiKeyAuth } = require("./middleware/apiKey");
 const { errorHandler } = require("./middleware/errorHandler");
 const { requestLogger } = require("./middleware/logger");
+const { securityHeaders } = require("./middleware/securityHeaders");
 const { canManageUsers } = require("../lib/auth");
 
 // Routes
@@ -25,6 +26,7 @@ const PUBLIC_DIR = path.join(__dirname, "..", "public");
 // ---------------------------------------------------------------------------
 // Core middleware
 // ---------------------------------------------------------------------------
+app.use(securityHeaders);
 app.use(requestLogger);
 app.use(express.json({ limit: "1mb" }));
 app.use(sessionAuth);

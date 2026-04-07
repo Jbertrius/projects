@@ -8,6 +8,8 @@ const { appCache } = require("../utils/cache");
 
 const router = Router();
 
+const ACADEMY_TTL_MS = 3 * 60 * 1000; // 3 minutes — attendance changes frequently
+
 function parseDeclaredAttendanceTotals(rawText) {
   const normalizedLines = String(rawText || "")
     .split("\n")
@@ -64,7 +66,7 @@ function parseDeclaredAttendanceTotals(rawText) {
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const data = await academyRepo.findAll();
+    const data = await appCache.get("academy", ACADEMY_TTL_MS, () => academyRepo.findAll());
     const isEmpty = !hasFirestoreConfig();
     res.json({
       ok: true,
