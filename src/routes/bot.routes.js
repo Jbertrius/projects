@@ -14,10 +14,11 @@
 const { Router } = require("express");
 const { requireBotOrAuth } = require("../middleware/apiKey");
 const academyRepo = require("../repositories/academy.repository");
+const attendanceRepo = require("../repositories/attendance.repository");
 const { appCache } = require("../utils/cache");
 const { AppError } = require("../middleware/errorHandler");
 const { validate, required } = require("../utils/validate");
-const { hasFirestoreConfig } = require("../../lib/firestore");
+const { hasFirestoreConfig, deleteMeetingDocument } = require("../../lib/firestore");
 const { getAccessToken, fetchJson, getEnv } = require("../../lib/google-auth");
 
 const router = Router();
@@ -214,6 +215,219 @@ router.get("/members", async (req, res, next) => {
         zone: m.zone || ""
       }))
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/bot/meetings/:id
+// Mannam bot deletes a meeting (e.g. when the Calendar event is removed).
+// ---------------------------------------------------------------------------
+router.delete("/meetings/:id", async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base de donnees n'est pas configuree.");
+    }
+    const meetingId = String(req.params.id || "").trim();
+    if (!meetingId) {
+      return res.status(400).json({ ok: false, error: "meetingId is required" });
+    }
+    await deleteMeetingDocument(meetingId);
+    appCache.invalidate("dashboard");
+    appCache.invalidate("dashboard:source");
+    res.json({ ok: true, meetingId });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/bot/events
+// Attendance bot fetches all attendance events (sorted by date).
+// Returns { events: [{ event_id, event_name, date, description }] }
+// ---------------------------------------------------------------------------
+router.get("/events", async (req, res, next) => {
+  try {
+    const events = await appCache.get(
+      "attendanceEvents",
+      5 * 60 * 1000,
+      () => attendanceRepo.findAllEvents()
+    );
+    res.json({ ok: true, events });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/bot/categories
+// Attendance bot fetches all attendance categories.
+// Returns { categories: [{ category_id, category_name }] }
+// ---------------------------------------------------------------------------
+router.get("/categories", async (req, res, next) => {
+  try {
+    const categories = await appCache.get(
+      "attendanceCategories",
+      10 * 60 * 1000,
+      () => attendanceRepo.findAllCategories()
+    );
+    res.json({ ok: true, categories });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/bot/events/:eventName/attendance
+// Returns all participants recorded for one event.
+// Returns { event_name, rows: [{ participant_name, category, timestamp }] }
+// ---------------------------------------------------------------------------
+router.get("/events/:eventName/attendance", async (req, res, next) => {
+  try {
+    const eventName = decodeURIComponent(String(req.params.eventName || "").trim());
+    if (!eventName) {
+      return res.status(400).json({ ok: false, error: "eventName is required" });
+    }
+    const rows = await attendanceRepo.findAttendanceForEvent(eventName);
+    res.json({ ok: true, event_name: eventName, rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/bot/events/:eventName/participants
+// Add one or more participants to an attendance event.
+//
+// Body: { participants: string[], category: string }
+// Returns { ok, added: string[], skipped: string[] }
+// ---------------------------------------------------------------------------
+router.post("/events/:eventName/participants", async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base de donnees n'est pas configuree.");
+    }
+    const eventName = decodeURIComponent(String(req.params.eventName || "").trim());
+    if (!eventName) {
+      return res.status(400).json({ ok: false, error: "eventName is required" });
+    }
+    const participants = Array.isArray(req.body.participants) ? req.body.participants : [];
+    const category = String(req.body.category || "Guest").trim();
+    if (!participants.length) {
+      return res.status(400).json({ ok: false, error: "participants array is required" });
+    }
+    const added = await attendanceRepo.addParticipants(eventName, participants, category);
+    const skipped = participants.filter((p) => !added.includes(p));
+    appCache.invalidate("attendanceEvents");
+    res.json({ ok: true, event_name: eventName, added, skipped });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/bot/events/:eventName/participants/:participantName
+// Remove a single participant from an attendance event.
+// ---------------------------------------------------------------------------
+router.delete("/events/:eventName/participants/:participantName", async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base de donnees n'est pas configuree.");
+    }
+    const eventName = decodeURIComponent(String(req.params.eventName || "").trim());
+    const participantName = decodeURIComponent(String(req.params.participantName || "").trim());
+    if (!eventName || !participantName) {
+      return res.status(400).json({ ok: false, error: "eventName and participantName are required" });
+    }
+    const removed = await attendanceRepo.removeParticipant(eventName, participantName);
+    appCache.invalidate("attendanceEvents");
+    res.json({ ok: true, event_name: eventName, participant_name: participantName, removed });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/bot/academy/report/class/:code
+// Full attendance report for one academy class.
+// Returns { cls, lessons, students, att_lookup }
+// ---------------------------------------------------------------------------
+router.get("/academy/report/class/:code", async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base academie n'est pas configuree.");
+    }
+    const code = decodeURIComponent(String(req.params.code || "").trim());
+    if (!code) {
+      return res.status(400).json({ ok: false, error: "class code is required" });
+    }
+    const data = await academyRepo.getClassReport(code);
+    if (!data) {
+      return res.status(404).json({
+        ok: false,
+        error: `Classe *${code}* introuvable.`
+      });
+    }
+    res.json({ ok: true, ...data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/bot/academy/report/student/:name
+// Attendance history for a single student (URL-encoded name).
+// Returns { student_name, records: [...] }
+// ---------------------------------------------------------------------------
+router.get("/academy/report/student/:name", async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base academie n'est pas configuree.");
+    }
+    const name = decodeURIComponent(String(req.params.name || "").trim());
+    if (!name) {
+      return res.status(400).json({ ok: false, error: "student name is required" });
+    }
+    const records = await academyRepo.getStudentReport(name);
+    if (!records.length) {
+      return res.status(404).json({
+        ok: false,
+        error: `Aucune donnee trouvee pour *${name}*.`
+      });
+    }
+    res.json({ ok: true, student_name: name, records });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/bot/academy/report/absentees/:code[?lesson=<filter>]
+// List absent students grouped by lesson for a given class.
+// Returns { cls, lessons, att_by_lesson }
+// ---------------------------------------------------------------------------
+router.get("/academy/report/absentees/:code", async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "La base academie n'est pas configuree.");
+    }
+    const code = decodeURIComponent(String(req.params.code || "").trim());
+    const lessonFilter = String(req.query.lesson || "").trim();
+    if (!code) {
+      return res.status(400).json({ ok: false, error: "class code is required" });
+    }
+    const data = await academyRepo.getAbsentees(code, lessonFilter);
+    if (!data) {
+      return res.status(404).json({
+        ok: false,
+        error: `Classe *${code}* introuvable.`
+      });
+    }
+    res.json({ ok: true, ...data });
   } catch (error) {
     next(error);
   }
