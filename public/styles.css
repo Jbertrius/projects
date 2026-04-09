@@ -347,13 +347,6 @@ h1 {
   font-size: 0.92rem;
 }
 
-.hero-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 12px;
-  align-items: center;
-  margin-top: 6px;
-}
 
 button {
   border: 0;
@@ -374,24 +367,6 @@ button:disabled {
   transform: none;
 }
 
-.primary-action {
-  background: linear-gradient(135deg, var(--green), #0b9442);
-  color: #f9fffb;
-  box-shadow: 0 16px 28px rgba(14, 125, 58, 0.22);
-}
-
-.hero-actions button {
-  min-height: 54px;
-  min-width: 0;
-  flex: 1 1 0;
-  justify-content: center;
-  display: inline-flex;
-  align-items: center;
-  text-align: center;
-  line-height: 1.2;
-  padding: 14px 18px;
-  white-space: nowrap;
-}
 
 .secondary-action {
   background: rgba(255, 255, 255, 0.9);
@@ -1243,12 +1218,7 @@ th {
     display: grid;
   }
 
-  .hero-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .academy-chart-toolbar,
+.academy-chart-toolbar,
   .academy-entry-grid,
   .academy-entry-actions {
     grid-template-columns: 1fr;

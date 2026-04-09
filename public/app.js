@@ -684,57 +684,6 @@ function attachFilterHandlers() {
   });
 }
 
-function setButtonsBusy(isBusy) {
-  document.querySelectorAll('[data-action]').forEach((button) => {
-    button.disabled = isBusy;
-  });
-}
-
-async function runAction(action) {
-  const routes = {
-    'sync-full': {
-      url: '/api/sync/full',
-      message: 'Synchronisation complete terminee.'
-    },
-    'sync-calendar': { url: '/api/sync/calendar-to-sheets', message: 'Import des rencontres termine.' },
-    'sync-firestore': { url: '/api/sync/firestore', message: 'Mise a jour de la base terminee.' }
-  };
-
-  const config = routes[action];
-  if (!config) {
-    return;
-  }
-
-  setButtonsBusy(true);
-  showFeedback('Operation en cours...', 'info');
-
-  try {
-    const response = await fetch(config.url);
-    const payload = await response.json();
-    if (!response.ok || payload.ok === false) {
-      throw new Error(payload.error || 'Operation impossible.');
-    }
-
-    if (action === 'sync-full' && payload.steps) {
-      const importedEvents = payload.steps.calendarToSheets?.importedEvents ?? 0;
-      const syncedMeetings = payload.steps.sheetsToFirestore?.meetings ?? 0;
-      showFeedback(`${config.message} ${importedEvents} rencontres importees, ${syncedMeetings} rencontres consolidees.`, 'success');
-    } else {
-      showFeedback(config.message, 'success');
-    }
-    await refreshDashboard();
-  } catch (error) {
-    showFeedback(error.message, 'error');
-  } finally {
-    setButtonsBusy(false);
-  }
-}
-
-function attachActionHandlers() {
-  document.querySelectorAll('[data-action]').forEach((button) => {
-    button.addEventListener('click', () => runAction(button.dataset.action));
-  });
-}
 
 function attachNavigationHandlers() {
   const navItems = Array.from(document.querySelectorAll('.nav-item[data-target]'));
@@ -768,7 +717,6 @@ async function loadDashboard() {
   try {
     await window.AppAuth.requireAuth();
     app.innerHTML = document.getElementById('dashboard-template').innerHTML;
-    attachActionHandlers();
     attachNavigationHandlers();
     attachFilterHandlers();
     await refreshDashboard();
