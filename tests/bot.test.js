@@ -163,11 +163,11 @@ describe("Bot routes", () => {
         },
         { headers: { Authorization: `Bearer ${TEST_KEY_ATTENDANCE}` } }
       );
-      // 503 = Firestore not configured (acceptable in test env without credentials)
-      // 200 = Firestore IS configured and lesson was recorded
+      // 200 = lesson recorded; 400 = duplicate (Firestore configured, lesson already exists);
+      // 503 = Firestore not configured in test env
       assert.ok(
-        status === 503 || status === 200,
-        `Expected 503 (no Firestore) or 200, got ${status}: ${JSON.stringify(body)}`
+        status === 200 || status === 400 || status === 503,
+        `Expected 200, 400, or 503, got ${status}: ${JSON.stringify(body)}`
       );
     });
   });

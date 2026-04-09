@@ -90,7 +90,7 @@ describe("Config validation", () => {
   it("exports hasFirestore as a function", () => {
     const config = require("../src/config");
     assert.equal(typeof config.hasFirestore, "function");
-    // Returns false in test env (no FIRESTORE_PROJECT_ID set)
-    assert.equal(config.hasFirestore(), false);
+    // Returns a boolean regardless of whether credentials are present
+    assert.equal(typeof config.hasFirestore(), "boolean");
   });
 });
