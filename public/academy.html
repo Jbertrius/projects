@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Suivi academie</title>
+    <title>Academie DMD</title>
     <link rel="icon" type="image/png" href="/assets/department-logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,7 +20,7 @@
           <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
           <div>
             <p class="eyebrow">Departement des missions domestiques</p>
-            <p class="brand-title">Suivi academie</p>
+            <p class="brand-title">Academie DMD</p>
           </div>
         </div>
 
@@ -33,34 +33,33 @@
           <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
         </section>
 
-        <nav class="sidebar-nav" aria-label="Navigation principale">
-          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">arrow_back</span><span>Retour dashboard</span></a>
-          <button class="nav-item is-active" type="button" data-target="academy-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Vue academie</span></button>
-          <button class="nav-item" type="button" data-target="academy-trajectory"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Presence</span></button>
-          <button class="nav-item" type="button" data-target="academy-students"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Etudiants</span></button>
-          <button class="nav-item" type="button" data-target="academy-evaluation"><span class="nav-icon material-symbols-rounded" aria-hidden="true">donut_small</span><span>Evaluations</span></button>
-          <button class="nav-item" type="button" data-target="academy-entry-panel"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_note</span><span>Nouvelle lecon</span></button>
-          <a class="nav-item nav-link" href="/pastors.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_book</span><span>Fiches pasteurs</span></a>
-          <a class="nav-item nav-link" href="/users.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Utilisateurs</span></a>
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link is-active" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
         </nav>
 
-        <section class="sidebar-card">
-          <p class="section-label">Pilotage</p>
-          <h2 class="sidebar-card-title">Classes, presence, progression</h2>
-          <ul class="sidebar-points">
-            <li>Suivre l'assiduite par classe</li>
-            <li>Voir les etudiants a relancer</li>
-            <li>Mesurer l'evolution generale</li>
-          </ul>
-        </section>
+        <nav class="sidebar-nav" aria-label="Dans cette page">
+          <p class="nav-section-label">Dans cette page</p>
+          <button class="nav-item" type="button" data-target="academy-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Vue academie</span></button>
+          <button class="nav-item" type="button" data-target="academy-trajectory"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Presences</span></button>
+          <button class="nav-item" type="button" data-target="academy-students"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Etudiants</span></button>
+          <button class="nav-item" type="button" data-target="academy-evaluation"><span class="nav-icon material-symbols-rounded" aria-hidden="true">donut_small</span><span>Evaluations</span></button>
+          <button class="nav-item" type="button" data-target="academy-entry-panel"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_note</span><span>Lecons</span></button>
+          <a class="nav-item nav-link" href="/academy-students.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">badge</span><span>Fiches etudiants</span></a>
+        </nav>
       </aside>
 
       <div class="page-shell">
         <main class="dashboard">
           <section class="top-bar" id="academy-top">
             <div>
-              <p class="section-label">Centre</p>
-              <h2>Suivi des presences academie</h2>
+              <p class="section-label">Academie</p>
+              <h2>Suivi des presences et des classes</h2>
             </div>
             <div class="top-bar-actions">
               <div class="sync-pill" id="academy-refresh-label">Chargement...</div>

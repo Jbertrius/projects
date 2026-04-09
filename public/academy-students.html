@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cooperation - Fiches pasteurs</title>
+    <title>Academie - Fiches etudiants</title>
     <link rel="icon" type="image/png" href="/assets/department-logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,7 +20,7 @@
           <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
           <div>
             <p class="eyebrow">Departement des missions domestiques</p>
-            <p class="brand-title">Cooperation</p>
+            <p class="brand-title">Academie</p>
           </div>
         </div>
 
@@ -37,155 +37,142 @@
           <p class="nav-section-label">Navigation DMD</p>
           <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
           <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
-          <a class="nav-item nav-link is-active" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
-          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link is-active" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
           <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
           <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
         </nav>
 
         <nav class="sidebar-nav" aria-label="Dans cette page">
           <p class="nav-section-label">Dans cette page</p>
-          <button class="nav-item is-active" type="button" data-target="pastors-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_book</span><span>Fiches pasteurs</span></button>
-          <button class="nav-item" type="button" data-target="review-queue"><span class="nav-icon material-symbols-rounded" aria-hidden="true">fact_check</span><span>A revoir</span></button>
-          <button class="nav-item" type="button" data-target="review-form"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_square</span><span>Edition</span></button>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Vue academie</span></a>
+          <button class="nav-item is-active" type="button" data-target="academy-students-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">badge</span><span>Fiches etudiants</span></button>
+          <button class="nav-item" type="button" data-target="academy-students-list"><span class="nav-icon material-symbols-rounded" aria-hidden="true">group</span><span>Liste</span></button>
+          <button class="nav-item" type="button" data-target="academy-students-editor"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_square</span><span>Edition</span></button>
         </nav>
-
       </aside>
 
       <div class="page-shell">
         <main class="dashboard">
-          <section class="top-bar" id="pastors-top">
+          <section class="top-bar" id="academy-students-top">
             <div>
-              <p class="section-label">Cooperation</p>
-              <h2>Fiches pasteurs et suivi relationnel</h2>
+              <p class="section-label">Academie</p>
+              <h2>Fiches etudiants et statuts</h2>
             </div>
             <div class="top-bar-actions">
-              <div class="sync-pill" id="pastors-count">Chargement...</div>
-              <button class="secondary-action compact-action" id="refresh-pastors" type="button">Actualiser</button>
+              <div class="sync-pill" id="academy-students-summary">Chargement...</div>
+              <button class="secondary-action compact-action" id="academy-students-refresh" type="button">Actualiser</button>
             </div>
           </section>
 
           <section class="filters-bar">
             <div class="filter-group">
-              <label class="filter-label" for="pastor-search">Recherche</label>
-              <input class="filter-control" id="pastor-search" type="search" placeholder="Nom, variante, eglise..." />
+              <label class="filter-label" for="academy-student-records-search">Recherche</label>
+              <input class="filter-control" id="academy-student-records-search" type="search" placeholder="Nom, classe, instructeur..." />
             </div>
             <div class="filter-group">
-              <label class="filter-label" for="review-filter">Statut revue</label>
-              <select id="review-filter" class="filter-control">
-                <option value="all">Tous</option>
-                <option value="review">A revoir</option>
-                <option value="clean">Valides</option>
+              <label class="filter-label" for="academy-student-records-class">Classe</label>
+              <select id="academy-student-records-class" class="filter-control">
+                <option value="all">Toutes les classes</option>
               </select>
             </div>
             <div class="filter-group">
-              <label class="filter-label" for="title-filter">Titre</label>
-              <select id="title-filter" class="filter-control">
+              <label class="filter-label" for="academy-student-records-status">Statut</label>
+              <select id="academy-student-records-status" class="filter-control">
                 <option value="all">Tous</option>
-              </select>
-            </div>
-            <div class="filter-group">
-              <label class="filter-label" for="member-filter">Membre</label>
-              <select id="member-filter" class="filter-control">
-                <option value="all">Tous</option>
+                <option value="inscrit">Inscrits</option>
+                <option value="non inscrit">Non inscrits</option>
               </select>
             </div>
             <div class="filter-group filter-actions">
-              <button class="secondary-action compact-action" id="reset-pastor-filters" type="button">Reinitialiser</button>
+              <button class="secondary-action compact-action" id="academy-student-records-reset" type="button">Reinitialiser</button>
             </div>
           </section>
 
           <section class="review-layout">
-            <article class="card review-list-card" id="review-queue">
+            <article class="card review-list-card" id="academy-students-list">
               <div class="card-head">
                 <div>
                   <p class="section-label">Liste</p>
-                  <h3>Pasteurs detectes</h3>
+                  <h3>Etudiants academie</h3>
                 </div>
-                <p class="muted" id="review-summary"></p>
+                <p class="muted" id="academy-student-records-visible">-</p>
               </div>
-              <div class="pastor-list" id="pastor-list"></div>
+              <div class="pastor-list" id="academy-student-records-list"></div>
             </article>
 
-            <article class="card review-form-card" id="review-form">
+            <article class="card review-form-card" id="academy-students-editor">
               <div class="card-head">
                 <div>
                   <p class="section-label">Edition</p>
-                  <h3 id="editor-title">Selectionner une fiche</h3>
+                  <h3 id="academy-student-editor-title">Selectionner un etudiant</h3>
                 </div>
-                <span class="status-pill" id="editor-status">Aucune selection</span>
+                <span class="status-pill" id="academy-student-editor-status">Aucune selection</span>
               </div>
 
-              <form id="pastor-form" class="pastor-form">
-                <input type="hidden" id="pastor-id" />
+              <form id="academy-student-form" class="pastor-form">
+                <input type="hidden" id="academy-student-id" />
 
                 <div class="review-grid">
                   <label class="form-field">
                     <span>Nom complet</span>
-                    <input id="pastor-name" class="filter-control" type="text" readonly />
+                    <input id="academy-student-name" class="filter-control" type="text" required />
                   </label>
                   <label class="form-field">
-                    <span>Titre</span>
-                    <input id="pastor-title" class="filter-control" type="text" />
+                    <span>Statut</span>
+                    <select id="academy-student-status" class="filter-control">
+                      <option value="Inscrit">Inscrit</option>
+                      <option value="Non inscrit">Non inscrit</option>
+                    </select>
                   </label>
                 </div>
 
                 <div class="review-grid">
                   <label class="form-field">
                     <span>Prenom</span>
-                    <input id="pastor-first-name" class="filter-control" type="text" />
+                    <input id="academy-student-first-name" class="filter-control" type="text" />
                   </label>
                   <label class="form-field">
                     <span>Nom</span>
-                    <input id="pastor-last-name" class="filter-control" type="text" />
+                    <input id="academy-student-last-name" class="filter-control" type="text" />
+                  </label>
+                </div>
+
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Classe</span>
+                    <input id="academy-student-class" class="filter-control" type="text" readonly />
+                  </label>
+                  <label class="form-field">
+                    <span>Instructeur</span>
+                    <input id="academy-student-instructor" class="filter-control" type="text" readonly />
                   </label>
                 </div>
 
                 <div class="review-grid">
                   <label class="form-field">
                     <span>Eglise</span>
-                    <input id="pastor-church" class="filter-control" type="text" />
+                    <input id="academy-student-church" class="filter-control" type="text" readonly />
                   </label>
                   <label class="form-field">
-                    <span>Ville</span>
-                    <input id="pastor-city" class="filter-control" type="text" />
+                    <span>Sous-groupe</span>
+                    <input id="academy-student-subgroup" class="filter-control" type="text" />
                   </label>
                 </div>
-
-                <div class="review-grid">
-                  <label class="form-field">
-                    <span>Telephone</span>
-                    <input id="pastor-phone" class="filter-control" type="text" />
-                  </label>
-                  <label class="form-field">
-                    <span>Email</span>
-                    <input id="pastor-email" class="filter-control" type="email" />
-                  </label>
-                </div>
-
-                <label class="form-field">
-                  <span>Aliases</span>
-                  <input id="pastor-aliases" class="filter-control" type="text" placeholder="Alias 1 | Alias 2" />
-                </label>
 
                 <label class="form-field">
                   <span>Notes</span>
-                  <textarea id="pastor-notes" class="filter-control form-textarea"></textarea>
-                </label>
-
-                <label class="review-toggle">
-                  <input id="pastor-needs-review" type="checkbox" />
-                  <span>Laisser la fiche dans la file de relecture</span>
+                  <textarea id="academy-student-notes" class="filter-control form-textarea"></textarea>
                 </label>
 
                 <div class="review-meta">
                   <div>
-                    <p class="section-label">Variantes source</p>
-                    <p class="review-source" id="pastor-source-variants">-</p>
+                    <p class="section-label">Activite</p>
+                    <div class="data-pills" id="academy-student-activity-pills"></div>
                   </div>
                   <div>
-                    <p class="section-label">Historique</p>
-                    <p class="review-source" id="pastor-history">-</p>
+                    <p class="section-label">Derniere lecon</p>
+                    <p class="review-source" id="academy-student-last-lesson">-</p>
                   </div>
                 </div>
 
@@ -202,6 +189,6 @@
     </div>
 
     <script src="/auth-client.js" defer></script>
-    <script src="/pastors.js" defer></script>
+    <script src="/academy-students.js" defer></script>
   </body>
 </html>

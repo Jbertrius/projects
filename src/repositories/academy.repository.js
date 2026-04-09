@@ -6,6 +6,7 @@ const {
   loadAcademyDataFromFirestore,
   replaceAcademyLessonRecord,
   syncAcademySheetToFirestore,
+  updateAcademyStudent,
   getAcademyClassByCode,
   listAcademyLessonsForClass,
   listAcademyStudentsForClass,
@@ -50,6 +51,10 @@ async function recordLesson(parsed, options = {}) {
  */
 async function syncFromSheet() {
   return syncAcademySheetToFirestore();
+}
+
+async function updateStudent(input) {
+  return updateAcademyStudent(input);
 }
 
 /**
@@ -140,6 +145,7 @@ module.exports = {
   findAll,
   recordLesson,
   syncFromSheet,
+  updateStudent,
   getClassReport,
   getStudentReport,
   getAbsentees

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cooperation DMD</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Cooperation</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link is-active" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans ce pole">
+          <p class="nav-section-label">Dans ce pole</p>
+          <a class="nav-item nav-link is-active" href="#cooperation-overview"><span class="nav-icon material-symbols-rounded" aria-hidden="true">hub</span><span>Vue d'ensemble</span></a>
+          <a class="nav-item nav-link" href="#cooperation-modules"><span class="nav-icon material-symbols-rounded" aria-hidden="true">category</span><span>Modules</span></a>
+          <a class="nav-item nav-link" href="/pastors.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_book</span><span>Fiches pasteurs</span></a>
+        </nav>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="hero">
+            <div class="hero-copy" id="cooperation-overview">
+              <div class="brand-tags">
+                <span class="brand-tag">Pole</span>
+                <span class="brand-tag">MOU</span>
+                <span class="brand-tag">Relation</span>
+              </div>
+              <h1>Cooperation : faire passer l'interet a l'engagement.</h1>
+              <p class="hero-text">
+                Ce pole structure la relation forte avec les pasteurs : MOU, suivi relationnel, rencontres clefs et
+                stabilisation du lien avant l'entree en academie.
+              </p>
+            </div>
+
+            <aside class="hero-panel">
+              <div class="hero-panel-top">
+                <img class="hero-panel-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+                <div>
+                  <p class="panel-label">Mission du pole</p>
+                  <h2 class="panel-title">Faire grandir l'engagement dans la duree</h2>
+                </div>
+              </div>
+              <div class="hero-panel-grid">
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value">MOU</span>
+                  <span class="hero-panel-label">signes ou en cours</span>
+                </div>
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value">Suivi</span>
+                  <span class="hero-panel-label">relationnel et spirituel</span>
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section class="module-grid" id="cooperation-modules">
+            <article class="card module-card">
+              <div>
+                <p class="section-label">Pasteurs</p>
+                <h3>Fiches et enrichissement</h3>
+              </div>
+              <p class="muted">Relecture des identites, eglise, ville, notes et historique des rencontres.</p>
+              <div class="module-links">
+                <a class="module-link" href="/pastors.html">Ouvrir les fiches pasteurs <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+
+            <article class="card module-card">
+              <div>
+                <p class="section-label">Relation</p>
+                <h3>MOU et cooperation active</h3>
+              </div>
+              <p class="muted">Vue future pour les accords, la qualite du lien et les prochaines relances strategiques.</p>
+              <div class="module-links">
+                <a class="module-link" href="/academy.html">Voir la suite vers l'academie <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
+  </body>
+</html>

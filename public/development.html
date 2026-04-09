@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Developpement DMD</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Developpement</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link is-active" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans ce pole">
+          <p class="nav-section-label">Dans ce pole</p>
+          <a class="nav-item nav-link is-active" href="#development-overview"><span class="nav-icon material-symbols-rounded" aria-hidden="true">assured_workload</span><span>Vue d'ensemble</span></a>
+          <a class="nav-item nav-link" href="#development-modules"><span class="nav-icon material-symbols-rounded" aria-hidden="true">category</span><span>Modules</span></a>
+        </nav>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="hero">
+            <div class="hero-copy" id="development-overview">
+              <div class="brand-tags">
+                <span class="brand-tag">Pole</span>
+                <span class="brand-tag">Expansion</span>
+                <span class="brand-tag">Centres</span>
+              </div>
+              <h1>Developpement : transformer la conviction en multiplication.</h1>
+              <p class="hero-text">
+                Ce pole couvre les pasteurs actifs apres academie, les eglises partenaires, l'ouverture des centres et
+                le coaching missionnaire sur le terrain.
+              </p>
+            </div>
+
+            <aside class="hero-panel">
+              <div class="hero-panel-top">
+                <img class="hero-panel-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+                <div>
+                  <p class="panel-label">Mission du pole</p>
+                  <h2 class="panel-title">Faire passer la conviction a la multiplication</h2>
+                </div>
+              </div>
+              <div class="hero-panel-grid">
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value">Centres</span>
+                  <span class="hero-panel-label">ouverts ou en preparation</span>
+                </div>
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value">Eglises</span>
+                  <span class="hero-panel-label">partenaires a suivre</span>
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section class="module-grid" id="development-modules">
+            <article class="card module-card">
+              <div>
+                <p class="section-label">Expansion</p>
+                <h3>Centres et implantations</h3>
+              </div>
+              <p class="muted">Vue future des centres ouverts, zones cibles et suivi des pastorats actifs.</p>
+              <div class="module-links">
+                <a class="module-link" href="/">Revenir a la vue direction <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+
+            <article class="card module-card">
+              <div>
+                <p class="section-label">Partenaires</p>
+                <h3>Eglises et coaching</h3>
+              </div>
+              <p class="muted">Suivi futur des eglises partenaires et du coaching post-formation des pasteurs.</p>
+              <div class="module-links">
+                <a class="module-link" href="/cooperation.html">Voir le pole cooperation <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
+  </body>
+</html>

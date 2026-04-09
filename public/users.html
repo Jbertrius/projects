@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Utilisateurs</title>
+    <title>Administration DMD</title>
     <link rel="icon" type="image/png" href="/assets/department-logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,7 +20,7 @@
           <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
           <div>
             <p class="eyebrow">Departement des missions domestiques</p>
-            <p class="brand-title">Utilisateurs</p>
+            <p class="brand-title">Administration</p>
           </div>
         </div>
 
@@ -33,25 +33,22 @@
           <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
         </section>
 
-        <nav class="sidebar-nav" aria-label="Navigation principale">
-          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">arrow_back</span><span>Retour dashboard</span></a>
-          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">analytics</span><span>Suivi academie</span></a>
-          <a class="nav-item nav-link" href="/pastors.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_book</span><span>Fiches pasteurs</span></a>
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link is-active" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans cette page">
+          <p class="nav-section-label">Dans cette page</p>
           <button class="nav-item is-active" type="button" data-target="users-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Acces</span></button>
           <button class="nav-item" type="button" data-target="users-create"><span class="nav-icon material-symbols-rounded" aria-hidden="true">person_add</span><span>Nouvel utilisateur</span></button>
           <button class="nav-item" type="button" data-target="users-list"><span class="nav-icon material-symbols-rounded" aria-hidden="true">group</span><span>Liste</span></button>
         </nav>
-
-        <section class="sidebar-card">
-          <p class="section-label">Roles</p>
-          <h2 class="sidebar-card-title">Admin, gerant, membre</h2>
-          <ul class="sidebar-points">
-            <li>Admin donne les droits</li>
-            <li>Gerant ajoute ou retire les acces</li>
-            <li>Membre consulte les donnees</li>
-          </ul>
-        </section>
-
       </aside>
 
       <div class="page-shell">
@@ -113,7 +110,7 @@
               <form id="user-create-form" class="pastor-form">
                 <div class="review-grid">
                   <label class="form-field">
-                    <span>Nom affiché</span>
+                    <span>Nom affiche</span>
                     <input id="create-display-name" class="filter-control" type="text" required />
                   </label>
                   <label class="form-field">
@@ -156,7 +153,7 @@
                 <input id="edit-user-id" type="hidden" />
                 <div class="review-grid">
                   <label class="form-field">
-                    <span>Nom affiché</span>
+                    <span>Nom affiche</span>
                     <input id="edit-display-name" class="filter-control" type="text" />
                   </label>
                   <label class="form-field">

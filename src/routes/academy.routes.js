@@ -5,10 +5,20 @@ const { hasFirestoreConfig } = require("../../lib/firestore");
 const { normalizeIsoDate, parseAttendanceBlock } = require("../../lib/academy-parser");
 const { AppError } = require("../middleware/errorHandler");
 const { appCache } = require("../utils/cache");
+const { log } = require("../middleware/logger");
+const { inspectAcademyPayload } = require("../utils/academyGuard");
 
 const router = Router();
 
 const ACADEMY_TTL_MS = 3 * 60 * 1000; // 3 minutes — attendance changes frequently
+
+function normalizeLookupValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 function parseDeclaredAttendanceTotals(rawText) {
   const normalizedLines = String(rawText || "")
@@ -82,6 +92,108 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
+router.get("/students", requireAuth, async (req, res, next) => {
+  try {
+    const data = await appCache.get("academy", ACADEMY_TTL_MS, () => academyRepo.findAll());
+    const classesById = new Map((data.classes || []).map((item) => [String(item.id), item]));
+    const attendanceByStudentId = new Map();
+    const unregisteredByStudentName = new Map();
+
+    (data.attendance || []).forEach((row) => {
+      const key = String(row.student_id || "").trim();
+      const bucket = attendanceByStudentId.get(key) || [];
+      bucket.push(row);
+      attendanceByStudentId.set(key, bucket);
+    });
+
+    (data.unregistered || []).forEach((row) => {
+      const key = `${String(row.class_id || "").trim()}::${normalizeLookupValue(row.student_name || "")}`;
+      const bucket = unregisteredByStudentName.get(key) || [];
+      bucket.push(row);
+      unregisteredByStudentName.set(key, bucket);
+    });
+
+    const students = (data.students || [])
+      .map((student) => {
+        const studentId = String(student.id || "").trim();
+        const classId = String(student.class_id || "").trim();
+        const statsRows = attendanceByStudentId.get(studentId) || [];
+        const unregisteredRows = unregisteredByStudentName.get(
+          `${classId}::${normalizeLookupValue(student.name || "")}`
+        ) || [];
+        const presentCount = statsRows.filter((row) => row.status === "present").length;
+        const absentCount = statsRows.filter((row) => row.status === "absent").length;
+        const lateCount = statsRows.filter((row) => row.status === "late").length;
+        const lessonCount = statsRows.length + unregisteredRows.length;
+        const academyClass = classesById.get(classId) || {};
+        return {
+          ...student,
+          class_name: student.class_name || academyClass.name || classId,
+          instructor_name: student.instructor_name || academyClass.instructor_name || "",
+          church_name: student.church_name || academyClass.church_name || "",
+          attendance_count: statsRows.length,
+          unregistered_lesson_count: unregisteredRows.length,
+          lesson_count: lessonCount,
+          present_count: presentCount,
+          absent_count: absentCount,
+          late_count: lateCount,
+          last_lesson_date: statsRows
+            .map((row) => String(row.session_date || ""))
+            .filter(Boolean)
+            .sort()
+            .slice(-1)[0] || unregisteredRows
+            .map((row) => String(row.session_date || ""))
+            .filter(Boolean)
+            .sort()
+            .slice(-1)[0] || "",
+          notes: student.notes || "",
+          status: student.status || (student.is_registered === false ? "Non inscrit" : "Inscrit")
+        };
+      })
+      .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "fr"));
+
+    const classOptions = (data.classes || [])
+      .map((academyClass) => ({
+        id: academyClass.id,
+        name: academyClass.name
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name, "fr"));
+
+    res.json({
+      ok: true,
+      students,
+      classOptions,
+      meta: {
+        refreshLabel: hasFirestoreConfig() ? "Fiches etudiants synchronisees" : "Aucune base academie connectee"
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/students/update", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(400, "La base academie n'est pas configuree.");
+    }
+    const payload = req.body || {};
+    if (!String(payload.id || "").trim()) {
+      throw new AppError(400, "Identifiant etudiant manquant.");
+    }
+    if (!String(payload.name || "").trim()) {
+      throw new AppError(400, "Le nom de l'etudiant est requis.");
+    }
+
+    const student = await academyRepo.updateStudent(payload);
+    appCache.invalidate("academy");
+    res.json({ ok: true, student });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
 router.post("/record-lesson", requireContentManager, async (req, res, next) => {
   try {
     if (!hasFirestoreConfig()) {
@@ -117,6 +229,25 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
       parsed.lesson_date = normalizeIsoDate(payload.lessonDate || "") || String(payload.lessonDate || "").trim();
     }
     if (payload.teacherName && !parsed.teacher_name) parsed.teacher_name = String(payload.teacherName || "").trim();
+
+    const guard = inspectAcademyPayload({
+      classCode: parsed.class_code,
+      lessonTitle: parsed.lesson_title,
+      instructor: parsed.teacher_name
+    });
+
+    if (guard.shouldReject) {
+      log("warn", "academy_test_payload_rejected", {
+        route: "/api/academy/record-lesson",
+        source: String(payload.source || req.botIdentity?.name || req.sessionUser?.email || "unknown"),
+        actorType: req.botIdentity ? "bot" : "user",
+        reasons: guard.reasons,
+        classCode: guard.fingerprint.classCode,
+        lessonTitle: guard.fingerprint.lessonTitle,
+        instructor: guard.fingerprint.instructor
+      });
+      throw new AppError(400, "Cette entree ressemble a une donnee de test et a ete rejetee.");
+    }
 
     // Validate required fields
     const issues = [];

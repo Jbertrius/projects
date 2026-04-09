@@ -524,7 +524,8 @@ function buildView() {
   const endDate = academyState.filters.endDate;
 
   const classesById = new Map(academyState.rawData.classes.map((item) => [String(item.id), item]));
-  const students = academyState.rawData.students.filter((student) => {
+  const registeredStudents = academyState.rawData.students.filter((student) => student.is_registered !== false);
+  const students = registeredStudents.filter((student) => {
     const classOk = classFilter === "all" || String(student.class_id || student.class_name) === classFilter;
     const studentOk = studentFilter === "all" || String(student.id) === studentFilter;
     return classOk && studentOk;
@@ -613,7 +614,7 @@ function buildView() {
   const classesSummary = academyState.rawData.classes
     .map((academyClass) => {
       const classStudents = academyState.rawData.students.filter(
-        (student) => String(student.class_id || student.class_name) === String(academyClass.id)
+        (student) => student.is_registered !== false && String(student.class_id || student.class_name) === String(academyClass.id)
       );
       if (classFilter !== "all" && String(academyClass.id) !== classFilter) {
         return null;
@@ -1066,9 +1067,9 @@ function populateFilters() {
   ].join("");
 
   const visibleStudents = academyState.filters.classId === "all"
-    ? academyState.rawData.students
+    ? academyState.rawData.students.filter((student) => student.is_registered !== false)
     : academyState.rawData.students.filter(
-        (student) => String(student.class_id || student.class_name) === academyState.filters.classId
+        (student) => student.is_registered !== false && String(student.class_id || student.class_name) === academyState.filters.classId
       );
 
   studentFilter.innerHTML = [

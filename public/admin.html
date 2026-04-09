@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Administration DMD</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Administration</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link is-active" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans ce pole">
+          <p class="nav-section-label">Dans ce pole</p>
+          <a class="nav-item nav-link is-active" href="#admin-overview"><span class="nav-icon material-symbols-rounded" aria-hidden="true">tune</span><span>Vue d'ensemble</span></a>
+          <a class="nav-item nav-link" href="/users.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">group</span><span>Utilisateurs</span></a>
+        </nav>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="hero">
+            <div class="hero-copy" id="admin-overview">
+              <div class="brand-tags">
+                <span class="brand-tag">Pole</span>
+                <span class="brand-tag">Acces</span>
+                <span class="brand-tag">Parametres</span>
+              </div>
+              <h1>Administration : garder le cadre simple et fiable.</h1>
+              <p class="hero-text">
+                Cette entree regroupe les acces utilisateurs, les roles, les integrations et les verifications
+                d'ensemble. L'objectif est de separer clairement l'operationnel metier et la gestion applicative.
+              </p>
+            </div>
+
+            <aside class="hero-panel">
+              <div class="hero-panel-top">
+                <img class="hero-panel-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+                <div>
+                  <p class="panel-label">Mission du pole</p>
+                  <h2 class="panel-title">Donner les bons acces au bon moment</h2>
+                </div>
+              </div>
+              <div class="hero-panel-grid">
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value">Acces</span>
+                  <span class="hero-panel-label">roles et activations</span>
+                </div>
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value">Controle</span>
+                  <span class="hero-panel-label">integrations et hygiene</span>
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section class="module-grid">
+            <article class="card module-card">
+              <div>
+                <p class="section-label">Utilisateurs</p>
+                <h3>Acces et roles</h3>
+              </div>
+              <p class="muted">Activation des comptes, import des membres, mots de passe temporaires et promotion des roles.</p>
+              <div class="module-links">
+                <a class="module-link" href="/users.html">Ouvrir la gestion des utilisateurs <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+
+            <article class="card module-card">
+              <div>
+                <p class="section-label">Integrations</p>
+                <h3>Synchronisations et audit</h3>
+              </div>
+              <p class="muted">Point d'entree pour les parametres, journaux techniques et controles des flux de donnees.</p>
+              <div class="module-links">
+                <a class="module-link" href="/">Revenir a la vue direction <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
+  </body>
+</html>

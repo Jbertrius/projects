@@ -21,6 +21,9 @@ const { validate, required } = require("../utils/validate");
 const { hasFirestoreConfig, deleteMeetingDocument, refreshDashboardAggregate } = require("../../lib/firestore");
 const { getAccessToken, fetchJson, getEnv } = require("../../lib/google-auth");
 const { rateLimit } = require("../middleware/rateLimit");
+const { log } = require("../middleware/logger");
+const { inspectAcademyPayload } = require("../utils/academyGuard");
+const { normalizeMeetingDate, meetingMonthFromDate, inferPastorName } = require("../../lib/meeting-normalization");
 
 const router = Router();
 
@@ -94,6 +97,30 @@ router.post("/lessons", async (req, res, next) => {
       }, {})
     };
 
+    const guard = inspectAcademyPayload({
+      classCode: parsed.class_code,
+      lessonTitle: parsed.lesson_title,
+      instructor: parsed.teacher_name
+    });
+
+    if (guard.shouldReject) {
+      log("warn", "academy_test_payload_rejected", {
+        route: "/api/bot/lessons",
+        source: String(req.body.source || req.botIdentity?.name || "unknown"),
+        actorType: req.botIdentity ? "bot" : "user",
+        botIdentity: req.botIdentity?.name || "",
+        reasons: guard.reasons,
+        classCode: guard.fingerprint.classCode,
+        lessonTitle: guard.fingerprint.lessonTitle,
+        instructor: guard.fingerprint.instructor
+      });
+      return res.status(400).json({
+        ok: false,
+        error: "Cette entree ressemble a une donnee de test et a ete rejetee.",
+        reasons: guard.reasons
+      });
+    }
+
     const result = await academyRepo.recordLesson(parsed, { mode, lessonId, classId });
     appCache.invalidate("academy");
     // Fire-and-forget: keep aggregate in sync without blocking the response
@@ -162,10 +189,15 @@ router.post("/meetings", async (req, res, next) => {
     const databaseId = getEnv("FIRESTORE_DATABASE_ID", "(default)");
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents`;
 
-    const meetingId = `MTG_${String(date).replace(/-/g, "")}_${slugify(summary)}`;
-    // Derive month (YYYY-MM) from the ISO date string for dashboard grouping
-    const month = String(date).trim().slice(0, 7);
+    const normalizedMeetingDate = normalizeMeetingDate(date);
+    const meetingId = `MTG_${String(normalizedMeetingDate || date).replace(/-/g, "")}_${slugify(summary)}`;
+    const month = meetingMonthFromDate(normalizedMeetingDate || date);
     const participantList = participants.map((p) => String(p).trim()).filter(Boolean);
+    const inferredPastor = inferPastorName({
+      pastorName: "",
+      eventSummary: summary,
+      eventDescription: description
+    });
 
     const doc = {
       fields: {
@@ -173,9 +205,11 @@ router.post("/meetings", async (req, res, next) => {
         eventSummary: { stringValue: String(summary).trim() },
         eventLocation: { stringValue: String(location || "").trim() },
         eventDescription: { stringValue: String(description || "").trim() },
-        meetingDate: { stringValue: String(date).trim() },
+        meetingDate: { stringValue: String(normalizedMeetingDate || date).trim() },
+        reportDate: { stringValue: String(normalizedMeetingDate || date).trim() },
         month: { stringValue: month },
         calendarLogged: { booleanValue: Boolean(calendarEventId) },
+        pastorName: { stringValue: String(inferredPastor.pastor_name || "").trim() },
         memberNamesCanonical: {
           arrayValue: {
             values: participantList.map((p) => ({ stringValue: p }))
@@ -209,7 +243,7 @@ router.post("/meetings", async (req, res, next) => {
       ok: true,
       source: req.botIdentity?.name || "api",
       meetingId,
-      summary: { summary, date, participants: participants.length }
+      summary: { summary, date: normalizedMeetingDate || date, participants: participants.length }
     });
   } catch (error) {
     if (!error.status) error.status = 400;

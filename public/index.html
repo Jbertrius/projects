@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Evolution des membres</title>
+    <title>Direction DMD</title>
     <link rel="icon" type="image/png" href="/assets/department-logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,7 +20,7 @@
           <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
           <div>
             <p class="eyebrow">Departement des missions domestiques</p>
-            <p class="brand-title">Evolution des membres</p>
+            <p class="brand-title">Direction DMD</p>
           </div>
         </div>
 
@@ -33,31 +33,23 @@
           <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
         </section>
 
-        <nav class="sidebar-nav" aria-label="Navigation principale">
-          <button class="nav-item is-active" type="button" data-target="top-bar"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Vue generale</span></button>
-          <button class="nav-item" type="button" data-target="meetings-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Rencontres</span></button>
-          <button class="nav-item" type="button" data-target="members-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Membres</span></button>
-          <button class="nav-item" type="button" data-target="training-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Formation</span></button>
-          <button class="nav-item" type="button" data-target="status-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">warning</span><span>Alertes</span></button>
-          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">analytics</span><span>Suivi academie</span></a>
-          <a class="nav-item nav-link" href="/pastors.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_book</span><span>Fiches pasteurs</span></a>
-          <a class="nav-item nav-link" href="/users.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Utilisateurs</span></a>
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link is-active" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
         </nav>
 
-        <section class="sidebar-card">
-          <p class="section-label">Direction visuelle</p>
-          <h2 class="sidebar-card-title">Clarte, confiance, mouvement</h2>
-          <ul class="sidebar-points">
-            <li>Bleu ciel pour la lisibilite</li>
-            <li>Or pour les priorites</li>
-            <li>Vert profond pour le terrain</li>
-          </ul>
-        </section>
-
-        <section class="sidebar-card sidebar-card-soft">
-          <p class="section-label">Organisation</p>
-          <p class="sidebar-highlight">Base consolidee et synchronisation active</p>
-        </section>
+        <nav class="sidebar-nav" aria-label="Dans cette page">
+          <p class="nav-section-label">Dans cette page</p>
+          <button class="nav-item" type="button" data-target="meetings-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Trajectoire</span></button>
+          <button class="nav-item" type="button" data-target="members-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Equipe</span></button>
+          <button class="nav-item" type="button" data-target="training-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">conversion_path</span><span>Pipeline</span></button>
+          <button class="nav-item" type="button" data-target="status-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">warning</span><span>Alertes</span></button>
+        </nav>
 
       </aside>
 
@@ -65,24 +57,24 @@
         <header class="hero">
           <div class="hero-copy">
             <div class="brand-tags">
-              <span class="brand-tag">Rencontres</span>
-              <span class="brand-tag">Formation</span>
+              <span class="brand-tag">Direction</span>
+              <span class="brand-tag">Pipeline</span>
               <span class="brand-tag">Pilotage</span>
             </div>
-            <h1>Une interface claire pour suivre les membres, les rencontres et la formation.</h1>
+            <h1>Une vue de direction pour piloter l'ensemble du parcours missionnaire.</h1>
             <p class="hero-text">
-              Un tableau de bord pense pour le terrain: activite des membres, rencontres avec les
-              pasteurs, progression en formation et signaux d'inaction, le tout centralise dans une
-              seule vue.
+              Une lecture transversale du DMD pour suivre la conversion entre les etapes:
+              evangelisation, cooperation, academie et developpement. L'objectif n'est plus
+              seulement de collecter des donnees, mais de voir ou le pipeline ralentit.
             </p>
             <div class="hero-metrics">
               <div class="hero-metric">
                 <span class="hero-metric-value">1 vue centrale</span>
-                <span class="hero-metric-label">pour piloter le departement</span>
+                <span class="hero-metric-label">pour piloter les 4 poles</span>
               </div>
               <div class="hero-metric">
-                <span class="hero-metric-value">Lecture rapide</span>
-                <span class="hero-metric-label">des activites et relances</span>
+                <span class="hero-metric-value">Pipeline visible</span>
+                <span class="hero-metric-label">de l'entree au developpement</span>
               </div>
             </div>
           </div>
@@ -91,8 +83,8 @@
             <div class="hero-panel-top">
               <img class="hero-panel-logo" src="/assets/department-logo.png" alt="Logo du departement" />
               <div>
-                <p class="panel-label">Vue institutionnelle</p>
-                <h2 class="panel-title">Suivre l'effort, voir les priorites, agir vite</h2>
+                <p class="panel-label">Vue direction</p>
+                <h2 class="panel-title">Voir les blocages, arbitrer, accelerer</h2>
               </div>
             </div>
             <div class="hero-panel-grid">

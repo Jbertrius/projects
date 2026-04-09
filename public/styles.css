@@ -128,6 +128,15 @@ body {
   margin-bottom: 20px;
 }
 
+.nav-section-label {
+  margin: 4px 0 8px;
+  padding: 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
 .nav-item {
   border: 0;
   border-radius: 16px;
@@ -164,6 +173,11 @@ body {
 }
 
 .nav-item.is-active {
+  background: linear-gradient(135deg, rgba(37, 137, 200, 0.14), rgba(81, 183, 234, 0.08));
+  color: var(--sky-deep);
+}
+
+.nav-link.is-active {
   background: linear-gradient(135deg, rgba(37, 137, 200, 0.14), rgba(81, 183, 234, 0.08));
   color: var(--sky-deep);
 }
@@ -324,6 +338,49 @@ h1 {
   max-width: 58ch;
   margin: 18px 0 24px;
   font-size: 1.02rem;
+}
+
+.page-intro {
+  margin-bottom: 24px;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.module-card {
+  display: grid;
+  gap: 16px;
+}
+
+.module-card h3,
+.module-card p {
+  margin: 0;
+}
+
+.module-links {
+  display: grid;
+  gap: 10px;
+}
+
+.module-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.module-link .material-symbols-rounded {
+  color: var(--sky-deep);
 }
 
 .hero-metric {
@@ -813,6 +870,22 @@ th {
   font-weight: 600;
 }
 
+.data-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.academy-data-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: rgba(81, 183, 234, 0.12);
+  color: var(--sky-deep);
+  font-weight: 700;
+}
+
 .review-meta {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -1165,6 +1238,7 @@ th {
   .feature-grid-wide,
   .kpi-grid,
   .filters-bar,
+  .module-grid,
   .review-layout,
   .review-grid,
   .review-meta {
@@ -1176,10 +1250,10 @@ th {
   .app-shell {
     width: min(100% - 24px, 1460px);
     padding-top: 18px;
+  }
 
   .academy-students-toolbar {
     grid-template-columns: 1fr;
-  }
   }
 
   .sidebar,
@@ -1218,7 +1292,7 @@ th {
     display: grid;
   }
 
-.academy-chart-toolbar,
+  .academy-chart-toolbar,
   .academy-entry-grid,
   .academy-entry-actions {
     grid-template-columns: 1fr;
