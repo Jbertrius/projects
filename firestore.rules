@@ -87,5 +87,31 @@ service cloud.firestore {
       allow read: if false;
       allow write: if false;
     }
+
+    // -----------------------------------------------------------------------
+    // attendance collections (event-based attendance tracking)
+    // -----------------------------------------------------------------------
+    match /attendanceEvents/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /attendanceCategories/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /attendanceParticipants/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // aggregates — pre-computed dashboard counts (1-read fast path)
+    // -----------------------------------------------------------------------
+    match /aggregates/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
   }
 }

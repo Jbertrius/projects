@@ -163,18 +163,28 @@ router.post("/meetings", async (req, res, next) => {
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents`;
 
     const meetingId = `MTG_${String(date).replace(/-/g, "")}_${slugify(summary)}`;
+    // Derive month (YYYY-MM) from the ISO date string for dashboard grouping
+    const month = String(date).trim().slice(0, 7);
+    const participantList = participants.map((p) => String(p).trim()).filter(Boolean);
+
     const doc = {
       fields: {
-        summary: { stringValue: String(summary).trim() },
+        // Dashboard-compatible fields — must match what mapMeetingDocument reads
+        eventSummary: { stringValue: String(summary).trim() },
+        eventLocation: { stringValue: String(location || "").trim() },
+        eventDescription: { stringValue: String(description || "").trim() },
         meetingDate: { stringValue: String(date).trim() },
-        meetingTime: { stringValue: String(time || "").trim() },
-        location: { stringValue: String(location || "").trim() },
-        description: { stringValue: String(description || "").trim() },
-        participantNames: {
+        month: { stringValue: month },
+        calendarLogged: { booleanValue: Boolean(calendarEventId) },
+        memberNamesCanonical: {
           arrayValue: {
-            values: participants.map((p) => ({ stringValue: String(p).trim() }))
+            values: participantList.map((p) => ({ stringValue: p }))
           }
         },
+        memberName: { stringValue: participantList[0] || "" },
+        memberNameRaw: { stringValue: participantList[0] || "" },
+        // Extended bot fields preserved for auditing
+        meetingTime: { stringValue: String(time || "").trim() },
         calendarEventId: { stringValue: String(calendarEventId || "").trim() },
         source: { stringValue: String(source).trim() },
         createdAt: { stringValue: new Date().toISOString() }

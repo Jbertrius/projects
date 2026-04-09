@@ -55,6 +55,38 @@
         { "fieldPath": "meetingCount", "order": "DESCENDING" },
         { "fieldPath": "name", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "attendanceParticipants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventName", "order": "ASCENDING" },
+        { "fieldPath": "participantName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "academyStudents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "academyAttendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentName", "order": "ASCENDING" },
+        { "fieldPath": "lessonDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "academyAttendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classId", "order": "ASCENDING" },
+        { "fieldPath": "lessonDate", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
