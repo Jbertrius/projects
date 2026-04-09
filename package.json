@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "test": "node --test tests/*.test.js",
     "setup:sheets": "node scripts/setup-google-sheet.js",
     "sync:calendar": "node scripts/sync-calendar-to-sheets.js",
     "sync:firestore": "node scripts/sync-sheets-to-firestore.js",
@@ -16,5 +17,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }

@@ -1,0 +1,117 @@
+// Firestore Security Rules
+//
+// The backend accesses Firestore via a service account using the Admin SDK /
+// REST API, which bypasses these rules. These rules are a defence-in-depth
+// measure: if credentials are ever used from a client SDK (e.g., a future
+// mobile app), access is still locked down.
+//
+// Deploy with: firebase deploy --only firestore:rules
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------------
+    // Default: deny everything not explicitly allowed
+    // -----------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // appUsers — only the backend service account touches this collection;
+    //            no client SDK access permitted
+    // -----------------------------------------------------------------------
+    match /appUsers/{userId} {
+      allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // members — read-only for authenticated users via backend;
+    //           writes only from backend (service account bypasses rules)
+    // -----------------------------------------------------------------------
+    match /members/{memberId} {
+      allow read: if false;  // clients read via the API, not directly
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // meetings — same pattern: all access via the API
+    // -----------------------------------------------------------------------
+    match /meetings/{meetingId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // pastors
+    // -----------------------------------------------------------------------
+    match /pastors/{pastorId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // academy collections
+    // -----------------------------------------------------------------------
+    match /academyClasses/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /academyStudents/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /academyLessons/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /academyAttendance/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /academyLessonUnregistered/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // trainingSessions
+    // -----------------------------------------------------------------------
+    match /trainingSessions/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // attendance collections (event-based attendance tracking)
+    // -----------------------------------------------------------------------
+    match /attendanceEvents/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /attendanceCategories/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /attendanceParticipants/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // aggregates — pre-computed dashboard counts (1-read fast path)
+    // -----------------------------------------------------------------------
+    match /aggregates/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
