@@ -15,6 +15,7 @@ const { Router } = require("express");
 const { requireBotOrAuth } = require("../middleware/apiKey");
 const academyRepo = require("../repositories/academy.repository");
 const attendanceRepo = require("../repositories/attendance.repository");
+const memberRepo = require("../repositories/member.repository");
 const { appCache } = require("../utils/cache");
 const { AppError } = require("../middleware/errorHandler");
 const { validate, required } = require("../utils/validate");
@@ -258,7 +259,6 @@ router.post("/meetings", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 router.get("/members", async (req, res, next) => {
   try {
-    const memberRepo = require("../repositories/member.repository");
     const members = await appCache.get("members", 10 * 60 * 1000, () => memberRepo.findAll());
     res.json({
       ok: true,

@@ -307,7 +307,7 @@ function buildLessonTemplate(lesson) {
   let runningIndex = 1;
   const groupBlocks = Array.from(groups.entries()).map(([groupName, rows]) => {
     const header = getSubgroupHeader(groupName, rows.length);
-    const lines = rows.map((row, index) => {
+    const lines = rows.map((row) => {
       const prefix = row.status === "absent" ? "✖️" : "👍";
       const note = String(row.evaluation_note || "").trim();
       const line = `${prefix}${runningIndex}- ${row.student_name}${note ? ` (${note})` : ""}`;
@@ -1292,6 +1292,8 @@ function validateEntry(rawText, rawDate) {
       const parts = line.split(/\s+-\s+/);
       if (parts.length >= 3) {
         parsed.classCode = parts[1].trim();
+      } else if (parts.length === 2) {
+        parsed.classCode = parts[1].trim();
       }
       inNonRegistered = false;
       continue;
@@ -1365,6 +1367,16 @@ function validateEntry(rawText, rawDate) {
 
     if (/^total\s*:/i.test(line)) {
       continue;
+    }
+
+    // Standalone teacher line: symbol-prefixed name with no separator or index
+    // e.g. 👩‍🏫Eyram GSN  or  📌Jean PAUL
+    if (!parsed.instructor) {
+      const strippedLine = line.replace(/^[^\p{L}]+/u, "").trim();
+      if (strippedLine && strippedLine !== line && strippedLine.includes(" ") && !/\d/.test(strippedLine)) {
+        parsed.instructor = stripTrailingNote(strippedLine).value;
+        continue;
+      }
     }
 
     const student = parseStudentLine(line);
