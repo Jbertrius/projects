@@ -13,7 +13,7 @@
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="pole-evangelisation">
     <div class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
@@ -47,6 +47,7 @@
           <p class="nav-section-label">Dans ce pole</p>
           <a class="nav-item nav-link is-active" href="#evangelisation-overview"><span class="nav-icon material-symbols-rounded" aria-hidden="true">travel_explore</span><span>Vue d'ensemble</span></a>
           <a class="nav-item nav-link" href="#evangelisation-modules"><span class="nav-icon material-symbols-rounded" aria-hidden="true">category</span><span>Modules</span></a>
+          <a class="nav-item nav-link" href="/mannams.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Gestion Mannams</span></a>
         </nav>
       </aside>
 
@@ -87,33 +88,78 @@
             </aside>
           </section>
 
-          <section class="page-intro">
-            <p class="muted">
-              Cette page devient l'entree du pole. On y centralise ensuite les modules contacts, mannam, relances et
-              implication des membres.
-            </p>
-          </section>
-
-          <section class="module-grid" id="evangelisation-modules">
-            <article class="card module-card">
-              <div>
-                <p class="section-label">Contacts</p>
-                <h3>Base de prospection</h3>
-              </div>
-              <p class="muted">Nouveaux pasteurs identifies, qualite du premier contact et priorisation des suivis.</p>
-              <div class="module-links">
-                <a class="module-link" href="/cooperation.html">Voir le passage vers la cooperation <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+          <section class="evangelisation-intro-grid">
+            <article class="evangelisation-note">
+              <p class="section-label">Cap du pole</p>
+              <h2 class="evangelisation-note-title">Ordonner les premiers signes d'ouverture pour mieux préparer la coopération.</h2>
+              <p class="evangelisation-note-copy">
+                L'entrée du pole doit montrer ce qui mérite une action immédiate, ce qui nourrit la relation et ce qui demande encore une qualification plus propre.
+              </p>
+              <div class="evangelisation-pulse">
+                <div class="evangelisation-pulse-item">
+                  <span class="evangelisation-pulse-value">Flux</span>
+                  <span class="evangelisation-pulse-label">premiers contacts et mannams</span>
+                </div>
+                <div class="evangelisation-pulse-item">
+                  <span class="evangelisation-pulse-value">Qualite</span>
+                  <span class="evangelisation-pulse-label">correction des noms et qualification</span>
+                </div>
+                <div class="evangelisation-pulse-item">
+                  <span class="evangelisation-pulse-value">Passage</span>
+                  <span class="evangelisation-pulse-label">mise en mouvement vers la cooperation</span>
+                </div>
               </div>
             </article>
 
-            <article class="card module-card">
-              <div>
-                <p class="section-label">Mannam</p>
-                <h3>Rencontres et relances</h3>
+            <aside class="evangelisation-focus-card">
+              <p class="panel-label">Points d'attention</p>
+              <h2 class="evangelisation-focus-title">Ce qui doit rester visible chaque semaine</h2>
+              <p class="evangelisation-focus-copy">La lecture du pole doit garder un rythme simple: discerner, relancer, faire avancer.</p>
+              <ul class="evangelisation-focus-list">
+                <li><span class="material-symbols-rounded" aria-hidden="true">priority_high</span><span>Faire remonter les rencontres dont les membres restent non resolus ou partiellement associes.</span></li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">schedule</span><span>Reperer les relances a effectuer sur les relations qui montrent un interet reel mais encore fragile.</span></li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">handshake</span><span>Orienter rapidement les situations mures vers les parcours de cooperation.</span></li>
+              </ul>
+            </aside>
+          </section>
+
+          <section class="evangelisation-module-grid" id="evangelisation-modules">
+            <article class="card evangelisation-module-card">
+              <div class="evangelisation-module-head">
+                <div>
+                  <p class="section-label">Contacts</p>
+                  <h3 class="evangelisation-module-title">Base de prospection</h3>
+                </div>
+                <span class="evangelisation-module-icon" aria-hidden="true"><span class="material-symbols-rounded">travel_explore</span></span>
               </div>
-              <p class="muted">Historique des rencontres, relances a chaud et membres les plus actifs sur le terrain.</p>
-              <div class="module-links">
-                <a class="module-link" href="/">Ouvrir la vue direction <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              <p class="evangelisation-module-copy">Nouveaux pasteurs identifies, qualite du premier contact et priorisation des suivis qui preparent une relation plus stable.</p>
+              <div class="evangelisation-module-strip">
+                <span class="evangelisation-module-pill">Qualification</span>
+                <span class="evangelisation-module-pill">Priorisation</span>
+                <span class="evangelisation-module-pill">Relance</span>
+              </div>
+              <div class="evangelisation-module-links">
+                <a class="module-link evangelisation-module-link" href="/cooperation.html">Voir le passage vers la cooperation <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+
+            <article class="card evangelisation-module-card">
+              <div class="evangelisation-module-head">
+                <div>
+                  <p class="section-label">Mannam</p>
+                  <h3 class="evangelisation-module-title">Rencontres et relances</h3>
+                </div>
+                <span class="evangelisation-module-icon" aria-hidden="true"><span class="material-symbols-rounded">groups</span></span>
+              </div>
+              <p class="evangelisation-module-copy">Historique des rencontres, correction des noms, suivi de la progression et lecture plus claire des situations deja mures pour la cooperation.</p>
+              <div class="evangelisation-module-strip">
+                <span class="evangelisation-module-pill">Historique</span>
+                <span class="evangelisation-module-pill">Correction</span>
+                <span class="evangelisation-module-pill">Progression</span>
+              </div>
+              <div class="evangelisation-module-links">
+                <a class="module-link evangelisation-module-link" href="/mannams.html">Gerer les mannams <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+                <a class="module-link evangelisation-module-link" href="/">Vue direction <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
               </div>
             </article>
           </section>

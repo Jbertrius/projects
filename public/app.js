@@ -6,7 +6,9 @@
     period: "all",
     zone: "all",
     status: "all",
-    granularity: "monthly"
+    granularity: "monthly",
+    dateFrom: "",
+    dateTo: ""
   }
 };
 
@@ -173,8 +175,18 @@ function getZoneStatusFilteredRecords(data) {
   const records = data.meetingRecords || [];
   const zoneFilter = normalizeText(state.filters.zone);
   const statusFilter = normalizeText(state.filters.status);
+  const dateFrom = state.filters.dateFrom;
+  const dateTo = state.filters.dateTo;
 
-  return records.filter((record) => matchesZone(record, zoneFilter) && matchesStatus(record, statusFilter));
+  return records.filter((record) => {
+    if (!matchesZone(record, zoneFilter) || !matchesStatus(record, statusFilter)) return false;
+    if (dateFrom || dateTo) {
+      const d = String(record.meetingDate || "").slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+    }
+    return true;
+  });
 }
 
 function aggregateTrajectoryRecords(records, granularity) {
@@ -670,9 +682,31 @@ function attachFilterHandlers() {
   });
 
   resetFilters?.addEventListener('click', () => {
-    state.filters = { period: 'all', zone: 'all', status: 'all', granularity: 'monthly' };
+    state.filters = { period: 'all', zone: 'all', status: 'all', granularity: 'monthly', dateFrom: '', dateTo: '' };
+    document.getElementById('trajectory-date-from').value = '';
+    document.getElementById('trajectory-date-to').value = '';
     renderDashboard();
     showFeedback('Filtres reinitialises.', 'success');
+  });
+
+  document.getElementById('trajectory-date-from')?.addEventListener('change', (e) => {
+    state.filters.dateFrom = e.target.value;
+    state.filters.period = 'all';
+    renderDashboard();
+  });
+
+  document.getElementById('trajectory-date-to')?.addEventListener('change', (e) => {
+    state.filters.dateTo = e.target.value;
+    state.filters.period = 'all';
+    renderDashboard();
+  });
+
+  document.getElementById('trajectory-date-reset')?.addEventListener('click', () => {
+    state.filters.dateFrom = '';
+    state.filters.dateTo = '';
+    document.getElementById('trajectory-date-from').value = '';
+    document.getElementById('trajectory-date-to').value = '';
+    renderDashboard();
   });
 
   document.querySelectorAll('[data-granularity]').forEach((button) => {

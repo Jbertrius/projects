@@ -163,7 +163,13 @@
               <h3>Rencontres filtrees dans le temps</h3>
             </div>
             <div class="chart-head-actions">
-              <p class="muted">Zone, statut et granularite appliques</p>
+              <div class="trajectory-date-range">
+                <label class="trajectory-date-label" for="trajectory-date-from">Du</label>
+                <input class="trajectory-date-input" type="date" id="trajectory-date-from">
+                <label class="trajectory-date-label" for="trajectory-date-to">au</label>
+                <input class="trajectory-date-input" type="date" id="trajectory-date-to">
+                <button class="trajectory-date-reset" type="button" id="trajectory-date-reset" title="Reinitialiser la plage">×</button>
+              </div>
               <div class="segmented-control" role="group" aria-label="Granularite du graphique">
                 <button class="segment-button is-active" type="button" data-granularity="monthly">Mensuel</button>
                 <button class="segment-button" type="button" data-granularity="weekly">Hebdomadaire</button>

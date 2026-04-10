@@ -18,6 +18,7 @@ const academyRoutes = require("./routes/academy.routes");
 const syncRoutes = require("./routes/sync.routes");
 const adminRoutes = require("./routes/admin.routes");
 const botRoutes = require("./routes/bot.routes");
+const meetingsRoutes = require("./routes/meetings.routes");
 
 loadLocalEnv();
 
@@ -57,6 +58,7 @@ app.use("/api/pastors", pastorsRoutes);
 app.use("/api/academy", academyRoutes);
 app.use("/api/sync", syncRoutes);
 app.use("/api/bot", botRoutes);
+app.use("/api/meetings", meetingsRoutes);
 app.use("/api", adminRoutes);
 
 // Catch-all for unknown API routes

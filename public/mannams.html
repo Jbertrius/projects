@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestion Mannams — DMD</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --mannams-accent: #147964;
+        --mannams-accent-soft: rgba(20, 121, 100, 0.12);
+        --mannams-accent-strong: #0c5949;
+        --mannams-sand: #f7f1e1;
+        --mannams-ink: #103347;
+        --mannams-line: rgba(16, 51, 71, 0.1);
+        --mannams-shadow: 0 24px 60px rgba(17, 59, 84, 0.12);
+      }
+
+      .dashboard {
+        gap: 22px;
+      }
+
+      .hero {
+        margin-bottom: 0;
+      }
+
+      .hero-copy {
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at top right, rgba(245, 195, 44, 0.2), transparent 32%),
+          linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(244, 251, 255, 0.88));
+      }
+
+      .hero-copy::after {
+        content: "";
+        position: absolute;
+        right: -40px;
+        bottom: -52px;
+        width: 180px;
+        height: 180px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(23, 130, 107, 0.18), transparent 68%);
+        pointer-events: none;
+      }
+
+      .hero-text {
+        max-width: 54ch;
+      }
+
+      .mannams-toolbar {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 246, 0.86));
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        box-shadow: var(--mannams-shadow);
+      }
+
+      .mannams-toolbar-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      .mannams-toolbar-title {
+        font-size: clamp(1.35rem, 2vw, 1.85rem);
+        letter-spacing: -0.04em;
+      }
+
+      .mannams-toolbar-copy {
+        max-width: 36ch;
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .mannams-filters {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 12px;
+        align-items: end;
+      }
+
+      .filter-group-search { grid-column: 1 / span 4; }
+      .filter-group-match { grid-column: 5 / span 2; }
+      .filter-group-coop { grid-column: 7 / span 2; }
+      .filter-group-date-from { grid-column: 9 / span 2; }
+      .filter-group-date-to { grid-column: 11 / span 2; }
+      .filter-group-sort { grid-column: 1 / span 4; }
+
+      .filter-action {
+        min-height: 48px;
+        white-space: nowrap;
+        justify-self: end;
+      }
+
+      .filter-action-reset { grid-column: 9 / span 2; }
+      .filter-action-refresh { grid-column: 11 / span 2; }
+
+      .mannams-priority-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .priority-help {
+        margin-top: 10px;
+        font-size: 0.82rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .priority-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+
+      .priority-chip strong {
+        font-weight: 800;
+      }
+
+      .priority-chip.is-urgent {
+        background: rgba(225, 29, 72, 0.12);
+        color: #9f1239;
+      }
+
+      .priority-chip.is-attention {
+        background: rgba(245, 158, 11, 0.16);
+        color: #8a5b00;
+      }
+
+      .priority-chip.is-stable {
+        background: rgba(21, 128, 61, 0.12);
+        color: #166534;
+      }
+
+      .mannams-filters .filter-group {
+        display: grid;
+        gap: 6px;
+      }
+
+      .mannams-filters .filter-group label,
+      .detail-field label {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      .mannams-search,
+      .coop-select,
+      .follow-up-textarea,
+      .member-history-select,
+      .correction-row select,
+      .trajectory-date-input,
+      .mannams-filters .filter-control {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid var(--mannams-line);
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--mannams-ink);
+        font: inherit;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      }
+
+      .mannams-search,
+      .coop-select,
+      .member-history-select,
+      .correction-row select,
+      .mannams-filters .filter-control {
+        padding: 13px 15px;
+      }
+
+      .trajectory-date-input {
+        padding: 12px 14px;
+        min-height: 48px;
+        min-width: 0;
+        padding-right: 38px;
+      }
+
+      .follow-up-textarea {
+        min-height: 108px;
+        padding: 14px 15px;
+        resize: vertical;
+      }
+
+      .mannams-search:focus,
+      .coop-select:focus,
+      .follow-up-textarea:focus,
+      .member-history-select:focus,
+      .correction-row select:focus,
+      .trajectory-date-input:focus,
+      .mannams-filters .filter-control:focus {
+        outline: 0;
+        border-color: rgba(23, 130, 107, 0.44);
+        box-shadow: 0 0 0 4px rgba(23, 130, 107, 0.12);
+      }
+
+      .mannams-list-count {
+        margin: 18px 0 0;
+        font-size: 0.92rem;
+      }
+
+      .mannams-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .mannams-list-card,
+      .mannams-detail .card {
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .mannams-list-card-head,
+      .detail-card-head {
+        padding: 24px 24px 18px;
+        border-bottom: 1px solid rgba(16, 51, 71, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(248, 251, 252, 0.92));
+      }
+
+      .mannams-list-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: end;
+      }
+
+      .mannams-list-card-head p,
+      .detail-card-head p {
+        margin: 0;
+      }
+
+      .mannams-list-title,
+      .detail-card-title {
+        font-size: 1.3rem;
+        letter-spacing: -0.04em;
+      }
+
+      .mannams-list-subtitle,
+      .detail-card-copy {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+
+      .mannams-list-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(23, 130, 107, 0.08);
+        color: var(--mannams-accent-strong);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .mannams-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 72vh;
+        overflow-y: auto;
+        padding: 18px;
+      }
+
+      .mannams-list::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .mannams-list::-webkit-scrollbar-thumb {
+        background: rgba(37, 137, 200, 0.18);
+        border-radius: 999px;
+      }
+
+      .mannam-row {
+        position: relative;
+        padding: 16px 16px 15px 18px;
+        border-radius: 20px;
+        border: 1px solid rgba(16, 51, 71, 0.08);
+        cursor: pointer;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 252, 0.9));
+        box-shadow: 0 12px 30px rgba(17, 59, 84, 0.06);
+        transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+      }
+
+      .mannam-row::before {
+        content: "";
+        position: absolute;
+        inset: 14px auto 14px 0;
+        width: 4px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(81, 183, 234, 0.92), rgba(23, 130, 107, 0.92));
+        opacity: 0.3;
+      }
+
+      .mannam-row:hover {
+        transform: translateY(-2px);
+        border-color: rgba(23, 130, 107, 0.22);
+        box-shadow: 0 18px 36px rgba(17, 59, 84, 0.1);
+      }
+
+      .mannam-row.is-selected {
+        border-color: rgba(23, 130, 107, 0.36);
+        box-shadow: 0 0 0 4px rgba(23, 130, 107, 0.11), 0 22px 40px rgba(17, 59, 84, 0.12);
+      }
+
+      .mannam-row.is-selected::before {
+        opacity: 1;
+      }
+
+      .mannam-row.is-priority-critical::before {
+        background: linear-gradient(180deg, #fb7185, #be123c);
+        opacity: 1;
+      }
+
+      .mannam-row.is-priority-attention::before {
+        background: linear-gradient(180deg, #fbbf24, #b45309);
+        opacity: 0.95;
+      }
+
+      .mannam-row.is-priority-stable::before {
+        background: linear-gradient(180deg, rgba(81, 183, 234, 0.92), rgba(20, 121, 100, 0.92));
+      }
+
+      .mannam-row-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .mannam-row-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .mannam-row-identity {
+        display: flex;
+        gap: 12px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .mannam-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 46px;
+        height: 46px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(81, 183, 234, 0.24), rgba(20, 121, 100, 0.18));
+        color: var(--mannams-accent-strong);
+        font-family: "Sora", sans-serif;
+        font-size: 0.88rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        flex: 0 0 auto;
+      }
+
+      .mannam-row-primary {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .mannam-row-symbol {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        background: rgba(20, 121, 100, 0.08);
+        color: var(--mannams-accent-strong);
+        flex: 0 0 auto;
+      }
+
+      .mannam-row-symbol .material-symbols-rounded {
+        font-size: 1.15rem;
+      }
+
+      .mannam-priority-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.73rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+
+      .mannam-priority-pill.is-critical {
+        background: rgba(225, 29, 72, 0.13);
+        color: #9f1239;
+      }
+
+      .mannam-priority-pill.is-attention {
+        background: rgba(245, 158, 11, 0.16);
+        color: #8a5b00;
+      }
+
+      .mannam-priority-pill.is-stable {
+        background: rgba(21, 128, 61, 0.12);
+        color: #166534;
+      }
+
+      .mannam-row-date {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .mannam-row-pastor {
+        font-weight: 700;
+        font-size: 1rem;
+        line-height: 1.35;
+        flex: 1;
+      }
+
+      .mannam-row-summary {
+        font-size: 0.86rem;
+        color: var(--muted);
+        line-height: 1.45;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .mannam-row-badges {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .mannam-row-context {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .mannam-context-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 30px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(16, 51, 71, 0.05);
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+
+      .mannam-context-pill .material-symbols-rounded {
+        font-size: 0.95rem;
+      }
+
+      .mannam-row-members {
+        margin-top: 4px;
+        font-size: 0.84rem;
+        color: var(--mannams-ink);
+        line-height: 1.45;
+      }
+
+      .mannam-row-members strong {
+        font-weight: 700;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .badge-exact { background: #d6f6de; color: #15603f; }
+      .badge-fuzzy { background: #fff1bf; color: #885a00; }
+      .badge-partial { background: #ffe4cf; color: #9a3412; }
+      .badge-unmatched { background: #fee2e2; color: #9f1239; }
+      .badge-manual { background: #dff1fb; color: #0c4a6e; }
+      .badge-coop-none { background: #eef2f5; color: #5f6b77; }
+      .badge-coop-interested { background: #fff0bf; color: #8a5b00; }
+      .badge-coop-agreed { background: #d6f6de; color: #15603f; }
+      .badge-coop-joined { background: #dbeafe; color: #1d4ed8; }
+      .badge-coop-enrolled { background: #dbeafe; color: #1d4ed8; }
+      .badge-coop-church { background: #dcfce7; color: #166534; }
+
+      .mannams-detail {
+        position: sticky;
+        top: 20px;
+      }
+
+      .detail-card-body {
+        padding: 24px;
+      }
+
+      .detail-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-height: 280px;
+        padding: 32px 24px;
+        color: var(--muted);
+        font-size: 0.95rem;
+        text-align: center;
+      }
+
+      .detail-empty[hidden] {
+        display: none;
+      }
+
+      .detail-section {
+        margin-bottom: 22px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid rgba(16, 51, 71, 0.08);
+      }
+
+      .detail-section:last-of-type {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .detail-section-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 0.76rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+        margin-bottom: 14px;
+      }
+
+      .detail-field {
+        margin-bottom: 12px;
+      }
+
+      .detail-field:last-child {
+        margin-bottom: 0;
+      }
+
+      .detail-field .detail-value {
+        font-size: 0.98rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--mannams-ink);
+      }
+
+      .detail-field .detail-value.muted {
+        color: var(--muted);
+        font-weight: 400;
+        font-style: italic;
+      }
+
+      .member-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .member-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(180deg, rgba(81, 183, 234, 0.12), rgba(81, 183, 234, 0.05));
+        border: 1px solid rgba(81, 183, 234, 0.16);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 0.83rem;
+        font-weight: 600;
+      }
+
+      .member-chip.is-unmatched {
+        background: #fee2e2;
+      }
+
+      .correction-panel {
+        background: linear-gradient(180deg, rgba(255, 247, 247, 0.94), rgba(255, 252, 252, 0.9));
+        border: 1px solid rgba(159, 18, 57, 0.12);
+        border-radius: 20px;
+        padding: 16px;
+        margin-top: 12px;
+      }
+
+      .correction-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .correction-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .correction-row .raw-name {
+        font-size: 0.82rem;
+        color: #9f1239;
+        background: #fee2e2;
+        padding: 7px 10px;
+        border-radius: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .member-history {
+        margin-top: 6px;
+      }
+
+      .participants-select {
+        min-height: 170px;
+      }
+
+      .participants-help {
+        margin-top: 8px;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .history-table-wrap {
+        overflow: auto;
+        border-radius: 18px;
+        border: 1px solid rgba(16, 51, 71, 0.08);
+        background: rgba(255, 255, 255, 0.68);
+      }
+
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+
+      .history-table th {
+        text-align: left;
+        font-weight: 700;
+        color: var(--muted);
+        border-bottom: 1px solid rgba(16, 51, 71, 0.08);
+        padding: 10px 12px;
+        background: rgba(246, 250, 252, 0.86);
+      }
+
+      .history-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(16, 51, 71, 0.05);
+      }
+
+      .history-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .detail-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+      }
+
+      .detail-actions .primary-action,
+      #btn-save-members {
+        flex: 1;
+      }
+
+      @media (max-width: 1180px) {
+        .mannams-filters {
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+
+        .filter-group-search { grid-column: 1 / span 6; }
+        .filter-group-match { grid-column: 1 / span 2; }
+        .filter-group-coop { grid-column: 3 / span 2; }
+        .filter-group-date-from { grid-column: 5 / span 1; }
+        .filter-group-date-to { grid-column: 6 / span 1; }
+        .filter-group-sort { grid-column: 1 / span 3; }
+        .filter-action-reset { grid-column: 4 / span 1; justify-self: stretch; }
+        .filter-action-refresh { grid-column: 5 / span 2; justify-self: stretch; }
+      }
+
+      @media (max-width: 900px) {
+        .mannams-filters {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .filter-group-search,
+        .filter-group-match,
+        .filter-group-coop,
+        .filter-group-date-from,
+        .filter-group-date-to,
+        .filter-group-sort,
+        .filter-action-reset,
+        .filter-action-refresh {
+          grid-column: span 1;
+          justify-self: stretch;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .mannams-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .mannams-detail {
+          position: static;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .mannams-toolbar,
+        .mannams-list-card-head,
+        .detail-card-head,
+        .detail-card-body {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        .mannams-toolbar-head,
+        .mannams-list-card-head {
+          display: grid;
+          align-items: start;
+        }
+
+        .mannams-filters {
+          grid-template-columns: 1fr;
+        }
+
+        .filter-group-search,
+        .filter-group-match,
+        .filter-group-coop,
+        .filter-group-date-from,
+        .filter-group-date-to,
+        .filter-group-sort,
+        .filter-action-reset,
+        .filter-action-refresh {
+          grid-column: auto;
+        }
+
+        .mannams-list {
+          max-height: none;
+          padding: 16px;
+        }
+
+        .mannam-row-head {
+          display: grid;
+        }
+
+        .mannam-row-top {
+          align-items: stretch;
+        }
+      }
+    </style>
+  </head>
+  <body class="pole-evangelisation">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Mannams</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link is-active" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans ce pole">
+          <p class="nav-section-label">Evangelisation</p>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">travel_explore</span><span>Vue d'ensemble</span></a>
+          <a class="nav-item nav-link is-active" href="/mannams.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Gestion Mannams</span></a>
+        </nav>
+
+        <div class="sidebar-card" style="margin-top:auto">
+          <p class="section-label">Stats rapides</p>
+          <div id="sidebar-stats" style="font-size:0.85rem; display:flex; flex-direction:column; gap:6px;">
+            <span class="muted">Chargement...</span>
+          </div>
+        </div>
+      </aside>
+
+      <div class="page-shell">
+        <div id="app-feedback" class="app-feedback" hidden></div>
+        <main class="dashboard">
+
+          <section class="hero" style="margin-bottom:24px">
+            <div class="hero-copy">
+              <div class="brand-tags">
+                <span class="brand-tag">Evangelisation</span>
+                <span class="brand-tag">Mannams</span>
+              </div>
+              <h1>Gestion des rencontres (Mannams)</h1>
+              <p class="hero-text">Verifier les membres resolus, corriger les noms, suivre la progression vers la cooperation.</p>
+            </div>
+            <aside class="hero-panel">
+              <div class="hero-panel-top">
+                <img class="hero-panel-logo" src="/assets/department-logo.png" alt="Logo" />
+                <div>
+                  <p class="panel-label">Qualite des donnees</p>
+                  <h2 class="panel-title" id="hero-quality-title">—</h2>
+                </div>
+              </div>
+              <div class="hero-panel-grid">
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value" id="stat-total">—</span>
+                  <span class="hero-panel-label">rencontres total</span>
+                </div>
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value" id="stat-unmatched">—</span>
+                  <span class="hero-panel-label">a corriger</span>
+                </div>
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value" id="stat-coop">—</span>
+                  <span class="hero-panel-label">vers cooperation</span>
+                </div>
+                <div class="hero-panel-stat">
+                  <span class="hero-panel-value" id="stat-joined">—</span>
+                  <span class="hero-panel-label">integres</span>
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section class="mannams-toolbar" aria-label="Filtres et priorisation">
+            <div class="mannams-toolbar-head">
+              <div>
+                <p class="section-label">Pilotage</p>
+                <h2 class="mannams-toolbar-title">Filtrer, corriger et suivre les rencontres</h2>
+              </div>
+              <p class="mannams-toolbar-copy">Affinez la liste pour traiter les fiches les plus urgentes et garder une lecture plus calme de l'ensemble.</p>
+            </div>
+
+            <div class="mannams-filters">
+              <div class="filter-group filter-group-search">
+                <label for="search-input">Recherche</label>
+                <input id="search-input" class="mannams-search" type="search" placeholder="Pasteur, membre, résumé…" />
+              </div>
+              <div class="filter-group filter-group-match">
+                <label for="filter-match">Résolution</label>
+                <select id="filter-match" class="filter-control">
+                  <option value="all">Tous</option>
+                  <option value="unmatched">Non resolus</option>
+                  <option value="partial">Partiels</option>
+                  <option value="fuzzy">Flous</option>
+                  <option value="exact">Exacts</option>
+                  <option value="manual">Corriges</option>
+                </select>
+              </div>
+              <div class="filter-group filter-group-coop">
+                <label for="filter-coop">Cooperation</label>
+                <select id="filter-coop" class="filter-control">
+                  <option value="all">Tous</option>
+                  <option value="none">Aucune</option>
+                  <option value="interested">Interesse</option>
+                  <option value="agreed">Accord</option>
+                  <option value="enrolled">Inscrit (academie)</option>
+                  <option value="church">A l'eglise (developpement)</option>
+                  <option value="joined">Integre</option>
+                </select>
+              </div>
+              <div class="filter-group filter-group-date-from">
+                <label for="filter-date-from">Du</label>
+                <input id="filter-date-from" class="trajectory-date-input" type="date" />
+              </div>
+              <div class="filter-group filter-group-date-to">
+                <label for="filter-date-to">Au</label>
+                <input id="filter-date-to" class="trajectory-date-input" type="date" />
+              </div>
+              <div class="filter-group filter-group-sort">
+                <label for="filter-sort">Tri</label>
+                <select id="filter-sort" class="filter-control">
+                  <option value="action">Niveau d'action</option>
+                  <option value="newest">Plus recentes</option>
+                  <option value="oldest">Plus anciennes</option>
+                  <option value="pastor">Pasteur (A-Z)</option>
+                </select>
+              </div>
+              <button class="secondary-action compact-action filter-action filter-action-reset" type="button" id="btn-reset-filters">Reinitialiser</button>
+              <button class="secondary-action compact-action filter-action filter-action-refresh" type="button" id="btn-refresh">Actualiser</button>
+            </div>
+
+            <div class="mannams-priority-legend" aria-label="Lecture des priorites">
+              <span class="priority-chip is-urgent"><strong>Urgent</strong> correction immediate</span>
+              <span class="priority-chip is-attention"><strong>Attention</strong> relance ou qualification</span>
+              <span class="priority-chip is-stable"><strong>Stable</strong> suivi courant</span>
+            </div>
+            <p class="priority-help">Le score d'action combine: qualite de resolution des membres, statut de cooperation, noms non resolus, presence de note de suivi et fraicheur de la rencontre.</p>
+
+            <p class="mannams-list-count muted" id="list-count">Chargement…</p>
+          </section>
+
+          <!-- Main split layout -->
+          <div class="mannams-shell">
+            <!-- Left: meeting list -->
+            <div>
+              <section class="card mannams-list-card" aria-label="Liste des rencontres">
+                <div class="mannams-list-card-head">
+                  <div>
+                    <p class="section-label">File de traitement</p>
+                    <h2 class="mannams-list-title">Rencontres à analyser</h2>
+                    <p class="mannams-list-subtitle">Sélectionnez une fiche pour vérifier la résolution des membres et qualifier le suivi.</p>
+                  </div>
+                  <div class="mannams-list-meta">Vue active</div>
+                </div>
+                <div class="mannams-list" id="mannams-list">
+                  <div class="detail-empty"><span class="material-symbols-rounded" style="font-size:2.5rem">hourglass_empty</span>Chargement des rencontres…</div>
+                </div>
+              </section>
+            </div>
+
+            <!-- Right: detail panel -->
+            <div class="mannams-detail">
+              <article class="card" id="detail-panel">
+                <div class="detail-card-head">
+                  <p class="section-label">Fiche detaillee</p>
+                  <h2 class="detail-card-title">Lecture et corrections</h2>
+                  <p class="detail-card-copy">Chaque rencontre conserve ses informations source, ses membres résolus et son niveau d'avancement vers la coopération.</p>
+                </div>
+                <div class="detail-card-body">
+                <div class="detail-empty" id="detail-empty">
+                  <span class="material-symbols-rounded" style="font-size:2.5rem">touch_app</span>
+                  <span>Selectionnez une rencontre pour voir le detail et effectuer des corrections.</span>
+                </div>
+                <div id="detail-content" hidden>
+
+                  <!-- Header -->
+                  <div class="detail-section">
+                    <div class="detail-section-label">Rencontre</div>
+                    <div class="detail-field">
+                      <label>Date</label>
+                      <div class="detail-value" id="d-date">—</div>
+                    </div>
+                    <div class="detail-field">
+                      <label>Pasteur</label>
+                      <div class="detail-value" id="d-pastor">—</div>
+                      <a id="d-pastor-link" href="/pastors.html" class="module-link" style="margin-top:8px">Ouvrir la fiche pasteur <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+                    </div>
+                    <div class="detail-field">
+                      <label>Résumé</label>
+                      <div class="detail-value" id="d-summary">—</div>
+                    </div>
+                    <div class="detail-field">
+                      <label>Description</label>
+                      <div class="detail-value muted" id="d-description">—</div>
+                    </div>
+                    <div class="detail-field">
+                      <label>Source</label>
+                      <div class="detail-value muted" id="d-source">—</div>
+                    </div>
+                  </div>
+
+                  <!-- Members -->
+                  <div class="detail-section">
+                    <div class="detail-section-label">Membres resolus <span id="d-match-badge" class="badge"></span></div>
+                    <div class="member-chips" id="d-members"></div>
+
+                    <!-- Participants correction -->
+                    <div id="correction-area" hidden>
+                      <p style="font-size:0.82rem;color:#0c5949;margin:10px 0 6px;font-weight:700">Selectionnez les membres qui ont participe au mannam :</p>
+                      <div class="correction-panel">
+                        <select class="member-history-select participants-select" id="participants-select" multiple></select>
+                        <p class="participants-help">Astuce: maintenez Ctrl (ou Cmd) pour selectionner plusieurs membres.</p>
+                      </div>
+                      <div style="margin-top:10px;display:flex;gap:8px">
+                        <button class="primary-action compact-action" type="button" id="btn-save-members">Enregistrer les participants</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Participants summary -->
+                  <div class="detail-section" id="history-section">
+                    <div class="detail-section-label">Resume des participants</div>
+                    <div class="member-history">
+                      <p class="muted" id="history-member-summary">Selectionnez une rencontre pour afficher les participants resolus.</p>
+                    </div>
+                  </div>
+
+                  <!-- Cooperation tracking -->
+                  <div class="detail-section">
+                    <div class="detail-section-label">Suivi cooperation</div>
+                    <div class="detail-field">
+                      <label for="coop-select">Statut progression</label>
+                      <select class="coop-select" id="coop-select">
+                        <option value="none">Aucun</option>
+                        <option value="interested">Interesse</option>
+                        <option value="agreed">Accord conclu</option>
+                        <option value="enrolled">Inscrit (academie)</option>
+                        <option value="church">A l'eglise (developpement)</option>
+                        <option value="joined">Integre a la cooperation</option>
+                      </select>
+                    </div>
+                    <div class="detail-field">
+                      <label for="follow-up-note">Note de suivi</label>
+                      <textarea class="follow-up-textarea" id="follow-up-note" placeholder="Prochaine action, observation, date de relance…"></textarea>
+                    </div>
+                  </div>
+
+                  <div class="detail-actions">
+                    <button class="primary-action" type="button" id="btn-save-coop">Enregistrer le suivi</button>
+                  </div>
+
+                </div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/mannams.js" defer></script>
+  </body>
+</html>

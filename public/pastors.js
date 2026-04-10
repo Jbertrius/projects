@@ -1,5 +1,6 @@
 const pastorState = {
   pastors: [],
+  academyClassOptions: [],
   filtered: [],
   selectedId: "",
   source: "sheets",
@@ -138,6 +139,7 @@ function renderEditor() {
     title.textContent = "Selectionner une fiche";
     status.textContent = "Aucune selection";
     document.getElementById("pastor-form").reset();
+    populateAcademyClassOptions("");
     document.getElementById("pastor-id").value = "";
     document.getElementById("pastor-source-variants").textContent = "-";
     document.getElementById("pastor-history").textContent = "-";
@@ -156,6 +158,9 @@ function renderEditor() {
   document.getElementById("pastor-city").value = pastor.city || "";
   document.getElementById("pastor-phone").value = pastor.phone || "";
   document.getElementById("pastor-email").value = pastor.email || "";
+  populateAcademyClassOptions(pastor.academy_class || "");
+  document.getElementById("pastor-cell-number").value = pastor.cell_number || "";
+  document.getElementById("pastor-current-mission").value = pastor.current_mission || "";
   document.getElementById("pastor-aliases").value = pastor.aliases || "";
   document.getElementById("pastor-notes").value = pastor.notes || "";
   document.getElementById("pastor-needs-review").checked = String(pastor.needs_review).toLowerCase() === "true";
@@ -187,6 +192,29 @@ function populateMemberFilter() {
   memberFilter.value = pastorState.filters.member;
 }
 
+function populateAcademyClassOptions(selectedValue = "") {
+  const classSelect = document.getElementById("pastor-class");
+  if (!classSelect) {
+    return;
+  }
+
+  const normalizedSelected = String(selectedValue || "").trim();
+  const options = [
+    `<option value="">-- Choisir une classe --</option>`,
+    ...pastorState.academyClassOptions.map((className) => `<option value="${className}">${className}</option>`)
+  ];
+
+  if (
+    normalizedSelected &&
+    !pastorState.academyClassOptions.some((className) => String(className).trim() === normalizedSelected)
+  ) {
+    options.push(`<option value="${normalizedSelected}">${normalizedSelected} (hors liste)</option>`);
+  }
+
+  classSelect.innerHTML = options.join("");
+  classSelect.value = normalizedSelected;
+}
+
 async function loadPastors() {
   pastorState.isLoading = true;
   updateRefreshButton();
@@ -198,9 +226,24 @@ async function loadPastors() {
       throw new Error(payload.error || "Impossible de charger les pasteurs.");
     }
 
+    let academyClassOptions = [];
+    try {
+      const academyResponse = await fetch(`/api/academy/students?ts=${Date.now()}`, { cache: "no-store" });
+      if (academyResponse.ok) {
+        const academyPayload = await academyResponse.json();
+        academyClassOptions = (academyPayload.classOptions || [])
+          .map((item) => String(item.name || "").trim())
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b, "fr"));
+      }
+    } catch {
+      academyClassOptions = [];
+    }
+
     pastorState.pastors = payload.pastors || [];
     pastorState.source = payload.source || "sheets";
     pastorState.memberOptions = payload.memberOptions || [];
+    pastorState.academyClassOptions = academyClassOptions;
     if (!pastorState.selectedId && pastorState.pastors.length) {
       pastorState.selectedId = pastorState.pastors[0].id;
     }
@@ -210,6 +253,7 @@ async function loadPastors() {
 
     populateTitleFilter();
     populateMemberFilter();
+  populateAcademyClassOptions();
     applyFilters();
     renderPastorList();
     renderEditor();
@@ -243,6 +287,9 @@ async function savePastor(event) {
     city: document.getElementById("pastor-city").value,
     phone: document.getElementById("pastor-phone").value,
     email: document.getElementById("pastor-email").value,
+    academy_class: document.getElementById("pastor-class").value,
+    cell_number: document.getElementById("pastor-cell-number").value,
+    current_mission: document.getElementById("pastor-current-mission").value,
     aliases: document.getElementById("pastor-aliases").value,
     notes: document.getElementById("pastor-notes").value,
     needs_review: document.getElementById("pastor-needs-review").checked
@@ -339,12 +386,34 @@ function attachNavigationHandlers() {
   });
 }
 
+function applySearchPrefillFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const searchValue = String(params.get("search") || "").trim();
+  if (!searchValue) {
+    return;
+  }
+
+  pastorState.filters.search = searchValue;
+  const searchInput = document.getElementById("pastor-search");
+  if (searchInput) {
+    searchInput.value = searchValue;
+  }
+
+  applyFilters();
+  if (pastorState.filtered.length) {
+    pastorState.selectedId = pastorState.filtered[0].id;
+  }
+  renderPastorList();
+  renderEditor();
+}
+
 async function boot() {
   await window.AppAuth.requireAuth();
   attachNavigationHandlers();
   attachFilters();
   updateRefreshButton();
   await loadPastors();
+  applySearchPrefillFromUrl();
 }
 
 boot().catch((error) => showFeedback(error.message, "error"));

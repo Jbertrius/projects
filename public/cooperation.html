@@ -13,7 +13,7 @@
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="pole-cooperation">
     <div class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
@@ -88,26 +88,77 @@
             </aside>
           </section>
 
-          <section class="module-grid" id="cooperation-modules">
-            <article class="card module-card">
-              <div>
-                <p class="section-label">Pasteurs</p>
-                <h3>Fiches et enrichissement</h3>
-              </div>
-              <p class="muted">Relecture des identites, eglise, ville, notes et historique des rencontres.</p>
-              <div class="module-links">
-                <a class="module-link" href="/pastors.html">Ouvrir les fiches pasteurs <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+          <section class="evangelisation-intro-grid">
+            <article class="evangelisation-note">
+              <p class="section-label">Cap du pole</p>
+              <h2 class="evangelisation-note-title">Consolider la relation pour la rendre durable, mesurable et transmissible.</h2>
+              <p class="evangelisation-note-copy">
+                Cette vue aide a prioriser les pasteurs qui basculent vers un engagement plus fort, tout en gardant une vue nette sur la maturite des accords.
+              </p>
+              <div class="evangelisation-pulse">
+                <div class="evangelisation-pulse-item">
+                  <span class="evangelisation-pulse-value">MOU</span>
+                  <span class="evangelisation-pulse-label">accords signes ou a finaliser</span>
+                </div>
+                <div class="evangelisation-pulse-item">
+                  <span class="evangelisation-pulse-value">Qualite</span>
+                  <span class="evangelisation-pulse-label">constance du suivi relationnel</span>
+                </div>
+                <div class="evangelisation-pulse-item">
+                  <span class="evangelisation-pulse-value">Passage</span>
+                  <span class="evangelisation-pulse-label">vers academie et structuration locale</span>
+                </div>
               </div>
             </article>
 
-            <article class="card module-card">
-              <div>
-                <p class="section-label">Relation</p>
-                <h3>MOU et cooperation active</h3>
+            <aside class="evangelisation-focus-card">
+              <p class="panel-label">Points d'attention</p>
+              <h2 class="evangelisation-focus-title">Ce qui doit orienter les decisions</h2>
+              <p class="evangelisation-focus-copy">Maintenir l'equilibre entre maturite des liens, clarte des accords et rythme des relances.</p>
+              <ul class="evangelisation-focus-list">
+                <li><span class="material-symbols-rounded" aria-hidden="true">contract</span><span>Identifier les partenaires a fort potentiel dont le MOU reste bloque ou incomplet.</span></li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">diversity_3</span><span>Suivre l'ancrage relationnel reel: visites, retours, engagements concrets.</span></li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">school</span><span>Preparer les transitions vers l'academie pour les situations deja stabilisees.</span></li>
+              </ul>
+            </aside>
+          </section>
+
+          <section class="evangelisation-module-grid" id="cooperation-modules">
+            <article class="card evangelisation-module-card">
+              <div class="evangelisation-module-head">
+                <div>
+                  <p class="section-label">Pasteurs</p>
+                  <h3 class="evangelisation-module-title">Fiches et enrichissement</h3>
+                </div>
+                <span class="evangelisation-module-icon" aria-hidden="true"><span class="material-symbols-rounded">menu_book</span></span>
               </div>
-              <p class="muted">Vue future pour les accords, la qualite du lien et les prochaines relances strategiques.</p>
-              <div class="module-links">
-                <a class="module-link" href="/academy.html">Voir la suite vers l'academie <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              <p class="evangelisation-module-copy">Relecture des identites, eglise, ville, notes et historique des rencontres pour garder un dossier clair par partenaire.</p>
+              <div class="evangelisation-module-strip">
+                <span class="evangelisation-module-pill">Profil</span>
+                <span class="evangelisation-module-pill">Historique</span>
+                <span class="evangelisation-module-pill">Contexte</span>
+              </div>
+              <div class="evangelisation-module-links">
+                <a class="module-link evangelisation-module-link" href="/pastors.html">Ouvrir les fiches pasteurs <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              </div>
+            </article>
+
+            <article class="card evangelisation-module-card">
+              <div class="evangelisation-module-head">
+                <div>
+                  <p class="section-label">Relation</p>
+                  <h3 class="evangelisation-module-title">MOU et cooperation active</h3>
+                </div>
+                <span class="evangelisation-module-icon" aria-hidden="true"><span class="material-symbols-rounded">handshake</span></span>
+              </div>
+              <p class="evangelisation-module-copy">Vue des accords, qualite du lien et prochaines relances strategiques pour garder la relation active dans la duree.</p>
+              <div class="evangelisation-module-strip">
+                <span class="evangelisation-module-pill">Accords</span>
+                <span class="evangelisation-module-pill">Suivi</span>
+                <span class="evangelisation-module-pill">Projection</span>
+              </div>
+              <div class="evangelisation-module-links">
+                <a class="module-link evangelisation-module-link" href="/academy.html">Voir la suite vers l'academie <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
               </div>
             </article>
           </section>
