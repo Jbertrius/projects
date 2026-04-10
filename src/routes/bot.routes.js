@@ -19,7 +19,7 @@ const memberRepo = require("../repositories/member.repository");
 const { appCache } = require("../utils/cache");
 const { AppError } = require("../middleware/errorHandler");
 const { validate, required } = require("../utils/validate");
-const { hasFirestoreConfig, deleteMeetingDocument, refreshDashboardAggregate } = require("../../lib/firestore");
+const { hasFirestoreConfig, deleteMeetingDocument, refreshDashboardAggregate, upsertPastorIfMissing } = require("../../lib/firestore");
 const { getAccessToken, fetchJson, getEnv } = require("../../lib/google-auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const { log } = require("../middleware/logger");
@@ -239,6 +239,11 @@ router.post("/meetings", async (req, res, next) => {
     appCache.invalidate("dashboard");
     appCache.invalidate("dashboard:source");
     refreshDashboardAggregate().catch(() => {});
+
+    // Fire-and-forget: ensure the pastor has a fiche (creates a stub if missing)
+    if (inferredPastor.pastor_name) {
+      upsertPastorIfMissing(inferredPastor.pastor_name, normalizedMeetingDate || date).catch(() => {});
+    }
 
     res.json({
       ok: true,
