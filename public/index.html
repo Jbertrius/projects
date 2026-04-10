@@ -35,6 +35,7 @@
 
         <nav class="sidebar-nav" aria-label="Navigation DMD">
           <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
           <a class="nav-item nav-link is-active" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
           <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
           <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
@@ -45,6 +46,7 @@
 
         <nav class="sidebar-nav" aria-label="Dans cette page">
           <p class="nav-section-label">Dans cette page</p>
+          <button class="nav-item" type="button" data-target="summit-preview-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></button>
           <button class="nav-item" type="button" data-target="meetings-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Trajectoire</span></button>
           <button class="nav-item" type="button" data-target="members-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Equipe</span></button>
           <button class="nav-item" type="button" data-target="training-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">conversion_path</span><span>Pipeline</span></button>
@@ -154,6 +156,36 @@
       </section>
 
       <section class="kpi-grid" id="kpi-grid"></section>
+
+      <section class="feature-grid" id="summit-preview-section">
+        <article class="card summit-preview-card" style="grid-column:1/-1">
+          <div class="card-head">
+            <div>
+              <p class="section-label">GMCS-EU Summit &bull; 20 Juin &bull; 2e Edition</p>
+              <h3>Inscriptions Pasteurs</h3>
+            </div>
+            <a class="secondary-action compact-action" href="/gmcs-summit.html">Tableau complet</a>
+          </div>
+          <div class="summit-preview-row" id="dashboard-summit-row">
+            <div class="summit-preview-stat">
+              <span class="summit-preview-num" id="dsum-total">&mdash;</span>
+              <span class="summit-preview-lbl">Inscrits total</span>
+            </div>
+            <div class="summit-preview-stat verbal">
+              <span class="summit-preview-num" id="dsum-verbal">&mdash;</span>
+              <span class="summit-preview-lbl">Accord verbal</span>
+            </div>
+            <div class="summit-preview-stat inscrit">
+              <span class="summit-preview-num" id="dsum-inscrit">&mdash;</span>
+              <span class="summit-preview-lbl">Inscrits</span>
+            </div>
+            <div class="summit-preview-stat paiement">
+              <span class="summit-preview-num" id="dsum-paiement">&mdash;</span>
+              <span class="summit-preview-lbl">Paiement recu</span>
+            </div>
+          </div>
+        </article>
+      </section>
 
       <section class="feature-grid feature-grid-wide" id="meetings-section">
         <article class="card chart-card">

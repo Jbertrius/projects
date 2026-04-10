@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GMCS-EU Summit 2e Edition — DMD</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      :root {
+        --summit-gold: #f5c32c;
+        --summit-gold-soft: rgba(245, 195, 44, 0.14);
+        --summit-gold-border: rgba(245, 195, 44, 0.32);
+        --summit-green: #147964;
+        --summit-ink: #1a2e1a;
+        --summit-line: rgba(26, 46, 26, 0.1);
+      }
+
+      .dashboard { gap: 22px; }
+
+      /* ── Hero ── */
+      .summit-hero {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 22px;
+        align-items: center;
+        padding: 28px 32px;
+        border-radius: var(--radius-lg);
+        background:
+          radial-gradient(circle at top right, rgba(245,195,44,0.22), transparent 40%),
+          linear-gradient(145deg, rgba(255,255,255,0.96), rgba(244,251,244,0.9));
+        border: 1px solid var(--summit-gold-border);
+        box-shadow: 0 24px 60px rgba(20,121,100,0.1);
+      }
+
+      .summit-hero-eyebrow {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+
+      .summit-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 0.73rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: var(--summit-gold-soft);
+        color: #7a5c00;
+        border: 1px solid var(--summit-gold-border);
+      }
+
+      .summit-tag.is-date {
+        background: rgba(20,121,100,0.1);
+        color: #0c5949;
+        border-color: rgba(20,121,100,0.22);
+      }
+
+      .summit-hero-title {
+        font-family: "Sora", sans-serif;
+        font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--summit-ink);
+        margin-bottom: 6px;
+      }
+
+      .summit-hero-subtitle {
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.55;
+        max-width: 50ch;
+      }
+
+      .summit-hero-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--summit-gold) 0%, #e8a800 100%);
+        box-shadow: 0 8px 32px rgba(245,195,44,0.38);
+        color: #fff;
+        text-align: center;
+        flex-shrink: 0;
+      }
+
+      .summit-hero-badge-num {
+        font-family: "Sora", sans-serif;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.06em;
+        line-height: 1;
+      }
+
+      .summit-hero-badge-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.9;
+      }
+
+      /* ── Stats row ── */
+      .summit-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+
+      .summit-stat-card {
+        padding: 20px 22px;
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(255,255,255,0.7);
+        box-shadow: 0 8px 24px rgba(17,59,84,0.07);
+      }
+
+      .summit-stat-card.is-verbal { border-left: 4px solid #f59e0b; }
+      .summit-stat-card.is-inscrit { border-left: 4px solid #147964; }
+      .summit-stat-card.is-paiement { border-left: 4px solid #1d4ed8; }
+      .summit-stat-card.is-total { border-left: 4px solid var(--summit-gold); }
+
+      .summit-stat-value {
+        font-family: "Sora", sans-serif;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.06em;
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+
+      .summit-stat-label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .summit-stat-sub {
+        margin-top: 6px;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      /* ── Toolbar ── */
+      .summit-toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 18px 22px;
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.88);
+        border: 1px solid rgba(255,255,255,0.7);
+        box-shadow: 0 8px 24px rgba(17,59,84,0.06);
+      }
+
+      .summit-toolbar-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-right: 4px;
+        white-space: nowrap;
+      }
+
+      .summit-filter-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--summit-line);
+        background: rgba(255,255,255,0.7);
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 150ms, border-color 150ms;
+        color: var(--muted);
+      }
+
+      .summit-filter-btn:hover { background: rgba(20,121,100,0.06); border-color: rgba(20,121,100,0.2); }
+      .summit-filter-btn.is-active { background: var(--summit-green); color: #fff; border-color: var(--summit-green); }
+      .summit-filter-btn.is-active.is-verbal { background: #d97706; border-color: #d97706; }
+      .summit-filter-btn.is-active.is-inscrit { background: #147964; border-color: #147964; }
+      .summit-filter-btn.is-active.is-paiement { background: #1d4ed8; border-color: #1d4ed8; }
+
+      .summit-search {
+        flex: 1;
+        min-width: 180px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--summit-line);
+        background: rgba(255,255,255,0.9);
+        font: inherit;
+        font-size: 0.88rem;
+      }
+
+      .summit-search:focus {
+        outline: 0;
+        border-color: rgba(20,121,100,0.4);
+        box-shadow: 0 0 0 3px rgba(20,121,100,0.1);
+      }
+
+      /* ── Table ── */
+      .summit-table-wrap {
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.7);
+        box-shadow: 0 12px 40px rgba(17,59,84,0.08);
+        background: rgba(255,255,255,0.92);
+      }
+
+      .summit-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+
+      .summit-table thead th {
+        padding: 14px 18px;
+        text-align: left;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        background: linear-gradient(180deg, rgba(246,250,246,0.98), rgba(240,248,240,0.9));
+        border-bottom: 1px solid var(--summit-line);
+      }
+
+      .summit-table tbody tr {
+        border-bottom: 1px solid rgba(26,46,26,0.06);
+        transition: background 120ms;
+      }
+
+      .summit-table tbody tr:last-child { border-bottom: none; }
+      .summit-table tbody tr:hover { background: rgba(20,121,100,0.04); }
+
+      .summit-table td {
+        padding: 14px 18px;
+        vertical-align: middle;
+      }
+
+      .summit-pastor-name {
+        font-weight: 700;
+        color: var(--summit-ink);
+        line-height: 1.3;
+      }
+
+      .summit-pastor-meta {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
+      .summit-source-chips {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+      }
+
+      .summit-source-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        background: rgba(16,51,71,0.07);
+        color: var(--muted);
+      }
+
+      .summit-source-chip.is-mannam { background: rgba(81,183,234,0.14); color: #1e5f8a; }
+      .summit-source-chip.is-academie { background: rgba(20,121,100,0.12); color: #0c5949; }
+      .summit-source-chip.is-cellule { background: rgba(124,58,237,0.1); color: #5b21b6; }
+
+      /* Status select inline */
+      .summit-status-select {
+        padding: 7px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--summit-line);
+        background: rgba(255,255,255,0.9);
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        min-width: 148px;
+        appearance: auto;
+      }
+
+      .summit-status-select.is-verbal { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+      .summit-status-select.is-inscrit { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+      .summit-status-select.is-paiement { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
+
+      .summit-status-select:focus {
+        outline: 0;
+        box-shadow: 0 0 0 3px rgba(20,121,100,0.14);
+      }
+
+      .summit-note-cell {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-style: italic;
+      }
+
+      .summit-actions-cell {
+        white-space: nowrap;
+      }
+
+      .summit-table-empty {
+        padding: 48px 24px;
+        text-align: center;
+        color: var(--muted);
+      }
+
+      .summit-count-label {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-left: auto;
+        white-space: nowrap;
+      }
+
+      .summit-chart-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+
+      .summit-chart-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .summit-chart-group {
+        display: inline-flex;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 999px;
+        background: rgba(20,121,100,0.06);
+        border: 1px solid rgba(20,121,100,0.12);
+      }
+
+      .summit-chart-chip {
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        padding: 7px 12px;
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .summit-chart-chip.is-active {
+        background: #147964;
+        color: #fff;
+        box-shadow: 0 8px 20px rgba(20,121,100,0.2);
+      }
+
+      @media (max-width: 900px) {
+        .summit-hero { grid-template-columns: 1fr; }
+        .summit-hero-badge { display: none; }
+        .summit-stats { grid-template-columns: repeat(2, 1fr); }
+      }
+
+      @media (max-width: 600px) {
+        .summit-stats { grid-template-columns: 1fr; }
+        .summit-table-wrap { overflow-x: auto; }
+        .summit-table { min-width: 640px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">GMCS Summit</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link is-active" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Sur cette page">
+          <p class="nav-section-label">Sur cette page</p>
+          <a class="nav-item nav-link is-active" href="#summit-overview"><span class="nav-icon material-symbols-rounded" aria-hidden="true">leaderboard</span><span>Vue d'ensemble</span></a>
+          <a class="nav-item nav-link" href="#summit-evolution"><span class="nav-icon material-symbols-rounded" aria-hidden="true">show_chart</span><span>Courbe evolution</span></a>
+          <a class="nav-item nav-link" href="#summit-list"><span class="nav-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span><span>Liste inscrits</span></a>
+        </nav>
+
+        <div class="sidebar-card" style="margin-top:auto">
+          <p class="section-label">Progression</p>
+          <div id="sidebar-summit-stats" style="font-size:0.85rem;display:flex;flex-direction:column;gap:6px">
+            <span class="muted">Chargement...</span>
+          </div>
+        </div>
+      </aside>
+
+      <div class="page-shell">
+        <div id="app-feedback" class="app-feedback" hidden></div>
+        <main class="dashboard">
+
+          <!-- Hero -->
+          <section class="summit-hero" id="summit-overview">
+            <div>
+              <div class="summit-hero-eyebrow">
+                <span class="summit-tag"><span class="material-symbols-rounded" style="font-size:0.9rem">emoji_events</span>2e Edition</span>
+                <span class="summit-tag is-date"><span class="material-symbols-rounded" style="font-size:0.9rem">calendar_today</span>20 Juin</span>
+                <span class="summit-tag">GMCS-EU</span>
+              </div>
+              <h1 class="summit-hero-title">GMCS-EU Summit — Suivi des inscriptions</h1>
+              <p class="summit-hero-subtitle">
+                Tableau de bord des confirmations de participation. Pasteurs issus des mannams, de l'académie et des cellules.
+              </p>
+            </div>
+            <div class="summit-hero-badge" aria-label="Total inscrits">
+              <span class="summit-hero-badge-num" id="hero-total">—</span>
+              <span class="summit-hero-badge-label">inscrits</span>
+            </div>
+          </section>
+
+          <!-- Stats -->
+          <section class="summit-stats" aria-label="Statistiques summit">
+            <div class="summit-stat-card is-total">
+              <div class="summit-stat-value" id="stat-all">—</div>
+              <div class="summit-stat-label">Total confirmés</div>
+              <div class="summit-stat-sub" id="stat-all-sub">pasteurs avec statut renseigné</div>
+            </div>
+            <div class="summit-stat-card is-verbal">
+              <div class="summit-stat-value" id="stat-verbal">—</div>
+              <div class="summit-stat-label">Accord verbal</div>
+              <div class="summit-stat-sub">intention exprimée</div>
+            </div>
+            <div class="summit-stat-card is-inscrit">
+              <div class="summit-stat-value" id="stat-inscrit">—</div>
+              <div class="summit-stat-label">Inscrits</div>
+              <div class="summit-stat-sub">confirmation formelle</div>
+            </div>
+            <div class="summit-stat-card is-paiement">
+              <div class="summit-stat-value" id="stat-paiement">—</div>
+              <div class="summit-stat-label">Paiement reçu</div>
+              <div class="summit-stat-sub">participation garantie</div>
+            </div>
+          </section>
+
+          <section id="summit-evolution">
+            <div class="summit-table-wrap" style="padding:16px 18px">
+              <div class="card-head" style="padding:0 0 10px;border:none">
+                <div>
+                  <p class="section-label">Evolution</p>
+                  <h3>Courbe des inscriptions dans le temps</h3>
+                </div>
+                <p class="muted">Basee sur la derniere date d'activite connue</p>
+              </div>
+              <div class="summit-chart-toolbar">
+                <div class="summit-chart-controls">
+                  <div class="summit-chart-group" role="group" aria-label="Granularite">
+                    <button class="summit-chart-chip is-active" type="button" data-chart-granularity="monthly">Mensuel</button>
+                    <button class="summit-chart-chip" type="button" data-chart-granularity="weekly">Hebdomadaire</button>
+                  </div>
+                  <div class="summit-chart-group" role="group" aria-label="Mode cumul">
+                    <button class="summit-chart-chip is-active" type="button" data-chart-mode="cumulative">Cumule</button>
+                    <button class="summit-chart-chip" type="button" data-chart-mode="delta">Non cumule</button>
+                  </div>
+                </div>
+                <span class="muted" id="summit-evolution-caption">Vue mensuelle cumulée</span>
+              </div>
+              <div id="summit-evolution-chart" style="min-height:320px"></div>
+            </div>
+          </section>
+
+          <!-- Toolbar + list -->
+          <section id="summit-list">
+            <div class="summit-toolbar">
+              <span class="summit-toolbar-title">Filtrer :</span>
+              <button class="summit-filter-btn is-active" type="button" data-filter="all">Tous</button>
+              <button class="summit-filter-btn is-verbal" type="button" data-filter="verbal">Verbal</button>
+              <button class="summit-filter-btn is-inscrit" type="button" data-filter="inscrit">Inscrits</button>
+              <button class="summit-filter-btn is-paiement" type="button" data-filter="paiement">Paiement</button>
+              <input class="summit-search" type="search" id="summit-search" placeholder="Rechercher un pasteur…" />
+              <button class="secondary-action compact-action" type="button" id="btn-refresh-summit">Actualiser</button>
+              <span class="summit-count-label" id="summit-count">—</span>
+            </div>
+
+            <div class="summit-table-wrap" style="margin-top:14px">
+              <table class="summit-table" aria-label="Liste des inscrits GMCS Summit">
+                <thead>
+                  <tr>
+                    <th>Pasteur</th>
+                    <th>Eglise / Ville</th>
+                    <th>Profil</th>
+                    <th>Statut</th>
+                    <th>Note</th>
+                    <th>Fiche</th>
+                  </tr>
+                </thead>
+                <tbody id="summit-tbody">
+                  <tr><td colspan="6" class="summit-table-empty">Chargement…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="/auth-client.js" defer></script>
+    <script src="/gmcs-summit.js" defer></script>
+  </body>
+</html>

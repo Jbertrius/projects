@@ -808,6 +808,7 @@
 
         <nav class="sidebar-nav" aria-label="Navigation DMD">
           <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
           <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
           <a class="nav-item nav-link is-active" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
           <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
@@ -984,7 +985,13 @@
                     <div class="detail-field">
                       <label>Pasteur</label>
                       <div class="detail-value" id="d-pastor">—</div>
-                      <a id="d-pastor-link" href="/pastors.html" class="module-link" style="margin-top:8px">Ouvrir la fiche pasteur <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+                      <div id="d-pastor-actions" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <a id="d-pastor-link" href="/pastors.html" class="module-link" hidden>Ouvrir la fiche pasteur <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+                        <button id="btn-create-pastor-stub" class="secondary-action compact-action" type="button" hidden>
+                          <span class="material-symbols-rounded" aria-hidden="true" style="font-size:1rem">person_add</span>
+                          Créer la fiche pasteur
+                        </button>
+                      </div>
                     </div>
                     <div class="detail-field">
                       <label>Résumé</label>

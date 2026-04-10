@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { requireAuth, requireContentManager } = require("../middleware/auth");
 const academyRepo = require("../repositories/academy.repository");
-const { hasFirestoreConfig } = require("../../lib/firestore");
+const { hasFirestoreConfig, patchStudentSummitStatus } = require("../../lib/firestore");
 const { normalizeIsoDate, parseAttendanceBlock } = require("../../lib/academy-parser");
 const { AppError } = require("../middleware/errorHandler");
 const { appCache } = require("../utils/cache");
@@ -168,6 +168,31 @@ router.get("/students", requireAuth, async (req, res, next) => {
       }
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/academy/students/:id/summit
+// Quick update of GMCS summit status for a student.
+// Body: { status: ""| "verbal"|"inscrit"|"paiement", note?: string }
+// ---------------------------------------------------------------------------
+const VALID_SUMMIT_STATUSES = ["", "verbal", "inscrit", "paiement"];
+router.patch("/students/:id/summit", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const studentId = String(req.params.id || "").trim();
+    if (!studentId) return res.status(400).json({ ok: false, error: "studentId is required" });
+    const status = String(req.body.status ?? "").trim();
+    if (!VALID_SUMMIT_STATUSES.includes(status)) {
+      return res.status(400).json({ ok: false, error: `status must be one of: ${VALID_SUMMIT_STATUSES.join(", ")}` });
+    }
+    const note = String(req.body.note ?? "").trim();
+    await patchStudentSummitStatus(studentId, status, note);
+    appCache.invalidate("academy");
+    res.json({ ok: true, studentId, status, note });
+  } catch (error) {
+    if (!error.status) error.status = 400;
     next(error);
   }
 });

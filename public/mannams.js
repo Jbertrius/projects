@@ -343,10 +343,18 @@ function renderDetail() {
   // Basic fields
   document.getElementById("d-date").textContent = formatDate(meeting.meeting_date);
   document.getElementById("d-pastor").textContent = meeting.pastor_name || "—";
+
   const pastorLink = document.getElementById("d-pastor-link");
+  const btnCreateStub = document.getElementById("btn-create-pastor-stub");
+  const pastorExists = Boolean(meeting.pastor_name && findPastorForMeeting(meeting));
+
   if (pastorLink) {
     const query = encodeURIComponent(meeting.pastor_name || "");
     pastorLink.href = query ? `/pastors.html?search=${query}` : "/pastors.html";
+    pastorLink.hidden = !pastorExists;
+  }
+  if (btnCreateStub) {
+    btnCreateStub.hidden = !meeting.pastor_name || pastorExists;
   }
   document.getElementById("d-summary").textContent = meeting.event_summary || "—";
   const desc = meeting.event_description || "";
@@ -539,6 +547,39 @@ async function saveCooperation() {
   }
 }
 
+async function createPastorStub() {
+  const meeting = mannamState.meetings.find((m) => String(m.id) === String(mannamState.selectedId));
+  if (!meeting?.pastor_name) return;
+
+  const btn = document.getElementById("btn-create-pastor-stub");
+  if (btn) { btn.disabled = true; btn.textContent = "Création…"; }
+
+  try {
+    const resp = await fetch("/api/pastors/stub", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: meeting.pastor_name, date: meeting.meeting_date || "" })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || "Erreur lors de la création.");
+
+    if (data.created) {
+      showFeedback("Fiche pasteur créée. Vous pouvez maintenant la compléter.", "success");
+    } else {
+      showFeedback("La fiche pasteur existe déjà.", "info");
+    }
+
+    // Refresh pastor list so the link appears
+    const pastorResp = await fetch(`/api/pastors?ts=${Date.now()}`, { cache: "no-store" });
+    const pastorData = await pastorResp.json();
+    mannamState.pastors = pastorData.pastors || [];
+    renderDetail();
+  } catch (err) {
+    showFeedback(err.message, "error");
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true" style="font-size:1rem">person_add</span> Créer la fiche pasteur'; }
+  }
+}
+
 function setSavingState(saving) {
   ["btn-save-members", "btn-save-coop"].forEach((id) => {
     const el = document.getElementById(id);
@@ -602,6 +643,7 @@ function attachHandlers() {
 
   document.getElementById("btn-save-members")?.addEventListener("click", saveMemberCorrection);
   document.getElementById("btn-save-coop")?.addEventListener("click", saveCooperation);
+  document.getElementById("btn-create-pastor-stub")?.addEventListener("click", createPastorStub);
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────

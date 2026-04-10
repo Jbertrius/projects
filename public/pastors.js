@@ -106,14 +106,19 @@ function renderPastorList() {
     .map((pastor) => {
       const isReview = String(pastor.needs_review).toLowerCase() === "true";
       const isActive = pastor.id === pastorState.selectedId;
+      const summitStatus = pastor.gmcs_summit_status || "";
+      const summitBadge = summitStatus
+        ? `<span class="status-pill status-pill-summit-${summitStatus}" title="GMCS Summit">${{ verbal: "Summit: verbal", inscrit: "Summit: inscrit", paiement: "Summit: payé" }[summitStatus] || summitStatus}</span>`
+        : "";
       return `
         <button class="pastor-row ${isActive ? "is-active" : ""}" type="button" data-pastor-id="${pastor.id}">
           <div class="pastor-row-main">
             <strong>${pastor.name || "Nom a corriger"}</strong>
-            <span>${pastor.title || "Sans titre"}${pastor.city ? ` � ${pastor.city}` : ""}</span>
+            <span>${pastor.title || "Sans titre"}${pastor.city ? ` - ${pastor.city}` : ""}</span>
           </div>
           <div class="pastor-row-side">
             <span>${pastor.meeting_count || 0} rencontres</span>
+            ${summitBadge}
             <span class="status-pill ${isReview ? "status-pill-warning" : ""}">${isReview ? "A revoir" : "Valide"}</span>
           </div>
         </button>
@@ -163,10 +168,12 @@ function renderEditor() {
   document.getElementById("pastor-current-mission").value = pastor.current_mission || "";
   document.getElementById("pastor-aliases").value = pastor.aliases || "";
   document.getElementById("pastor-notes").value = pastor.notes || "";
+  document.getElementById("pastor-summit-status").value = pastor.gmcs_summit_status || "";
+  document.getElementById("pastor-summit-note").value = pastor.gmcs_summit_note || "";
   document.getElementById("pastor-needs-review").checked = String(pastor.needs_review).toLowerCase() === "true";
   document.getElementById("pastor-source-variants").textContent = pastor.source_variants || "-";
   document.getElementById("pastor-history").textContent =
-    `${pastor.meeting_count || 0} rencontres � ${pastor.first_meeting_date || "-"} -> ${pastor.last_meeting_date || "-"}`;
+    `${pastor.meeting_count || 0} rencontres - ${pastor.first_meeting_date || "-"} -> ${pastor.last_meeting_date || "-"}`;
 }
 
 function populateTitleFilter() {
@@ -271,12 +278,14 @@ async function savePastor(event) {
     return;
   }
 
+  const existingName = document.getElementById("pastor-name").value;
   const canonicalName = buildCanonicalSuggestion(
     document.getElementById("pastor-first-name").value,
     document.getElementById("pastor-last-name").value
-  );
+  ) || existingName;
   document.getElementById("pastor-name").value = canonicalName;
 
+  const current = getSelectedPastor();
   const payload = {
     id: pastorId,
     name: canonicalName,
@@ -292,7 +301,15 @@ async function savePastor(event) {
     current_mission: document.getElementById("pastor-current-mission").value,
     aliases: document.getElementById("pastor-aliases").value,
     notes: document.getElementById("pastor-notes").value,
-    needs_review: document.getElementById("pastor-needs-review").checked
+    gmcs_summit_status: document.getElementById("pastor-summit-status").value,
+    gmcs_summit_note: document.getElementById("pastor-summit-note").value,
+    needs_review: document.getElementById("pastor-needs-review").checked,
+    // Preserve read-only fields that are not in the form
+    meeting_count: current?.meeting_count ?? "0",
+    first_meeting_date: current?.first_meeting_date ?? "",
+    last_meeting_date: current?.last_meeting_date ?? "",
+    source: current?.source ?? "",
+    source_variants: current?.source_variants ?? ""
   };
 
   const response = await fetch("/api/pastors/update", {

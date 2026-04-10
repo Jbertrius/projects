@@ -31,6 +31,15 @@ function normalizeText(value) {
     .trim();
 }
 
+function normalizeSummitStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized === "verbal") return "verbal";
+  if (normalized === "inscrit") return "inscrit";
+  if (["paiement", "paiement recu", "paiement reçu"].includes(normalized)) return "paiement";
+  return "";
+}
+
 function getSelectedStudent() {
   return academyStudentState.students.find((student) => student.id === academyStudentState.selectedId) || null;
 }
@@ -161,6 +170,8 @@ function renderEditor() {
   document.getElementById("academy-student-church").value = student.church_name || "";
   document.getElementById("academy-student-subgroup").value = student.subgroup || "";
   document.getElementById("academy-student-notes").value = student.notes || "";
+  document.getElementById("academy-student-summit-status").value = student.gmcs_summit_status || "";
+  document.getElementById("academy-student-summit-note").value = student.gmcs_summit_note || "";
   document.getElementById("academy-student-last-lesson").textContent = student.last_lesson_date || "-";
   renderActivityPills(student);
 }
@@ -210,6 +221,7 @@ async function saveStudent(event) {
   document.getElementById("academy-student-name").value = canonicalName;
 
   const selected = getSelectedStudent() || {};
+  const summitStatus = normalizeSummitStatus(document.getElementById("academy-student-summit-status").value);
   const payload = {
     id: studentId,
     name: canonicalName,
@@ -218,6 +230,8 @@ async function saveStudent(event) {
     status: document.getElementById("academy-student-status").value,
     subgroup: document.getElementById("academy-student-subgroup").value,
     notes: document.getElementById("academy-student-notes").value,
+    gmcs_summit_status: summitStatus,
+    gmcs_summit_note: document.getElementById("academy-student-summit-note").value,
     class_id: selected.class_id,
     class_name: selected.class_name,
     instructor_name: selected.instructor_name,

@@ -745,6 +745,25 @@ async function refreshDashboard() {
   await renderDashboard();
 }
 
+async function loadSummitPreview() {
+  try {
+    const resp = await fetch(`/api/pastors?ts=${Date.now()}`, { cache: 'no-store' });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const pastors = data.pastors || [];
+    const registered = pastors.filter((p) => p.gmcs_summit_status);
+    const byLevel = { verbal: 0, inscrit: 0, paiement: 0 };
+    registered.forEach((p) => { if (byLevel[p.gmcs_summit_status] !== undefined) byLevel[p.gmcs_summit_status]++; });
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('dsum-total', registered.length);
+    set('dsum-verbal', byLevel.verbal);
+    set('dsum-inscrit', byLevel.inscrit);
+    set('dsum-paiement', byLevel.paiement);
+  } catch {
+    // Summit preview is optional
+  }
+}
+
 async function loadDashboard() {
   const app = document.getElementById('app');
 
@@ -754,6 +773,7 @@ async function loadDashboard() {
     attachNavigationHandlers();
     attachFilterHandlers();
     await refreshDashboard();
+    loadSummitPreview().catch(() => {});
   } catch (error) {
     app.innerHTML = `
       <section class="loading-state">

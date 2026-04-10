@@ -3,6 +3,8 @@ const { requireAuth, requireContentManager } = require("../middleware/auth");
 const pastorRepo = require("../repositories/pastor.repository");
 const dashboardRepo = require("../repositories/dashboard.repository");
 const { appCache } = require("../utils/cache");
+const { hasFirestoreConfig, upsertPastorIfMissing, patchPastorSummitStatus } = require("../../lib/firestore");
+const { AppError } = require("../middleware/errorHandler");
 
 const router = Router();
 
@@ -106,6 +108,58 @@ router.get("/", requireAuth, async (req, res, next) => {
     );
     res.json({ ok: true, pastors: context.pastors, memberOptions: context.memberOptions });
   } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/pastors/stub
+// Create a minimal pastor fiche if none exists yet.
+// Body: { name: string, date?: string }
+// ---------------------------------------------------------------------------
+router.post("/stub", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "Firestore n'est pas configure.");
+    }
+    const name = String(req.body.name || "").trim();
+    if (!name) {
+      return res.status(400).json({ ok: false, error: "name is required" });
+    }
+    const date = String(req.body.date || "").trim();
+    const result = await upsertPastorIfMissing(name, date);
+    if (!result || !result.created) {
+      return res.json({ ok: true, created: false, message: "La fiche pasteur existe deja." });
+    }
+    appCache.invalidate("pastors");
+    res.json({ ok: true, created: true, pastorId: result.pastorId });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/pastors/:id/summit
+// Quick update of GMCS summit status from the dashboard.
+// Body: { status: ""| "verbal"|"inscrit"|"paiement", note?: string }
+// ---------------------------------------------------------------------------
+const VALID_SUMMIT_STATUSES = ["", "verbal", "inscrit", "paiement"];
+router.patch("/:id/summit", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const pastorId = String(req.params.id || "").trim();
+    if (!pastorId) return res.status(400).json({ ok: false, error: "pastorId is required" });
+    const status = String(req.body.status ?? "").trim();
+    if (!VALID_SUMMIT_STATUSES.includes(status)) {
+      return res.status(400).json({ ok: false, error: `status must be one of: ${VALID_SUMMIT_STATUSES.join(", ")}` });
+    }
+    const note = String(req.body.note ?? "").trim();
+    await patchPastorSummitStatus(pastorId, status, note);
+    appCache.invalidate("pastors");
+    res.json({ ok: true, pastorId, status, note });
+  } catch (error) {
+    if (!error.status) error.status = 400;
     next(error);
   }
 });
