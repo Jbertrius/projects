@@ -48,6 +48,8 @@
           <p class="nav-section-label">Dans ce pole</p>
           <a class="nav-item nav-link is-active" href="#development-overview"><span class="nav-icon material-symbols-rounded" aria-hidden="true">assured_workload</span><span>Vue d'ensemble</span></a>
           <a class="nav-item nav-link" href="#development-modules"><span class="nav-icon material-symbols-rounded" aria-hidden="true">category</span><span>Modules</span></a>
+          <a class="nav-item nav-link" href="#development-centres"><span class="nav-icon material-symbols-rounded" aria-hidden="true">church</span><span>Centres missionnaires</span></a>
+          <a class="nav-item nav-link" href="/mission-lessons.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_note</span><span>Leçons missionnaires</span></a>
         </nav>
       </aside>
 
@@ -94,9 +96,9 @@
                 <p class="section-label">Expansion</p>
                 <h3>Centres et implantations</h3>
               </div>
-              <p class="muted">Vue future des centres ouverts, zones cibles et suivi des pastorats actifs.</p>
+              <p class="muted">Classes academiques ouvertes dans des eglises partenaires — centres missionnaires actifs.</p>
               <div class="module-links">
-                <a class="module-link" href="/">Revenir a la vue direction <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+                <a class="module-link" href="#development-centres">Voir les centres <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
               </div>
             </article>
 
@@ -111,11 +113,37 @@
               </div>
             </article>
           </section>
+
+          <!-- Centres missionnaires -->
+          <section id="development-centres" style="margin-top:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+              <div>
+                <p class="section-label">Developpement</p>
+                <h2 style="font-family:'Sora',sans-serif;font-size:clamp(1.3rem,2.2vw,1.8rem);font-weight:800;letter-spacing:-0.04em;margin-bottom:4px">Centres missionnaires</h2>
+                <p class="muted" style="font-size:0.92rem">Classes academiques implantees dans des eglises partenaires. Ces centres sont geres independamment de l'academie centrale.</p>
+              </div>
+              <button class="secondary-action compact-action" type="button" id="btn-refresh-centres">Actualiser</button>
+            </div>
+
+            <div id="centres-loading" style="padding:32px;text-align:center;color:var(--muted)">Chargement des centres…</div>
+            <div id="centres-grid" hidden style="gap:18px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
+            <div id="centres-empty" hidden style="padding:40px;text-align:center;color:var(--muted)">
+              <span class="material-symbols-rounded" style="font-size:2rem;display:block;margin-bottom:10px">location_city</span>
+              Aucun centre missionnaire detecte. Les centres correspondent aux classes academiques avec une eglise partenaire renseignee.
+            </div>
+
+            <section id="centre-detail" hidden style="margin-top:18px">
+              <article class="card" style="padding:18px 20px;border-radius:20px;border:1px solid rgba(255,255,255,0.7);box-shadow:0 12px 34px rgba(17,59,84,0.08)">
+                <div id="centre-detail-content" class="muted">Clique sur une carte centre missionnaire pour voir son dashboard detaille.</div>
+              </article>
+            </section>
+          </section>
         </main>
       </div>
     </div>
 
     <script src="/auth-client.js" defer></script>
     <script src="/shell.js" defer></script>
+    <script src="/development.js" defer></script>
   </body>
 </html>

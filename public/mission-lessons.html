@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lecons Missionnaires - DMD</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Lecons Missionnaires</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link is-active" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans cette page">
+          <p class="nav-section-label">Dans cette page</p>
+          <button class="nav-item" type="button" data-target="mission-lessons-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_note</span><span>Nouvelle lecon</span></button>
+          <button class="nav-item" type="button" data-target="mission-lessons-library"><span class="nav-icon material-symbols-rounded" aria-hidden="true">list_alt</span><span>Lecons existantes</span></button>
+          <a class="nav-item nav-link" href="/development.html#development-centres"><span class="nav-icon material-symbols-rounded" aria-hidden="true">church</span><span>Retour centres</span></a>
+        </nav>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="top-bar" id="mission-lessons-top">
+            <div>
+              <p class="section-label">Developpement</p>
+              <h2>CRUD Lecons / Attendances des centres missionnaires</h2>
+            </div>
+            <div class="top-bar-actions">
+              <div class="sync-pill" id="mission-refresh-label">Chargement...</div>
+              <button class="secondary-action compact-action" id="mission-export-csv" type="button">Exporter CSV</button>
+              <button class="secondary-action compact-action" id="mission-export-pdf" type="button">Exporter PDF</button>
+              <button class="secondary-action compact-action" id="mission-refresh" type="button">Actualiser</button>
+            </div>
+          </section>
+
+          <section class="card academy-entry-card">
+            <div class="card-head">
+              <div>
+                <p class="section-label">Saisie</p>
+                <h3>Nouvelle lecon centre missionnaire</h3>
+              </div>
+            </div>
+
+            <div class="academy-entry-grid">
+              <div class="filter-group">
+                <label class="filter-label" for="mission-class-filter">Classe missionnaire</label>
+                <select id="mission-class-filter" class="filter-control"></select>
+              </div>
+              <div class="filter-group">
+                <label class="filter-label" for="mission-lesson-date">Date optionnelle</label>
+                <input id="mission-lesson-date" class="filter-control" type="date" />
+              </div>
+              <label class="academy-entry-option" for="mission-replace-existing">
+                <input id="mission-replace-existing" type="checkbox" />
+                <span>Remplacer la lecon existante</span>
+              </label>
+            </div>
+
+            <div class="filter-group academy-textarea-group">
+              <label class="filter-label" for="mission-entry-text">Bloc de presence</label>
+              <textarea id="mission-entry-text" class="academy-entry-textarea" rows="13"></textarea>
+            </div>
+
+            <div class="hero-actions academy-entry-actions">
+              <button class="primary-action compact-action" id="mission-save" type="button">Enregistrer la lecon</button>
+              <button class="secondary-action compact-action" id="mission-delete" type="button">Supprimer la lecon chargee</button>
+              <button class="secondary-action compact-action" id="mission-clear" type="button">Vider</button>
+            </div>
+          </section>
+
+          <section class="card academy-entry-card academy-entry-card-secondary" id="mission-lessons-library">
+            <div class="card-head academy-lesson-library-head">
+              <div>
+                <p class="section-label">Lecons existantes</p>
+                <h3>Bibliotheque centres missionnaires</h3>
+              </div>
+              <p class="muted">Charge une lecon pour la mettre a jour ou la supprimer.</p>
+            </div>
+            <div class="academy-entry-grid academy-lesson-library-filters">
+              <div class="filter-group">
+                <label class="filter-label" for="mission-lesson-search">Recherche</label>
+                <input id="mission-lesson-search" class="filter-control" type="search" placeholder="Titre, classe, date..." />
+              </div>
+            </div>
+            <div class="academy-lesson-list" id="mission-lesson-list"></div>
+          </section>
+        </main>
+
+        <div id="app-feedback" class="app-feedback" hidden></div>
+      </div>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
+    <script src="/mission-lessons.js" defer></script>
+  </body>
+</html>

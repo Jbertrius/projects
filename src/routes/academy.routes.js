@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { requireAuth, requireContentManager } = require("../middleware/auth");
 const academyRepo = require("../repositories/academy.repository");
-const { hasFirestoreConfig, patchStudentSummitStatus } = require("../../lib/firestore");
+const { hasFirestoreConfig, patchStudentSummitStatus, clearAcademyClassChurchName } = require("../../lib/firestore");
 const { normalizeIsoDate, parseAttendanceBlock } = require("../../lib/academy-parser");
 const { AppError } = require("../middleware/errorHandler");
 const { appCache } = require("../utils/cache");
@@ -177,6 +177,24 @@ router.get("/students", requireAuth, async (req, res, next) => {
 // Quick update of GMCS summit status for a student.
 // Body: { status: ""| "verbal"|"inscrit"|"paiement", note?: string }
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// DELETE /api/academy/classes/:id/church
+// Remove the church_name from a class, moving it back to core academy.
+// ---------------------------------------------------------------------------
+router.delete("/classes/:id/church", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const classId = String(req.params.id || "").trim();
+    if (!classId) return res.status(400).json({ ok: false, error: "classId is required" });
+    await clearAcademyClassChurchName(classId);
+    appCache.invalidate("academy");
+    res.json({ ok: true, classId });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
 const VALID_SUMMIT_STATUSES = ["", "verbal", "inscrit", "paiement"];
 router.patch("/students/:id/summit", requireContentManager, async (req, res, next) => {
   try {

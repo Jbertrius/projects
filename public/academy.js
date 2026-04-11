@@ -82,6 +82,12 @@ function normalizeSearchText(value) {
     .trim();
 }
 
+// Classes with a church_name are mission centres hosted in partner churches.
+// They appear in the Developpement / Centres page, not in the Academie page.
+function isMissionCentre(cls) {
+  return Boolean(String(cls.church_name || "").trim());
+}
+
 function normalizeAcademyDataset(payload) {
   const classes = Array.isArray(payload?.classes) ? payload.classes : [];
   const students = Array.isArray(payload?.students) ? payload.students : [];
@@ -228,9 +234,13 @@ function buildSparseLabels(items) {
 
 function buildLessonLibrary() {
   const classesById = new Map(academyState.rawData.classes.map((item) => [String(item.id), item]));
+  const missionClassIds = new Set(
+    academyState.rawData.classes.filter(isMissionCentre).map((cls) => String(cls.id))
+  );
   const lessons = new Map();
 
   academyState.rawData.attendance.forEach((row) => {
+    if (missionClassIds.has(String(row.class_id || ""))) return;
     const lessonId = String(row.lesson_id || "").trim();
     if (!lessonId) {
       return;
@@ -524,7 +534,12 @@ function buildView() {
   const endDate = academyState.filters.endDate;
 
   const classesById = new Map(academyState.rawData.classes.map((item) => [String(item.id), item]));
-  const registeredStudents = academyState.rawData.students.filter((student) => student.is_registered !== false);
+  const missionClassIds = new Set(
+    academyState.rawData.classes.filter(isMissionCentre).map((cls) => String(cls.id))
+  );
+  const registeredStudents = academyState.rawData.students.filter(
+    (student) => student.is_registered !== false && !missionClassIds.has(String(student.class_id || ""))
+  );
   const students = registeredStudents.filter((student) => {
     const classOk = classFilter === "all" || String(student.class_id || student.class_name) === classFilter;
     const studentOk = studentFilter === "all" || String(student.id) === studentFilter;
@@ -612,6 +627,7 @@ function buildView() {
     .sort((a, b) => b.present - a.present || a.name.localeCompare(b.name, "fr"));
 
   const classesSummary = academyState.rawData.classes
+    .filter((cls) => !isMissionCentre(cls))
     .map((academyClass) => {
       const classStudents = academyState.rawData.students.filter(
         (student) => student.is_registered !== false && String(student.class_id || student.class_name) === String(academyClass.id)
@@ -794,12 +810,13 @@ function renderLessonLibrary() {
   }
 
   const lessons = buildLessonLibrary();
+  const academyOnlyClasses = academyState.rawData.classes.filter((cls) => !isMissionCentre(cls));
   const previousClassValue = classFilter.value || "all";
   classFilter.innerHTML = [
     `<option value="all">Toutes les classes</option>`,
-    ...academyState.rawData.classes.map((academyClass) => `<option value="${academyClass.id}">${academyClass.name}</option>`)
+    ...academyOnlyClasses.map((academyClass) => `<option value="${academyClass.id}">${academyClass.name}</option>`)
   ].join("");
-  classFilter.value = academyState.rawData.classes.some((academyClass) => String(academyClass.id) === previousClassValue)
+  classFilter.value = academyOnlyClasses.some((academyClass) => String(academyClass.id) === previousClassValue)
     ? previousClassValue
     : "all";
 
@@ -1061,15 +1078,19 @@ function populateFilters() {
     return;
   }
 
+  const academyClasses = academyState.rawData.classes.filter((cls) => !isMissionCentre(cls));
+  const missionClassIds = new Set(
+    academyState.rawData.classes.filter(isMissionCentre).map((cls) => String(cls.id))
+  );
   classFilter.innerHTML = [
     `<option value="all">Toutes les classes</option>`,
-    ...academyState.rawData.classes.map((academyClass) => `<option value="${academyClass.id}">${academyClass.name}</option>`)
+    ...academyClasses.map((academyClass) => `<option value="${academyClass.id}">${academyClass.name}</option>`)
   ].join("");
 
   const visibleStudents = academyState.filters.classId === "all"
-    ? academyState.rawData.students.filter((student) => student.is_registered !== false)
+    ? academyState.rawData.students.filter((student) => student.is_registered !== false && !missionClassIds.has(String(student.class_id || "")))
     : academyState.rawData.students.filter(
-        (student) => student.is_registered !== false && String(student.class_id || student.class_name) === academyState.filters.classId
+        (student) => student.is_registered !== false && !missionClassIds.has(String(student.class_id || "")) && String(student.class_id || student.class_name) === academyState.filters.classId
       );
 
   studentFilter.innerHTML = [
@@ -1706,6 +1727,61 @@ function initializeEntryTextareaPlaceholder() {
 🛎Reecoute (2/2)`;
 }
 
+function buildEntryDraftForClass(academyClass) {
+  const classCode = String(academyClass?.name || academyClass?.class_code || academyClass?.id || "").trim();
+  const church = String(academyClass?.church_name || "Centre academie").trim();
+  const instructor = formatInstructorLine(academyClass?.instructor_name || "");
+  const today = new Date().toISOString().slice(0, 10);
+
+  return [
+    `🔰Classe Ouverte - ${classCode} - ${church}`,
+    `👩‍🏫${instructor || "Pst Instructeur"}`,
+    "📝Titre de la leçon : ",
+    `📆${today}`,
+    "",
+    "✅ Confirmé",
+    "👍 Présent",
+    "❌ Absent",
+    "",
+    "Total :0/0"
+  ].join("\n");
+}
+
+function applyEntryPrefillFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const shouldOpen = ["1", "true", "yes"].includes(String(params.get("openEntry") || "").trim().toLowerCase());
+  const entryClass = String(params.get("entryClass") || params.get("class") || "").trim();
+
+  if (!entryClass && !shouldOpen) {
+    return;
+  }
+
+  if (shouldOpen) {
+    setEntryOpen(true);
+  }
+
+  if (!entryClass) {
+    return;
+  }
+
+  const classFilter = document.getElementById("academy-lesson-class-filter");
+  const academyClass = academyState.rawData.classes.find((item) => String(item.id) === entryClass);
+  if (classFilter && academyClass) {
+    classFilter.value = String(academyClass.id);
+    renderLessonLibrary();
+  }
+
+  const textArea = document.getElementById("academy-entry-text");
+  const dateInput = document.getElementById("academy-entry-date");
+  if (academyClass && textArea && !String(textArea.value || "").trim()) {
+    textArea.value = buildEntryDraftForClass(academyClass);
+    if (dateInput && !dateInput.value) {
+      dateInput.value = new Date().toISOString().slice(0, 10);
+    }
+    renderEntryValidation(validateEntry(textArea.value, dateInput?.value || ""));
+  }
+}
+
 async function boot() {
   await window.AppAuth.requireAuth();
   initializeEntryTextareaPlaceholder();
@@ -1715,6 +1791,7 @@ async function boot() {
   attachEntryHandlers();
   setEntryOpen(false);
   await loadAcademy();
+  applyEntryPrefillFromUrl();
 }
 
 boot().catch((error) => showFeedback(error.message, "error"));
