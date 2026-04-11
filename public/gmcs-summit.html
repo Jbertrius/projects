@@ -14,12 +14,13 @@
     <link rel="stylesheet" href="/styles.css" />
     <style>
       :root {
-        --summit-gold: #f5c32c;
-        --summit-gold-soft: rgba(245, 195, 44, 0.14);
-        --summit-gold-border: rgba(245, 195, 44, 0.32);
-        --summit-green: #147964;
-        --summit-ink: #1a2e1a;
-        --summit-line: rgba(26, 46, 26, 0.1);
+        --summit-gold: #f5c700;
+        --summit-gold-soft: rgba(245, 199, 0, 0.16);
+        --summit-gold-border: rgba(245, 199, 0, 0.4);
+        --summit-dark: #1a3a47;
+        --summit-dark-alt: #204a5c;
+        --summit-ink: #0f2329;
+        --summit-line: rgba(15, 35, 41, 0.1);
       }
 
       .dashboard { gap: 22px; }
@@ -30,13 +31,25 @@
         grid-template-columns: 1fr auto;
         gap: 22px;
         align-items: center;
-        padding: 28px 32px;
+        padding: 32px 36px;
         border-radius: var(--radius-lg);
         background:
-          radial-gradient(circle at top right, rgba(245,195,44,0.22), transparent 40%),
-          linear-gradient(145deg, rgba(255,255,255,0.96), rgba(244,251,244,0.9));
-        border: 1px solid var(--summit-gold-border);
-        box-shadow: 0 24px 60px rgba(20,121,100,0.1);
+          linear-gradient(135deg, var(--summit-dark) 0%, var(--summit-dark-alt) 100%);
+        border: 2px solid var(--summit-gold);
+        box-shadow: 0 24px 60px rgba(15, 35, 41, 0.35), 0 0 60px rgba(245, 199, 0, 0.15);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .summit-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(245,199,0,0.12), transparent 70%);
+        pointer-events: none;
       }
 
       .summit-hero-eyebrow {
@@ -44,27 +57,29 @@
         gap: 8px;
         flex-wrap: wrap;
         margin-bottom: 10px;
+        position: relative;
+        z-index: 1;
       }
 
       .summit-tag {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 12px;
+        padding: 6px 14px;
         border-radius: 999px;
         font-size: 0.73rem;
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         background: var(--summit-gold-soft);
-        color: #7a5c00;
+        color: #2a2400;
         border: 1px solid var(--summit-gold-border);
       }
 
       .summit-tag.is-date {
-        background: rgba(20,121,100,0.1);
-        color: #0c5949;
-        border-color: rgba(20,121,100,0.22);
+        background: rgba(245,199,0,0.12);
+        color: var(--summit-gold);
+        border-color: var(--summit-gold-border);
       }
 
       .summit-hero-title {
@@ -72,15 +87,19 @@
         font-size: clamp(1.5rem, 2.8vw, 2.4rem);
         font-weight: 800;
         letter-spacing: -0.04em;
-        color: var(--summit-ink);
-        margin-bottom: 6px;
+        color: #ffffff;
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 1;
       }
 
       .summit-hero-subtitle {
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.85);
         font-size: 0.95rem;
         line-height: 1.55;
         max-width: 50ch;
+        position: relative;
+        z-index: 1;
       }
 
       .summit-hero-badge {
@@ -89,19 +108,22 @@
         align-items: center;
         justify-content: center;
         gap: 4px;
-        width: 110px;
-        height: 110px;
+        width: 120px;
+        height: 120px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--summit-gold) 0%, #e8a800 100%);
-        box-shadow: 0 8px 32px rgba(245,195,44,0.38);
-        color: #fff;
+        background: linear-gradient(135deg, var(--summit-gold) 0%, #f5d84a 100%);
+        box-shadow: 0 12px 40px rgba(245, 199, 0, 0.45), inset 0 -2px 8px rgba(0, 0, 0, 0.1);
+        color: #1a2e1a;
         text-align: center;
         flex-shrink: 0;
+        font-weight: 700;
+        position: relative;
+        z-index: 1;
       }
 
       .summit-hero-badge-num {
         font-family: "Sora", sans-serif;
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: 800;
         letter-spacing: -0.06em;
         line-height: 1;
@@ -123,17 +145,23 @@
       }
 
       .summit-stat-card {
-        padding: 20px 22px;
+        padding: 22px 24px;
         border-radius: var(--radius-md);
-        background: rgba(255,255,255,0.9);
-        border: 1px solid rgba(255,255,255,0.7);
-        box-shadow: 0 8px 24px rgba(17,59,84,0.07);
+        background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(250,252,255,0.9));
+        border: 1px solid rgba(245,199,0,0.2);
+        box-shadow: 0 8px 24px rgba(15, 35, 41, 0.08), 0 0 1px rgba(245,199,0,0.3);
+        transition: all 200ms;
       }
 
-      .summit-stat-card.is-verbal { border-left: 4px solid #f59e0b; }
-      .summit-stat-card.is-inscrit { border-left: 4px solid #147964; }
-      .summit-stat-card.is-paiement { border-left: 4px solid #1d4ed8; }
-      .summit-stat-card.is-total { border-left: 4px solid var(--summit-gold); }
+      .summit-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(15, 35, 41, 0.12), 0 0 2px rgba(245,199,0,0.4);
+      }
+
+      .summit-stat-card.is-verbal { border-left: 4px solid #f59e0b; background: linear-gradient(135deg, rgba(255, 243, 199, 0.5), rgba(255, 249, 235, 0.5)); }
+      .summit-stat-card.is-inscrit { border-left: 4px solid #05724d; background: linear-gradient(135deg, rgba(209, 250, 229, 0.4), rgba(240, 253, 250, 0.5)); }
+      .summit-stat-card.is-paiement { border-left: 4px solid #1d4ed8; background: linear-gradient(135deg, rgba(219, 234, 254, 0.5), rgba(240, 249, 255, 0.5)); }
+      .summit-stat-card.is-total { border-left: 4px solid var(--summit-gold); background: linear-gradient(135deg, rgba(245, 243, 199, 0.6), rgba(255, 251, 235, 0.5)); }
 
       .summit-stat-value {
         font-family: "Sora", sans-serif;
@@ -142,12 +170,13 @@
         letter-spacing: -0.06em;
         line-height: 1;
         margin-bottom: 4px;
+        color: var(--summit-dark);
       }
 
       .summit-stat-label {
         font-size: 0.8rem;
         font-weight: 700;
-        color: var(--muted);
+        color: #4a5e68;
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
@@ -155,7 +184,7 @@
       .summit-stat-sub {
         margin-top: 6px;
         font-size: 0.78rem;
-        color: var(--muted);
+        color: #6b7e87;
       }
 
       /* ── Toolbar ── */
@@ -166,9 +195,9 @@
         flex-wrap: wrap;
         padding: 18px 22px;
         border-radius: var(--radius-md);
-        background: rgba(255,255,255,0.88);
-        border: 1px solid rgba(255,255,255,0.7);
-        box-shadow: 0 8px 24px rgba(17,59,84,0.06);
+        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(250,252,255,0.9));
+        border: 1px solid var(--summit-line);
+        box-shadow: 0 8px 24px rgba(15, 35, 41, 0.06);
       }
 
       .summit-toolbar-title {
@@ -176,6 +205,7 @@
         font-size: 0.95rem;
         margin-right: 4px;
         white-space: nowrap;
+        color: var(--summit-dark);
       }
 
       .summit-filter-btn {
@@ -185,20 +215,32 @@
         padding: 8px 16px;
         border-radius: 999px;
         border: 1px solid var(--summit-line);
-        background: rgba(255,255,255,0.7);
+        background: rgba(255,255,255,0.8);
         font: inherit;
         font-size: 0.82rem;
         font-weight: 700;
         cursor: pointer;
-        transition: background 150ms, border-color 150ms;
-        color: var(--muted);
+        transition: all 150ms;
+        color: #4a5e68;
       }
 
-      .summit-filter-btn:hover { background: rgba(20,121,100,0.06); border-color: rgba(20,121,100,0.2); }
-      .summit-filter-btn.is-active { background: var(--summit-green); color: #fff; border-color: var(--summit-green); }
-      .summit-filter-btn.is-active.is-verbal { background: #d97706; border-color: #d97706; }
-      .summit-filter-btn.is-active.is-inscrit { background: #147964; border-color: #147964; }
-      .summit-filter-btn.is-active.is-paiement { background: #1d4ed8; border-color: #1d4ed8; }
+      .summit-filter-btn:hover { 
+        background: rgba(245,199,0,0.08); 
+        border-color: rgba(245,199,0,0.25);
+        color: var(--summit-dark);
+      }
+      
+      .summit-filter-btn.is-active { 
+        background: var(--summit-gold); 
+        color: var(--summit-dark); 
+        border-color: var(--summit-gold);
+        box-shadow: 0 4px 12px rgba(245,199,0,0.3);
+        font-weight: 700;
+      }
+      
+      .summit-filter-btn.is-active.is-verbal { background: #f59e0b; border-color: #f59e0b; }
+      .summit-filter-btn.is-active.is-inscrit { background: #05b98a; border-color: #05b98a; color: white; }
+      .summit-filter-btn.is-active.is-paiement { background: #1d4ed8; border-color: #1d4ed8; color: white; }
 
       .summit-search {
         flex: 1;
@@ -206,24 +248,30 @@
         padding: 10px 14px;
         border-radius: 999px;
         border: 1px solid var(--summit-line);
-        background: rgba(255,255,255,0.9);
+        background: rgba(255,255,255,0.95);
         font: inherit;
         font-size: 0.88rem;
+        color: var(--summit-dark);
       }
 
       .summit-search:focus {
         outline: 0;
-        border-color: rgba(20,121,100,0.4);
-        box-shadow: 0 0 0 3px rgba(20,121,100,0.1);
+        border-color: var(--summit-gold);
+        box-shadow: 0 0 0 3px rgba(245,199,0,0.15);
+        background: white;
+      }
+
+      .summit-search::placeholder {
+        color: #8a9aaa;
       }
 
       /* ── Table ── */
       .summit-table-wrap {
         border-radius: var(--radius-lg);
         overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.7);
-        box-shadow: 0 12px 40px rgba(17,59,84,0.08);
-        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(245,199,0,0.2);
+        box-shadow: 0 12px 40px rgba(15, 35, 41, 0.08);
+        background: rgba(255,255,255,0.96);
       }
 
       .summit-table {
@@ -239,33 +287,34 @@
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        color: var(--muted);
-        background: linear-gradient(180deg, rgba(246,250,246,0.98), rgba(240,248,240,0.9));
-        border-bottom: 1px solid var(--summit-line);
+        color: var(--summit-dark);
+        background: linear-gradient(180deg, rgba(26, 58, 71, 0.08), rgba(26, 58, 71, 0.04));
+        border-bottom: 2px solid rgba(245,199,0,0.15);
       }
 
       .summit-table tbody tr {
-        border-bottom: 1px solid rgba(26,46,26,0.06);
+        border-bottom: 1px solid rgba(15, 35, 41, 0.06);
         transition: background 120ms;
       }
 
       .summit-table tbody tr:last-child { border-bottom: none; }
-      .summit-table tbody tr:hover { background: rgba(20,121,100,0.04); }
+      .summit-table tbody tr:hover { background: rgba(245,199,0,0.04); }
 
       .summit-table td {
         padding: 14px 18px;
         vertical-align: middle;
+        color: var(--summit-dark);
       }
 
       .summit-pastor-name {
         font-weight: 700;
-        color: var(--summit-ink);
+        color: var(--summit-dark);
         line-height: 1.3;
       }
 
       .summit-pastor-meta {
         font-size: 0.78rem;
-        color: var(--muted);
+        color: #6b7e87;
         margin-top: 2px;
       }
 
@@ -279,39 +328,41 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 3px 8px;
+        padding: 4px 10px;
         border-radius: 999px;
         font-size: 0.7rem;
         font-weight: 700;
-        background: rgba(16,51,71,0.07);
-        color: var(--muted);
+        background: rgba(245,199,0,0.12);
+        color: #2a2400;
+        border: 1px solid rgba(245,199,0,0.2);
       }
 
-      .summit-source-chip.is-mannam { background: rgba(81,183,234,0.14); color: #1e5f8a; }
-      .summit-source-chip.is-academie { background: rgba(20,121,100,0.12); color: #0c5949; }
-      .summit-source-chip.is-cellule { background: rgba(124,58,237,0.1); color: #5b21b6; }
+      .summit-source-chip.is-mannam { background: rgba(81,183,234,0.14); color: #1e5f8a; border-color: rgba(81,183,234,0.25); }
+      .summit-source-chip.is-academie { background: rgba(5, 180, 138, 0.14); color: #024a3d; border-color: rgba(5, 180, 138, 0.25); }
+      .summit-source-chip.is-cellule { background: rgba(124,58,237,0.12); color: #5b21b6; border-color: rgba(124,58,237,0.25); }
 
       /* Status select inline */
       .summit-status-select {
-        padding: 7px 12px;
+        padding: 8px 14px;
         border-radius: 999px;
         border: 1px solid var(--summit-line);
-        background: rgba(255,255,255,0.9);
+        background: rgba(255,255,255,0.95);
         font: inherit;
         font-size: 0.82rem;
         font-weight: 700;
         cursor: pointer;
         min-width: 148px;
         appearance: auto;
+        color: var(--summit-dark);
       }
 
-      .summit-status-select.is-verbal { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-      .summit-status-select.is-inscrit { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
-      .summit-status-select.is-paiement { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }
+      .summit-status-select.is-verbal { background: #fef3c7; color: #92400e; border-color: #fcd34d; font-weight: 700; }
+      .summit-status-select.is-inscrit { background: #d1fae5; color: #065f46; border-color: #6ee7b7; font-weight: 700; }
+      .summit-status-select.is-paiement { background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; font-weight: 700; }
 
       .summit-status-select:focus {
         outline: 0;
-        box-shadow: 0 0 0 3px rgba(20,121,100,0.14);
+        box-shadow: 0 0 0 3px rgba(245,199,0,0.15);
       }
 
       .summit-note-cell {
@@ -319,7 +370,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: var(--muted);
+        color: #6b7e87;
         font-size: 0.8rem;
         font-style: italic;
       }
@@ -331,12 +382,12 @@
       .summit-table-empty {
         padding: 48px 24px;
         text-align: center;
-        color: var(--muted);
+        color: #8a9aaa;
       }
 
       .summit-count-label {
         font-size: 0.85rem;
-        color: var(--muted);
+        color: #6b7e87;
         margin-left: auto;
         white-space: nowrap;
       }
@@ -361,26 +412,32 @@
         gap: 6px;
         padding: 6px;
         border-radius: 999px;
-        background: rgba(20,121,100,0.06);
-        border: 1px solid rgba(20,121,100,0.12);
+        background: rgba(245,199,0,0.08);
+        border: 1px solid rgba(245,199,0,0.15);
       }
 
       .summit-chart-chip {
         border: none;
         border-radius: 999px;
         background: transparent;
-        color: var(--muted);
+        color: #4a5e68;
         padding: 7px 12px;
         font: inherit;
         font-size: 0.8rem;
         font-weight: 700;
         cursor: pointer;
+        transition: all 150ms;
+      }
+
+      .summit-chart-chip:hover {
+        color: var(--summit-dark);
       }
 
       .summit-chart-chip.is-active {
-        background: #147964;
-        color: #fff;
-        box-shadow: 0 8px 20px rgba(20,121,100,0.2);
+        background: var(--summit-gold);
+        color: var(--summit-dark);
+        box-shadow: 0 8px 20px rgba(245,199,0,0.25);
+        font-weight: 800;
       }
 
       @media (max-width: 900px) {
@@ -394,11 +451,28 @@
         .summit-table-wrap { overflow-x: auto; }
         .summit-table { min-width: 640px; }
       }
+
+      /* ── Special styling for GMCS Summit nav link ── */
+      a[href="/gmcs-summit.html"]::after {
+        content: 'TEMPORAIRE';
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        background: var(--summit-gold);
+        color: var(--summit-dark);
+        opacity: 0.9;
+      }
     </style>
   </head>
   <body>
+    <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="app-sidebar">menu</button>
+    <div class="sidebar-overlay" aria-hidden="true"></div>
     <div class="app-shell">
-      <aside class="sidebar">
+      <aside class="sidebar" id="app-sidebar">
         <div class="sidebar-brand">
           <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
           <div>

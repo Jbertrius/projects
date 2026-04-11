@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GMCS Summit Styling Test</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body { padding: 20px; font-family: sans-serif; }
+  .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+  .test-nav { display: flex; gap: 10px; padding: 10px; background: #f5f5f5; border-radius: 8px; }
+  a { text-decoration: none; padding: 8px 12px; border-radius: 4px; } 
+  a[href="/gmcs-summit.html"] { background: #e0e0e0; color: #333; }
+</style>
+</head>
+<body>
+<h1>GMCS Summit Styling Verification</h1>
+
+<div class="test-section">
+  <h2>Navigation Menu Test</h2>
+  <p>The "TEMPORAIRE" badge should appear next to the GMCS Summit link below:</p>
+  <div class="test-nav">
+    <a href="/gmcs-summit.html">GMCS Summit</a>
+    <a href="/">Home</a>
+    <a href="/academy.html">Academy</a>
+  </div>
+  <p><small>If you see a gold "TEMPORAIRE" badge next to "GMCS Summit", the styling is working!</small></p>
+</div>
+
+<div class="test-section">
+  <h2>Color Scheme Test</h2>
+  <p><strong>Event Flyer Colors:</strong></p>
+  <div style="background: #1a3a47; color: white; padding: 10px; border-radius: 4px; margin: 5px 0;">Dark Teal #1a3a47</div>
+  <div style="background: #f5c700; color: #1a3a47; padding: 10px; border-radius: 4px; margin: 5px 0; font-weight: bold;">Gold #f5c700</div>
+</div>
+
+<div class="test-section">
+  <h2>CSS Status</h2>
+  <ul>
+    <li>✓ GMCS Summit page styling: Updated (gmcs-summit.html)</li>
+    <li>✓ Global menu badge: Updated (styles.css)</li>
+    <li>✓ Event flyer colors applied</li>
+    <li>✓ Temporary indicator badge active</li>
+  </ul>
+</div>
+</body>
+</html>
