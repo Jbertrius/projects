@@ -1,4 +1,4 @@
-const { listMeetingDocuments, patchMeetingDocument, hasFirestoreConfig } = require("../../lib/firestore");
+const { listMeetingDocuments, patchMeetingDocument, deleteMeetingDocument, hasFirestoreConfig } = require("../../lib/firestore");
 const { loadDashboardDataFromFirestore } = require("../../lib/firestore");
 const { loadGoogleSheetsData } = require("../../lib/sheets");
 const { hasGoogleSheetsConfig } = require("../../lib/sheets");
@@ -80,4 +80,11 @@ async function patch(meetingId, fields) {
   await patchMeetingDocument(meetingId, fields);
 }
 
-module.exports = { findAll, patch };
+async function remove(meetingId) {
+  if (!hasFirestoreConfig()) {
+    throw new Error("Firestore n'est pas configure.");
+  }
+  await deleteMeetingDocument(meetingId);
+}
+
+module.exports = { findAll, patch, remove };

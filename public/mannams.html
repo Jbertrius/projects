@@ -1059,6 +1059,15 @@
                     <button class="primary-action" type="button" id="btn-save-coop">Enregistrer le suivi</button>
                   </div>
 
+                  <div class="detail-section" id="section-delete-meeting" hidden>
+                    <div class="detail-section-label" style="color:#9f1239">Zone de danger</div>
+                    <p class="muted" style="font-size:0.85rem;margin-bottom:10px">Supprimer cette rencontre la retire définitivement de Firestore et de Google Calendar.</p>
+                    <button class="secondary-action compact-action" type="button" id="btn-delete-meeting" style="color:#9f1239;border-color:rgba(159,18,57,0.25)">
+                      <span class="material-symbols-rounded" aria-hidden="true" style="font-size:1rem">delete</span>
+                      Supprimer cette rencontre
+                    </button>
+                  </div>
+
                 </div>
                 </div>
               </article>
@@ -1070,6 +1079,7 @@
     </div>
 
     <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
     <script src="/mannams.js" defer></script>
   </body>
 </html>

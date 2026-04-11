@@ -580,6 +580,34 @@ async function createPastorStub() {
   }
 }
 
+async function deleteMeeting() {
+  const meeting = mannamState.meetings.find((m) => String(m.id) === String(mannamState.selectedId));
+  if (!meeting) return;
+
+  const label = meeting.pastor_name || meeting.event_summary || meeting.id;
+  if (!confirm(`Supprimer définitivement la rencontre avec "${label}" ?\n\nCette action supprime aussi l'événement Google Calendar.`)) return;
+
+  const btn = document.getElementById("btn-delete-meeting");
+  if (btn) { btn.disabled = true; btn.textContent = "Suppression…"; }
+
+  try {
+    const resp = await fetch(`/api/meetings/${encodeURIComponent(meeting.id)}`, { method: "DELETE" });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) throw new Error(data.error || "Erreur lors de la suppression.");
+
+    showFeedback("Rencontre supprimée.", "success");
+    mannamState.selectedId = "";
+    await loadData();
+    applyFilters();
+    renderList();
+    renderDetail();
+    renderStats();
+  } catch (err) {
+    showFeedback(err.message, "error");
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-rounded" style="font-size:1rem">delete</span> Supprimer cette rencontre'; }
+  }
+}
+
 function setSavingState(saving) {
   ["btn-save-members", "btn-save-coop"].forEach((id) => {
     const el = document.getElementById(id);
@@ -644,6 +672,7 @@ function attachHandlers() {
   document.getElementById("btn-save-members")?.addEventListener("click", saveMemberCorrection);
   document.getElementById("btn-save-coop")?.addEventListener("click", saveCooperation);
   document.getElementById("btn-create-pastor-stub")?.addEventListener("click", createPastorStub);
+  document.getElementById("btn-delete-meeting")?.addEventListener("click", deleteMeeting);
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
@@ -653,9 +682,13 @@ async function bootstrap() {
     await window.AppAuth.requireAuth();
   }
 
-  // Show manage-users link if applicable
-  if (window.AppAuth?.canManageUsers?.()) {
+  const session = await window.AppAuth.getSession();
+  if (session?.capabilities?.canManageUsers) {
     document.querySelectorAll("[data-manage-users-link]").forEach((el) => { el.hidden = false; });
+  }
+  if (session?.capabilities?.canManageContent) {
+    const deleteSection = document.getElementById("section-delete-meeting");
+    if (deleteSection) deleteSection.hidden = false;
   }
 
   attachHandlers();

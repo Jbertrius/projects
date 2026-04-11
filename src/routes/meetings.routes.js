@@ -10,6 +10,7 @@ const { requireAuth, requireContentManager } = require("../middleware/auth");
 const { appCache } = require("../utils/cache");
 const { AppError } = require("../middleware/errorHandler");
 const { hasFirestoreConfig, refreshDashboardAggregate } = require("../../lib/firestore");
+const { deleteCalendarEvent } = require("../../lib/calendar");
 const meetingsRepo = require("../repositories/meetings.repository");
 const pastorRepo = require("../repositories/pastor.repository");
 
@@ -141,6 +142,47 @@ router.patch("/:id", requireContentManager, async (req, res, next) => {
     refreshDashboardAggregate().catch(() => {});
 
     res.json({ ok: true, meetingId, patched: Object.keys(patch) });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/meetings/:id
+// Removes the meeting from Firestore AND from Google Calendar.
+// Requires ContentManager role.
+// ---------------------------------------------------------------------------
+router.delete("/:id", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) {
+      throw new AppError(503, "Firestore n'est pas configure.");
+    }
+
+    const meetingId = String(req.params.id || "").trim();
+    if (!meetingId) {
+      return res.status(400).json({ ok: false, error: "meetingId is required" });
+    }
+
+    // Fetch meeting to get the actual calendar event ID (different from Firestore doc ID)
+    const meetings = await meetingsRepo.findAll();
+    const target = meetings.find((m) => String(m.id) === meetingId);
+
+    // Delete from Firestore
+    await meetingsRepo.remove(meetingId);
+
+    // Best-effort delete from Google Calendar using the stored calendarEventId
+    const calendarEventId = target?.calendar_event_id || "";
+    if (calendarEventId) {
+      deleteCalendarEvent(calendarEventId).catch(() => {});
+    }
+
+    appCache.invalidate("mannams:list");
+    appCache.invalidate("dashboard");
+    appCache.invalidate("dashboard:source");
+    refreshDashboardAggregate().catch(() => {});
+
+    res.json({ ok: true, meetingId });
   } catch (error) {
     if (!error.status) error.status = 400;
     next(error);
