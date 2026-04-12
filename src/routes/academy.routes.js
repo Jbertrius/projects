@@ -1,8 +1,9 @@
 const { Router } = require("express");
 const { requireAuth, requireContentManager } = require("../middleware/auth");
 const academyRepo = require("../repositories/academy.repository");
-const { hasFirestoreConfig, patchStudentSummitStatus, clearAcademyClassChurchName } = require("../../lib/firestore");
-const { normalizeIsoDate, parseAttendanceBlock } = require("../../lib/academy-parser");
+const { hasFirestoreConfig, patchStudentSummitStatus, clearAcademyClassChurchName, deleteAcademyStudent, mergeAcademyStudents, deleteEmptyAcademyClasses } = require("../../lib/firestore");
+const { normalizeIsoDate } = require("../../lib/academy-parser");
+const { parseAttendanceBlockSmart } = require("../../lib/gemini-parser");
 const { AppError } = require("../middleware/errorHandler");
 const { appCache } = require("../utils/cache");
 const { log } = require("../middleware/logger");
@@ -18,6 +19,15 @@ function normalizeLookupValue(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function isDeletedStudent(student) {
+  const status = String(student?.status || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  return Boolean(student?.deleted_at || student?.deletedAt) || status === "supprime";
 }
 
 function parseDeclaredAttendanceTotals(rawText) {
@@ -36,7 +46,7 @@ function parseDeclaredAttendanceTotals(rawText) {
   const sectionTotals = [];
 
   for (const line of normalizedLines) {
-    const totalMatch = line.match(/\bTOTAL\b\s*:\s*(\d+)\s*\/\s*(\d+)/iu);
+    const totalMatch = line.match(/\bTOTAL\b\s*[:=]\s*(\d+)\s*\/\s*(\d+)/iu);
     if (totalMatch) {
       totalLine = { present: Number(totalMatch[1]), expected: Number(totalMatch[2]) };
       continue;
@@ -114,6 +124,7 @@ router.get("/students", requireAuth, async (req, res, next) => {
     });
 
     const students = (data.students || [])
+      .filter((student) => !isDeletedStudent(student))
       .map((student) => {
         const studentId = String(student.id || "").trim();
         const classId = String(student.class_id || "").trim();
@@ -181,6 +192,22 @@ router.get("/students", requireAuth, async (req, res, next) => {
 // DELETE /api/academy/classes/:id/church
 // Remove the church_name from a class, moving it back to core academy.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// DELETE /api/academy/classes/empty
+// Permanently remove all academy class documents that have no students.
+// ---------------------------------------------------------------------------
+router.delete("/classes/empty", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const result = await deleteEmptyAcademyClasses();
+    appCache.invalidate("academy");
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
 router.delete("/classes/:id/church", requireContentManager, async (req, res, next) => {
   try {
     if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
@@ -237,6 +264,71 @@ router.post("/students/update", requireContentManager, async (req, res, next) =>
   }
 });
 
+// ---------------------------------------------------------------------------
+// DELETE /api/academy/students/:id
+// Permanently remove a student document from Firestore.
+// ---------------------------------------------------------------------------
+router.delete("/students/:id", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const studentId = String(req.params.id || "").trim();
+    if (!studentId) return res.status(400).json({ ok: false, error: "studentId is required" });
+    await deleteAcademyStudent(studentId);
+    appCache.invalidate("academy");
+    res.json({ ok: true, studentId });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/academy/students/merge
+// Merge two student records: transfer all attendance from secondary to primary,
+// then soft-delete the secondary student.
+// Body: { primaryId: string, secondaryId: string }
+// ---------------------------------------------------------------------------
+router.post("/students/merge", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const { primaryId, secondaryId } = req.body || {};
+    if (!primaryId || !secondaryId) {
+      return res.status(400).json({ ok: false, error: "primaryId and secondaryId are required" });
+    }
+    const result = await mergeAcademyStudents(primaryId, secondaryId);
+    appCache.invalidate("academy");
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/academy/verify
+// Parse a raw attendance block (via Gemini if available) and return the
+// structured result for preview — does NOT write anything.
+// ---------------------------------------------------------------------------
+router.post("/verify", requireContentManager, async (req, res, next) => {
+  try {
+    const rawText = String(req.body.rawText || "").trim();
+    const lessonDate = normalizeIsoDate(req.body.lessonDate || "");
+    if (!rawText) return res.status(400).json({ ok: false, error: "rawText is required" });
+
+    const parsed = await parseAttendanceBlockSmart(rawText, lessonDate);
+
+    const issues = [];
+    if (!parsed.class_code)   issues.push("La ligne de classe est manquante.");
+    if (!parsed.lesson_title) issues.push("Le titre de la lecon est manquant.");
+    if (!parsed.teacher_name) issues.push("L'instructeur est manquant.");
+    if (!parsed.registered_students.length) issues.push("Aucun etudiant inscrit detecte.");
+
+    res.json({ ok: true, parsed, issues, valid: issues.length === 0 });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/record-lesson", requireContentManager, async (req, res, next) => {
   try {
     if (!hasFirestoreConfig()) {
@@ -261,8 +353,8 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
       return res.json({ ok: true, parsed: null, result });
     }
 
-    // Parse the raw attendance block
-    const parsed = parseAttendanceBlock(
+    // Parse the raw attendance block (Gemini if available, regex fallback)
+    const parsed = await parseAttendanceBlockSmart(
       String(payload.rawText || "").trim(),
       normalizeIsoDate(payload.lessonDate || "")
     );
@@ -302,7 +394,8 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
       issues.push("Au moins un etudiant inscrit doit etre detecte.");
     }
 
-    // Cross-check against declared totals
+    // Cross-check against declared totals — warning only, never blocks save
+    let totalsWarning = null;
     if (!payload.deleteExisting && parsed.registered_students.length) {
       const declaredTotals = parseDeclaredAttendanceTotals(payload.rawText);
       if (declaredTotals) {
@@ -310,9 +403,7 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
         const parsedPresent = parsed.registered_students.filter(([, s]) => s === "present").length;
         if (parsedTotal !== declaredTotals.expected || parsedPresent !== declaredTotals.present) {
           const sourceLabel = declaredTotals.source.startsWith("sections") ? "sections" : "TOTAL";
-          issues.push(
-            `Incoherence detectee avec ${sourceLabel}: parse=${parsedPresent}/${parsedTotal}, declare=${declaredTotals.present}/${declaredTotals.expected}.`
-          );
+          totalsWarning = `Totaux declares (${sourceLabel}: ${declaredTotals.present}/${declaredTotals.expected}) differents du parse (${parsedPresent}/${parsedTotal}) — enregistrement force.`;
         }
       }
     }
@@ -329,7 +420,7 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
     });
 
     appCache.invalidate("academy");
-    res.json({ ok: true, parsed, result });
+    res.json({ ok: true, parsed, result, warning: totalsWarning || undefined });
   } catch (error) {
     if (!error.status) error.status = 400;
     next(error);

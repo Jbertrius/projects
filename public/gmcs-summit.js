@@ -11,7 +11,7 @@ const summitState = {
   filter: "all",  // "all" | "verbal" | "inscrit" | "paiement"
   search: "",
   charts: {},
-  chartGranularity: "monthly",
+  chartGranularity: "weekly",
   chartMode: "cumulative"
 };
 
@@ -64,13 +64,13 @@ function toBucketKey(date, granularity) {
     const monday = startOfWeek(date);
     return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
   }
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function formatMonthKey(key) {
-  const date = parseDateValue(`${key}-01`);
+function formatDayKey(key) {
+  const date = parseDateValue(key);
   return date
-    ? date.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })
+    ? date.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
     : key;
 }
 
@@ -104,7 +104,7 @@ function buildEvolutionSeries() {
   });
 
   const keys = Array.from(byMonth.keys()).sort((a, b) => a.localeCompare(b));
-  const labels = keys.map((key) => (summitState.chartGranularity === "weekly" ? formatWeekKey(key) : formatMonthKey(key)));
+  const labels = keys.map((key) => (summitState.chartGranularity === "weekly" ? formatWeekKey(key) : formatDayKey(key)));
   const seriesLevels = ["total", ...SUMMIT_LEVELS];
   const cumulative = { total: 0, verbal: 0, inscrit: 0, paiement: 0 };
   const seriesBuckets = { total: [], verbal: [], inscrit: [], paiement: [] };
@@ -145,7 +145,7 @@ async function renderEvolutionChart() {
   const chartData = buildEvolutionSeries();
   const caption = document.getElementById("summit-evolution-caption");
   if (caption) {
-    caption.textContent = `Vue ${summitState.chartGranularity === "weekly" ? "hebdomadaire" : "mensuelle"} ${summitState.chartMode === "cumulative" ? "cumulée" : "non cumulée"}`;
+    caption.textContent = `Vue ${summitState.chartGranularity === "weekly" ? "hebdomadaire" : "journalière"} ${summitState.chartMode === "cumulative" ? "cumulée" : "non cumulée"}`;
   }
   if (!chartData.labels.length) {
     target.innerHTML = `<div class="summit-table-empty" style="padding:24px">Pas assez de dates d'activite pour tracer la courbe.</div>`;
@@ -327,8 +327,8 @@ function renderTable() {
       </td>
       <td class="summit-note-cell">${note}</td>
       <td class="summit-actions-cell">
-        <a href="${ficheUrl}" class="secondary-action compact-action" style="font-size:0.78rem;padding:6px 12px;text-decoration:none">
-          <span class="material-symbols-rounded" style="font-size:0.9rem">open_in_new</span>
+        <a href="${ficheUrl}" class="summit-fiche-btn">
+          <span class="material-symbols-rounded">open_in_new</span>
           Fiche
         </a>
       </td>

@@ -1166,6 +1166,7 @@ function normalizeEntryLine(value) {
   return String(value || "")
     .normalize("NFKC")
     .replace(/\u00a0/g, " ")
+    .replace(/[\u2012\u2013\u2014\u2015\u2212]/g, "-")
     .replace(/[\u200B-\u200D\uFE0F]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -1181,6 +1182,10 @@ function stripTrailingNote(value) {
     value: normalized.slice(0, noteMatch.index).trim(),
     note: noteMatch[1].trim()
   };
+}
+
+function isHashtagLine(line) {
+  return /^#\S+/u.test(normalizeEntryLine(line));
 }
 
 function detectEntryStatus(prefix) {
@@ -1203,18 +1208,35 @@ function detectEntryStatus(prefix) {
 
 function parseStudentLine(line) {
   const normalized = normalizeEntryLine(line);
-  if (!normalized || parseLegendLine(normalized) || /^total\s*:/iu.test(normalized)) {
+  if (!normalized || parseLegendLine(normalized) || isTotalEntryLine(normalized) || isHashtagLine(normalized)) {
     return null;
   }
 
   const indexedMatch = normalized.match(/^(?<prefix>.*?)(?<index>\d+)\s*[-.)]\s*(?<rest>.+)$/u);
-  if (!indexedMatch?.groups?.rest) {
+  if (indexedMatch?.groups?.rest) {
+    const rawRest = indexedMatch.groups.rest.trim();
+    const restPrefixMatch = rawRest.match(/^(?<symbols>[^\p{L}\p{N}]+)\s*(?<name>.+)$/u);
+    const restPrefix = restPrefixMatch?.groups?.symbols ? normalizeEntryLine(restPrefixMatch.groups.symbols) : "";
+    const restName = restPrefixMatch?.groups?.name ? restPrefixMatch.groups.name.trim() : rawRest;
+    return {
+      name: stripTrailingNote(restName).value,
+      status: detectEntryStatus(`${indexedMatch.groups.prefix} ${restPrefix}`)
+    };
+  }
+
+  const nonIndexedMatch = normalized.match(/^(?<prefix>[^\p{L}\p{N}]+)\s*(?<rest>\p{L}.+)$/u);
+  if (!nonIndexedMatch?.groups?.rest || isHashtagLine(nonIndexedMatch.groups.rest)) {
+    return null;
+  }
+
+  const stripped = stripTrailingNote(nonIndexedMatch.groups.rest.trim()).value;
+  if (!stripped || stripped.length < 3) {
     return null;
   }
 
   return {
-    name: stripTrailingNote(indexedMatch.groups.rest.trim()).value,
-    status: detectEntryStatus(indexedMatch.groups.prefix)
+    name: stripped,
+    status: detectEntryStatus(nonIndexedMatch.groups.prefix)
   };
 }
 
@@ -1228,6 +1250,10 @@ function parseLegendLine(line) {
     normalized.includes("camera") ||
     normalized.includes("absent")
   );
+}
+
+function isTotalEntryLine(line) {
+  return /(?:^|\s)total\b(?:\s*[:=])?(?:\s*\d+\s*\/\s*\d+)?/iu.test(normalizeEntryLine(line));
 }
 
 function parseFrenchInlineDate(line) {
@@ -1329,8 +1355,7 @@ function validateEntry(rawText, rawDate) {
 
     if (
       !isIndexedEntryLine &&
-      (/\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/iu.test(line) ||
-        /(\d{1,2})\s+[A-Za-zÀ-ÿ?]+/u.test(line))
+      /^(?:[^\p{L}\p{N}]*)?(?:date\s*:|lundi\b|mardi\b|mercredi\b|jeudi\b|vendredi\b|samedi\b|dimanche\b|\d{1,2}\s+[A-Za-zÀ-ÿ?]+)/iu.test(line)
     ) {
       const inferredDate = parseFrenchInlineDate(line);
       if (inferredDate) {
@@ -1365,7 +1390,7 @@ function validateEntry(rawText, rawDate) {
       continue;
     }
 
-    if (parseLegendLine(line) || /^.*total\s*:/iu.test(line) || parseGroupHeader(line)) {
+    if (parseLegendLine(line) || isTotalEntryLine(line) || parseGroupHeader(line)) {
       const detectedGroup = parseGroupHeader(line);
       if (detectedGroup && normalizeSectionLabel(detectedGroup) === "REECOUTE") {
         skipSection = true;
@@ -1386,7 +1411,7 @@ function validateEntry(rawText, rawDate) {
       continue;
     }
 
-    if (/^total\s*:/i.test(line)) {
+    if (isTotalEntryLine(line)) {
       continue;
     }
 
@@ -1442,8 +1467,9 @@ function renderEntryValidation(validation) {
     return;
   }
 
+  const parserLabel = validation.parsed._by === "gemini" ? " · via Gemini ✓" : "";
   const summary = validation.ok
-    ? `<div class="academy-validation-summary is-success">Bloc valide: ${validation.parsed.registeredCount} inscrit(s), ${validation.parsed.unregisteredCount} non inscrit(s), classe ${validation.parsed.classCode}.</div>`
+    ? `<div class="academy-validation-summary is-success">Bloc valide: ${validation.parsed.registeredCount} inscrit(s), ${validation.parsed.unregisteredCount} non inscrit(s), classe ${validation.parsed.classCode}${parserLabel}.</div>`
     : `<div class="academy-validation-summary is-error">Le bloc doit etre corrige avant enregistrement.</div>`;
 
   const details = validation.ok
@@ -1548,11 +1574,56 @@ function attachFilterHandlers() {
 }
 
 function attachEntryHandlers() {
+  // Lightweight local check on input — just clears stale validation
   const validate = () => {
     const payload = getEntryPayload();
-    const result = validateEntry(payload.rawText, payload.lessonDate);
-    renderEntryValidation(result);
-    return result;
+    if (!payload.rawText.trim()) {
+      renderEntryValidation(null);
+    }
+    // Full validation done via API on "Vérifier" click
+  };
+
+  // Full server-side parse (Gemini) on demand
+  const verifyViaApi = async () => {
+    const payload = getEntryPayload();
+    if (!payload.rawText.trim()) {
+      renderEntryValidation({ ok: false, issues: ["Le bloc est vide."], parsed: {} });
+      return null;
+    }
+    const btn = document.getElementById("academy-validate-entry");
+    if (btn) { btn.disabled = true; btn.textContent = "Analyse…"; }
+    try {
+      const resp = await fetch("/api/academy/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: payload.rawText, lessonDate: payload.lessonDate })
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "");
+        throw new Error(text.includes("<!") ? `Erreur serveur ${resp.status} — redemarrez le serveur.` : (text || `Erreur ${resp.status}`));
+      }
+      const data = await resp.json();
+      const result = {
+        ok: data.valid,
+        issues: data.issues || [],
+        parsed: {
+          classCode: data.parsed.class_code,
+          instructor: data.parsed.teacher_name,
+          lessonTitle: data.parsed.lesson_title,
+          lessonDate: data.parsed.lesson_date,
+          registeredCount: data.parsed.registered_students?.length || 0,
+          unregisteredCount: data.parsed.unregistered_students?.length || 0,
+          _by: data.parsed._parsed_by || "regex"
+        }
+      };
+      renderEntryValidation(result);
+      return result;
+    } catch (err) {
+      renderEntryValidation({ ok: false, issues: [err.message], parsed: {} });
+      return null;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Verifier"; }
+    }
   };
 
   const openEntry = () => {
@@ -1575,12 +1646,14 @@ function attachEntryHandlers() {
     updateRefreshButton();
   });
 
-  document.getElementById("academy-validate-entry")?.addEventListener("click", () => {
-    const result = validate();
-    showFeedback(
-      result.ok ? "Bloc valide. Tu peux enregistrer la lecon." : "Bloc incomplet ou invalide.",
-      result.ok ? "success" : "warning"
-    );
+  document.getElementById("academy-validate-entry")?.addEventListener("click", async () => {
+    const result = await verifyViaApi();
+    if (result) {
+      showFeedback(
+        result.ok ? "Bloc valide. Tu peux enregistrer la lecon." : "Bloc incomplet ou invalide.",
+        result.ok ? "success" : "warning"
+      );
+    }
   });
 
   document.getElementById("academy-clear-entry")?.addEventListener("click", () => {
@@ -1598,8 +1671,8 @@ function attachEntryHandlers() {
   });
 
   document.getElementById("academy-save-entry")?.addEventListener("click", async () => {
-    const validation = validate();
-    if (!validation.ok) {
+    const validation = await verifyViaApi();
+    if (!validation || !validation.ok) {
       showFeedback("Corrige les elements signales avant l'enregistrement.", "warning");
       return;
     }
@@ -1620,7 +1693,8 @@ function attachEntryHandlers() {
       }
 
       const actionLabel = getEntryPayload().replaceExisting ? "Lecon mise a jour" : "Lecon enregistree";
-      showFeedback(`${actionLabel} pour ${payload.result.classCode} le ${payload.result.lessonDate}.`, "success");
+      const warningNote = payload.warning ? ` ⚠ ${payload.warning}` : "";
+      showFeedback(`${actionLabel} pour ${payload.result.classCode} le ${payload.result.lessonDate}.${warningNote}`, warningNote ? "warning" : "success");
       document.getElementById("academy-entry-text").value = "";
       document.getElementById("academy-entry-date").value = "";
       const replaceInput = document.getElementById("academy-entry-replace");

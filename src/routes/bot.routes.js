@@ -227,14 +227,35 @@ router.post("/meetings", async (req, res, next) => {
     };
 
     const accessToken = await getAccessToken([FIRESTORE_SCOPE]);
-    await fetchJson(`${baseUrl}/meetings/${encodeURIComponent(meetingId)}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(doc)
+    const meetingUrl = `${baseUrl}/meetings/${encodeURIComponent(meetingId)}`;
+
+    // If the meeting already exists, only update the three mutable fields.
+    // All other fields (pastorName, members, notes…) are preserved as-is.
+    const existingResponse = await fetch(meetingUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
+
+    if (existingResponse.ok) {
+      const updateFields = {
+        meetingDate: doc.fields.meetingDate,
+        zone:        doc.fields.zone,
+        eventSummary: doc.fields.eventSummary
+      };
+      const maskParams = Object.keys(updateFields)
+        .map((f) => `updateMask.fieldPaths=${encodeURIComponent(f)}`)
+        .join("&");
+      await fetchJson(`${meetingUrl}?${maskParams}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: updateFields })
+      });
+    } else {
+      await fetchJson(meetingUrl, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(doc)
+      });
+    }
 
     appCache.invalidate("dashboard");
     appCache.invalidate("dashboard:source");

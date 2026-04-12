@@ -13,7 +13,7 @@
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="academy-students-page">
     <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="app-sidebar">menu</button>
     <div class="sidebar-overlay" aria-hidden="true"></div>
     <div class="app-shell">
@@ -168,8 +168,8 @@
                   <textarea id="academy-student-notes" class="filter-control form-textarea"></textarea>
                 </label>
 
-                <div style="margin:18px 0 14px;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(245,195,44,0.1),rgba(20,121,100,0.07));border:1px solid rgba(245,195,44,0.28)">
-                  <p class="section-label" style="margin-bottom:10px;color:#7a5c00">GMCS-EU Summit — 2e Edition · 20 Juin</p>
+                <div class="academy-summit-card">
+                  <p class="section-label academy-summit-label">GMCS-EU Summit — 2e Edition · 20 Juin</p>
                   <div class="review-grid">
                     <label class="form-field">
                       <span>Statut inscription</span>
@@ -202,6 +202,36 @@
                   <button class="primary-action" type="submit">Enregistrer la fiche</button>
                 </div>
               </form>
+
+              <div id="section-merge-students" hidden class="academy-merge-zone">
+                <p class="section-label academy-merge-label">Fusion de fiches</p>
+                <p class="muted academy-merge-copy">Fusionner cette fiche avec une autre fiche dupliquée. Les présences s'additionneront et les informations du premier étudiant seront conservées.</p>
+                
+                <div class="review-grid">
+                  <label class="form-field">
+                    <span>Fusionner avec (autre étudiant)</span>
+                    <select id="academy-merge-target" class="filter-control">
+                      <option value="">-- Sélectionner un étudiant --</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>Résumé fusion</span>
+                    <div id="academy-merge-preview" class="merge-preview">-</div>
+                  </label>
+                </div>
+
+                <button class="academy-merge-button" id="btn-merge-students" type="button" disabled>
+                  <span class="material-symbols-rounded">merge</span> Fusionner les fiches
+                </button>
+              </div>
+
+              <div id="section-delete-student" hidden class="academy-danger-zone">
+                <p class="section-label academy-danger-label">Zone de danger</p>
+                <p class="muted academy-danger-copy">Cette action est irreversible. La fiche etudiant sera definitivement supprimee.</p>
+                <button class="academy-danger-button" id="btn-delete-student" type="button">
+                  <span class="material-symbols-rounded">delete_forever</span> Supprimer cet etudiant
+                </button>
+              </div>
             </article>
           </section>
         </main>

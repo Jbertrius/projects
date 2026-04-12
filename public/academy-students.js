@@ -4,6 +4,7 @@ const academyStudentState = {
   selectedId: "",
   classOptions: [],
   isLoading: false,
+  urlPreselectApplied: false,
   filters: {
     search: "",
     classId: "all",
@@ -88,6 +89,51 @@ function applyFilters() {
   });
 }
 
+function applyFiltersToUiControls() {
+  const searchInput = document.getElementById("academy-student-records-search");
+  const classSelect = document.getElementById("academy-student-records-class");
+  const statusSelect = document.getElementById("academy-student-records-status");
+  if (searchInput) searchInput.value = academyStudentState.filters.search;
+  if (classSelect) classSelect.value = academyStudentState.filters.classId;
+  if (statusSelect) statusSelect.value = academyStudentState.filters.status;
+}
+
+function applyUrlPrefill() {
+  const params = new URLSearchParams(window.location.search || "");
+  const search = String(params.get("search") || "").trim();
+  const classId = String(params.get("class") || "").trim();
+  const status = String(params.get("status") || "").trim();
+
+  if (search) academyStudentState.filters.search = search;
+  if (classId) academyStudentState.filters.classId = classId;
+  if (status) academyStudentState.filters.status = status;
+}
+
+function trySelectFromUrlSearch() {
+  if (academyStudentState.urlPreselectApplied) return;
+  const requested = normalizeText(academyStudentState.filters.search);
+  if (!requested) {
+    academyStudentState.urlPreselectApplied = true;
+    return;
+  }
+
+  const exact = academyStudentState.filtered.find((student) =>
+    normalizeText(student.name || "") === requested
+  );
+  const startsWith = academyStudentState.filtered.find((student) =>
+    normalizeText(student.name || "").startsWith(requested)
+  );
+  const partial = academyStudentState.filtered.find((student) =>
+    normalizeText(student.name || "").includes(requested)
+  );
+
+  const match = exact || startsWith || partial;
+  if (match?.id) {
+    academyStudentState.selectedId = match.id;
+  }
+  academyStudentState.urlPreselectApplied = true;
+}
+
 function renderStudentList() {
   const container = document.getElementById("academy-student-records-list");
   const summary = document.getElementById("academy-student-records-visible");
@@ -154,6 +200,8 @@ function renderEditor() {
     document.getElementById("academy-student-id").value = "";
     document.getElementById("academy-student-activity-pills").innerHTML = "";
     document.getElementById("academy-student-last-lesson").textContent = "-";
+    const mergeZone = document.getElementById("section-merge-students");
+    if (mergeZone) mergeZone.hidden = true;
     return;
   }
 
@@ -174,6 +222,7 @@ function renderEditor() {
   document.getElementById("academy-student-summit-note").value = student.gmcs_summit_note || "";
   document.getElementById("academy-student-last-lesson").textContent = student.last_lesson_date || "-";
   renderActivityPills(student);
+  populateMergeTargetSelect();
 }
 
 async function loadStudents() {
@@ -196,7 +245,9 @@ async function loadStudents() {
     }
 
     populateClassFilter();
+    applyFiltersToUiControls();
     applyFilters();
+    trySelectFromUrlSearch();
     renderStudentList();
     renderEditor();
   } finally {
@@ -310,6 +361,129 @@ function attachEditor() {
   lastNameInput?.addEventListener("input", syncCanonical);
 }
 
+function populateMergeTargetSelect() {
+  const student = getSelectedStudent();
+  const select = document.getElementById("academy-merge-target");
+  if (!student || !select) return;
+
+  const currentClass = student.class_id;
+  const candidates = academyStudentState.students
+    .filter((s) => s.id !== student.id && s.class_id === currentClass)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
+
+  select.innerHTML = [
+    `<option value="">-- Sélectionner un étudiant --</option>`,
+    ...candidates.map((s) => `<option value="${s.id}">${s.name} (${s.present_count} présences)</option>`)
+  ].join("");
+  select.value = "";
+  updateMergePreview();
+}
+
+function updateMergePreview() {
+  const student = getSelectedStudent();
+  const select = document.getElementById("academy-merge-target");
+  const preview = document.getElementById("academy-merge-preview");
+  const button = document.getElementById("btn-merge-students");
+  if (!student || !select || !preview || !button) return;
+
+  const targetId = select.value?.trim();
+  if (!targetId) {
+    preview.textContent = "-";
+    button.disabled = true;
+    return;
+  }
+
+  const targetStudent = academyStudentState.students.find((s) => s.id === targetId);
+  if (!targetStudent) {
+    preview.textContent = "Étudiant non trouvé";
+    button.disabled = true;
+    return;
+  }
+
+  const mergedPresences = (student.present_count || 0) + (targetStudent.present_count || 0);
+  const mergedAbsences = (student.absent_count || 0) + (targetStudent.absent_count || 0);
+  const mergedLessons = (student.lesson_count || 0) + (targetStudent.lesson_count || 0);
+  
+  preview.textContent = `Fusion: "${student.name}" avec "${targetStudent.name}" → ${mergedPresences} présences, ${mergedAbsences} absences, ${mergedLessons} leçons`;
+  button.disabled = false;
+}
+
+async function mergeStudents() {
+  const student = getSelectedStudent();
+  const select = document.getElementById("academy-merge-target");
+  const button = document.getElementById("btn-merge-students");
+  if (!student || !select || !button) return;
+
+  const targetId = select.value?.trim();
+  const targetStudent = academyStudentState.students.find((s) => s.id === targetId);
+  if (!targetStudent) {
+    showFeedback("Étudiant cible invalide", "error");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Fusionner « ${student.name} » et « ${targetStudent.name} » ?\n\nLes présences de « ${targetStudent.name} » seront transférées à « ${student.name} ». Cette action est irreversible.`
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  button.textContent = "Fusion en cours...";
+  try {
+    const response = await fetch("/api/academy/students/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        primaryId: student.id,
+        secondaryId: targetId
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) throw new Error(result.error || "Erreur serveur");
+    showFeedback(`Fiches fusionnées : « ${student.name} » et « ${targetStudent.name} » sont maintenant une seule fiche.`, "success");
+    academyStudentState.selectedId = "";
+    await loadStudents();
+  } catch (error) {
+    showFeedback(error.message, "error");
+  } finally {
+    button.disabled = true;
+    button.textContent = "Fusionner les fiches";
+  }
+}
+
+function setupMergeUI() {
+  const mergeZone = document.getElementById("section-merge-students");
+  if (!mergeZone) return;
+
+  const select = document.getElementById("academy-merge-target");
+  const button = document.getElementById("btn-merge-students");
+
+  select?.addEventListener("change", updateMergePreview);
+  button?.addEventListener("click", () => {
+    mergeStudents().catch((error) => showFeedback(error.message, "error"));
+  });
+}
+
+async function deleteStudent() {
+  const student = getSelectedStudent();
+  if (!student) return;
+  const confirmed = window.confirm(`Supprimer definitivement la fiche de « ${student.name} » ? Cette action est irreversible.`);
+  if (!confirmed) return;
+  const button = document.getElementById("btn-delete-student");
+  if (button) { button.disabled = true; button.textContent = "Suppression..."; }
+  try {
+    const response = await fetch(`/api/academy/students/${encodeURIComponent(student.id)}`, { method: "DELETE" });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) throw new Error(result.error || "Erreur serveur");
+    showFeedback(`Etudiant « ${student.name} » supprime.`, "success");
+    academyStudentState.selectedId = "";
+    await loadStudents();
+  } catch (error) {
+    showFeedback(error.message, "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Supprimer cet etudiant"; }
+  }
+}
+
 function attachNavigationHandlers() {
   const navItems = Array.from(document.querySelectorAll(".nav-item[data-target]"));
   navItems.forEach((button) => {
@@ -323,10 +497,21 @@ function attachNavigationHandlers() {
 }
 
 async function boot() {
-  await window.AppAuth.requireAuth();
+  const session = await window.AppAuth.requireAuth();
+  applyUrlPrefill();
   attachNavigationHandlers();
   attachFilters();
   attachEditor();
+  setupMergeUI();
+  if (session?.capabilities?.canManageContent) {
+    const mergeZone = document.getElementById("section-merge-students");
+    if (mergeZone) mergeZone.hidden = false;
+    const dangerZone = document.getElementById("section-delete-student");
+    if (dangerZone) dangerZone.hidden = false;
+    document.getElementById("btn-delete-student")?.addEventListener("click", () => {
+      deleteStudent().catch((error) => showFeedback(error.message, "error"));
+    });
+  }
   await loadStudents();
 }
 
