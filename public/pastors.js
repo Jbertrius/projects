@@ -163,7 +163,18 @@ function renderEditor() {
   document.getElementById("pastor-city").value = pastor.city || "";
   document.getElementById("pastor-phone").value = pastor.phone || "";
   document.getElementById("pastor-email").value = pastor.email || "";
-  populateAcademyClassOptions(pastor.academy_class || "");
+  const isLinked = Boolean(pastor.student_id);
+  const classSelect   = document.getElementById("pastor-class");
+  const classReadonly = document.getElementById("pastor-class-readonly");
+  if (isLinked) {
+    classSelect.hidden   = true;
+    classReadonly.hidden = false;
+    classReadonly.value  = pastor.academy_class || "";
+  } else {
+    classSelect.hidden   = false;
+    classReadonly.hidden = true;
+    populateAcademyClassOptions(pastor.academy_class || "");
+  }
   document.getElementById("pastor-cell-number").value = pastor.cell_number || "";
   document.getElementById("pastor-current-mission").value = pastor.current_mission || "";
   document.getElementById("pastor-aliases").value = pastor.aliases || "";
@@ -296,7 +307,8 @@ async function savePastor(event) {
     city: document.getElementById("pastor-city").value,
     phone: document.getElementById("pastor-phone").value,
     email: document.getElementById("pastor-email").value,
-    academy_class: document.getElementById("pastor-class").value,
+    // When the pastor is linked to an academy student, class comes from the academy — never overwrite it.
+    academy_class: current?.student_id ? (current.academy_class || "") : document.getElementById("pastor-class").value,
     cell_number: document.getElementById("pastor-cell-number").value,
     current_mission: document.getElementById("pastor-current-mission").value,
     aliases: document.getElementById("pastor-aliases").value,

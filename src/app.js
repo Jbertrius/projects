@@ -89,8 +89,11 @@ app.use((req, res, next) => {
     return res.redirect(302, "/login.html");
   }
 
-  // Restrict users page to managers+
-  if (requestedPath === "/users.html" && sessionUser && !canManageUsers(sessionUser)) {
+  // Restrict users page and personality-links to managers+
+  if (
+    (requestedPath === "/users.html" || requestedPath === "/personality-links.html") &&
+    sessionUser && !canManageUsers(sessionUser)
+  ) {
     return res.redirect(302, "/");
   }
 

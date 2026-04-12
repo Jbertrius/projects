@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personnalites - Validation des liens</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .personality-links-page {
+        --links-hero-bg: radial-gradient(circle at top left, rgba(22, 163, 74, 0.18), transparent 38%), radial-gradient(circle at top right, rgba(14, 116, 144, 0.16), transparent 34%), linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(239, 246, 255, 0.92));
+        --links-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        --links-soft-border: rgba(148, 163, 184, 0.22);
+        --links-glow: rgba(14, 116, 144, 0.12);
+      }
+
+      .personality-links-page .main-content {
+        background:
+          radial-gradient(circle at right top, rgba(14, 165, 233, 0.08), transparent 26%),
+          linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+      }
+
+      .links-shell {
+        display: grid;
+        gap: 22px;
+      }
+
+      .links-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 30px;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background: var(--links-hero-bg);
+        box-shadow: var(--links-card-shadow);
+      }
+
+      .links-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -80px -80px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 70%);
+        pointer-events: none;
+      }
+
+      .links-hero-top {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .links-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #0f4c5c;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .links-hero-title {
+        margin: 14px 0 10px;
+        font-family: "Sora", sans-serif;
+        font-size: clamp(1.9rem, 3vw, 2.8rem);
+        line-height: 1.04;
+        color: #0f172a;
+      }
+
+      .links-hero-copy {
+        max-width: 760px;
+        margin: 0;
+        color: #475569;
+        font-size: 0.98rem;
+        line-height: 1.7;
+      }
+
+      .links-hero-side {
+        min-width: 220px;
+        padding: 16px 18px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.68);
+        backdrop-filter: blur(12px);
+      }
+
+      .links-hero-side .section-label {
+        margin-bottom: 8px;
+      }
+
+      .links-hero-side strong {
+        display: block;
+        font-size: 1.65rem;
+        line-height: 1;
+        color: #0f172a;
+      }
+
+      .links-hero-side span {
+        display: block;
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+
+      .links-metrics {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 24px;
+      }
+
+      .links-metric {
+        padding: 16px 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      }
+
+      .links-metric-label {
+        margin: 0 0 8px;
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .links-metric-value {
+        margin: 0;
+        color: #0f172a;
+        font-family: "Sora", sans-serif;
+        font-size: 1.7rem;
+        line-height: 1;
+      }
+
+      .links-metric-note {
+        margin: 8px 0 0;
+        color: #475569;
+        font-size: 0.88rem;
+      }
+
+      .links-panel {
+        padding: 22px;
+        border-radius: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: var(--links-card-shadow);
+      }
+
+      .links-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+
+      .links-panel-title {
+        margin: 0;
+        font-family: "Sora", sans-serif;
+        font-size: 1.15rem;
+        color: #0f172a;
+      }
+
+      .links-panel-copy {
+        margin: 6px 0 0;
+        color: #64748b;
+        font-size: 0.93rem;
+      }
+
+      .links-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .links-filter-group {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 8px;
+        border-radius: 999px;
+        background: rgba(241, 245, 249, 0.9);
+        border: 1px solid var(--links-soft-border);
+      }
+
+      .links-filter-btn {
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #475569;
+        font-size: 0.83rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .18s ease;
+      }
+
+      .links-filter-btn:hover {
+        background: rgba(255, 255, 255, 0.7);
+        color: #0f172a;
+      }
+
+      .links-filter-btn.is-active {
+        background: linear-gradient(135deg, #0f766e, #0369a1);
+        color: #fff;
+        box-shadow: 0 10px 24px var(--links-glow);
+      }
+
+      .run-job-btn {
+        margin-left: auto;
+        min-height: 44px;
+        padding-inline: 18px;
+        border-radius: 999px;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
+      }
+
+      .links-count-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(248, 250, 252, 0.92);
+        border: 1px solid var(--links-soft-border);
+        color: #334155;
+        font-size: 0.84rem;
+        font-weight: 700;
+      }
+
+      .suggestion-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .suggestion-card {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        border: 1px solid var(--links-soft-border);
+        border-radius: 26px;
+        padding: 18px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: stretch;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+      }
+
+      .suggestion-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 6px;
+        background: linear-gradient(180deg, #38bdf8, #0f766e);
+        opacity: 0.9;
+      }
+
+      .suggestion-card.is-approved::before {
+        background: linear-gradient(180deg, #22c55e, #15803d);
+      }
+
+      .suggestion-card.is-rejected::before {
+        background: linear-gradient(180deg, #94a3b8, #64748b);
+      }
+
+      .suggestion-card.is-rejected {
+        opacity: 0.72;
+      }
+
+      .suggestion-fiche {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+        padding: 8px 10px 8px 14px;
+      }
+
+      .suggestion-fiche-label {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #ecfeff;
+        color: #0f766e;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .suggestion-card .suggestion-fiche:last-of-type .suggestion-fiche-label {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .suggestion-name {
+        margin: 0;
+        font-size: 1.05rem;
+        line-height: 1.35;
+        color: #0f172a;
+      }
+
+      .suggestion-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .suggestion-id {
+        font-size: 0.76rem;
+        color: #64748b;
+        word-break: break-all;
+      }
+
+      .suggestion-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .badge-exact { background: #dcfce7; color: #166534; }
+      .badge-prefix { background: #fef3c7; color: #92400e; }
+      .badge-pending { background: #dbeafe; color: #1d4ed8; }
+      .badge-approved { background: #dcfce7; color: #166534; }
+      .badge-rejected { background: #e2e8f0; color: #475569; }
+
+      .connector {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 58px;
+        padding: 0 4px;
+      }
+
+      .connector-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(15, 118, 110, 0.12));
+        color: #0f766e;
+        font-size: 1.2rem;
+        font-weight: 800;
+      }
+
+      .suggestion-actions {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+        min-width: 148px;
+      }
+
+      .btn-approve,
+      .btn-reject {
+        min-height: 42px;
+        padding: 9px 16px;
+        border-radius: 14px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+      }
+
+      .btn-approve {
+        border: none;
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        color: #fff;
+        box-shadow: 0 12px 22px rgba(21, 128, 61, 0.18);
+      }
+
+      .btn-approve:hover,
+      .btn-reject:hover {
+        transform: translateY(-1px);
+      }
+
+      .btn-reject {
+        border: 1.5px solid var(--links-soft-border);
+        background: rgba(255, 255, 255, 0.86);
+        color: #475569;
+      }
+
+      .suggestion-status-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 148px;
+      }
+
+      .empty-state {
+        padding: 60px 24px;
+        border-radius: 24px;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        background: rgba(248, 250, 252, 0.9);
+        text-align: center;
+        color: #64748b;
+        font-size: 0.95rem;
+      }
+
+      @media (max-width: 700px) {
+        .links-hero {
+          padding: 22px;
+          border-radius: 24px;
+        }
+
+        .links-panel {
+          padding: 18px;
+          border-radius: 22px;
+        }
+
+        .links-metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .suggestion-card {
+          grid-template-columns: 1fr;
+        }
+
+        .connector {
+          justify-content: flex-start;
+        }
+
+        .connector-pill {
+          width: 42px;
+          height: 42px;
+          font-size: 1rem;
+        }
+
+        .suggestion-actions,
+        .suggestion-status-wrap {
+          min-width: 0;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .links-metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .links-filter-group {
+          width: 100%;
+          border-radius: 22px;
+        }
+
+        .links-filter-btn {
+          flex: 1 1 calc(50% - 8px);
+          text-align: center;
+        }
+
+        .run-job-btn {
+          width: 100%;
+          margin-left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body class="academy-students-page personality-links-page">
+    <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="app-sidebar">menu</button>
+    <div class="sidebar-overlay" aria-hidden="true"></div>
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Administration</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link is-active" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans ce pole">
+          <p class="nav-section-label">Dans ce pole</p>
+          <a class="nav-item nav-link" href="/admin.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">tune</span><span>Vue d'ensemble</span></a>
+          <a class="nav-item nav-link" href="/users.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">group</span><span>Utilisateurs</span></a>
+          <a class="nav-item nav-link is-active" href="/personality-links.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">link</span><span>Liens personnalites</span></a>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <div id="app-feedback" class="app-feedback" hidden></div>
+
+        <div class="links-shell">
+          <section class="links-hero">
+            <div class="links-hero-top">
+              <div>
+                <span class="links-kicker"><span class="material-symbols-rounded" aria-hidden="true">account_tree</span> Centre de validation</span>
+                <h1 class="links-hero-title">Liens pasteurs &amp; etudiants</h1>
+                <p class="links-hero-copy">Vérifiez rapidement les correspondances détectées entre les fiches pasteurs et les fiches étudiants académie. L’objectif est de confirmer les vrais doublons relationnels, et d’écarter les rapprochements trop faibles avant qu’ils ne polluent les données.</p>
+              </div>
+              <aside class="links-hero-side">
+                <p class="section-label">Flux</p>
+                <strong id="hero-active-filter">En attente</strong>
+                <span>Le panneau suit votre filtre actuel pour garder la validation concentrée sur une seule file de travail.</span>
+              </aside>
+            </div>
+
+            <div class="links-metrics">
+              <article class="links-metric">
+                <p class="links-metric-label">Suggestions</p>
+                <p class="links-metric-value" id="metric-total">0</p>
+                <p class="links-metric-note">Volume total détecté</p>
+              </article>
+              <article class="links-metric">
+                <p class="links-metric-label">En attente</p>
+                <p class="links-metric-value" id="metric-pending">0</p>
+                <p class="links-metric-note">À traiter maintenant</p>
+              </article>
+              <article class="links-metric">
+                <p class="links-metric-label">Approuvées</p>
+                <p class="links-metric-value" id="metric-approved">0</p>
+                <p class="links-metric-note">Liens confirmés</p>
+              </article>
+              <article class="links-metric">
+                <p class="links-metric-label">Rejetées</p>
+                <p class="links-metric-value" id="metric-rejected">0</p>
+                <p class="links-metric-note">Correspondances écartées</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="links-panel">
+            <div class="links-panel-head">
+              <div>
+                <h2 class="links-panel-title">File de décision</h2>
+                <p class="links-panel-copy">Filtrez, validez ou rejetez les propositions. Les correspondances exactes remontent avec un niveau de confiance plus élevé.</p>
+              </div>
+              <div id="suggestions-count" class="links-count-chip">0 suggestion</div>
+            </div>
+
+            <div class="links-toolbar">
+              <div class="links-filter-group" id="status-filters">
+                <button class="links-filter-btn is-active" type="button" data-filter="pending">En attente</button>
+                <button class="links-filter-btn" type="button" data-filter="approved">Approuvees</button>
+                <button class="links-filter-btn" type="button" data-filter="rejected">Rejetees</button>
+                <button class="links-filter-btn" type="button" data-filter="">Tous</button>
+              </div>
+              <button class="secondary-action run-job-btn" id="btn-run-job" type="button">Lancer la detection</button>
+            </div>
+
+            <div class="suggestion-grid" id="suggestions-list">
+              <div class="empty-state">Chargement...</div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
+    <script src="/personality-links.js" defer></script>
+  </body>
+</html>

@@ -4,8 +4,13 @@ const {
   buildFirestoreDocuments,
   getFirestoreConfigSummary,
   hasFirestoreConfig,
-  testFirestoreConnection
+  testFirestoreConnection,
+  listPersonalityLinkSuggestions,
+  resolvePersonalityLinkSuggestion
 } = require("../../lib/firestore");
+const { linkPastorsToStudentsJob } = require("../jobs/link-pastors-to-students");
+const { AppError } = require("../middleware/errorHandler");
+const { appCache } = require("../utils/cache");
 const {
   getGoogleSheetsConfigSummary,
   hasGoogleSheetsConfig,
@@ -105,6 +110,62 @@ router.get("/preview/firestore", requireAdmin, async (req, res, next) => {
     });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message, config: getFirestoreConfigSummary() });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Personality link suggestions — pastor ↔ academy student
+// ---------------------------------------------------------------------------
+
+router.get("/personality-links", requireAdmin, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const status = req.query.status || null; // "pending" | "approved" | "rejected" | null = all
+    const suggestions = await listPersonalityLinkSuggestions(status);
+    res.json({ ok: true, suggestions });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/personality-links/run-job", requireAdmin, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const result = await linkPastorsToStudentsJob();
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/personality-links/:id/approve", requireAdmin, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const result = await resolvePersonalityLinkSuggestion(
+      req.params.id,
+      "approved",
+      req.sessionUser?.email || ""
+    );
+    appCache.invalidate("academy");
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+router.post("/personality-links/:id/reject", requireAdmin, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const result = await resolvePersonalityLinkSuggestion(
+      req.params.id,
+      "rejected",
+      req.sessionUser?.email || ""
+    );
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
   }
 });
 
