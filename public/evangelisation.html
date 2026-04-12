@@ -48,15 +48,16 @@
 
         <nav class="sidebar-nav" aria-label="Dans ce pole">
           <p class="nav-section-label">Dans ce pole</p>
-          <a class="nav-item nav-link is-active" href="#evangelisation-overview"><span class="nav-icon material-symbols-rounded" aria-hidden="true">travel_explore</span><span>Vue d'ensemble</span></a>
-          <a class="nav-item nav-link" href="#evangelisation-modules"><span class="nav-icon material-symbols-rounded" aria-hidden="true">category</span><span>Modules</span></a>
           <a class="nav-item nav-link" href="/mannams.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Gestion Mannams</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
         </nav>
       </aside>
 
       <div class="page-shell">
         <main class="dashboard">
-          <section class="hero">
+
+          <!-- Hero compact -->
+          <section class="hero" style="margin-bottom:0">
             <div class="hero-copy" id="evangelisation-overview">
               <div class="brand-tags">
                 <span class="brand-tag">Pole</span>
@@ -64,10 +65,17 @@
                 <span class="brand-tag">Prospection</span>
               </div>
               <h1>Evangelisation : creer du flux qualifie.</h1>
-              <p class="hero-text">
-                Ce pole regroupe les premiers contacts, les mannam, les relances et le suivi des membres qui ouvrent
-                la relation. L'objectif est d'alimenter la cooperation avec un flux plus net et mieux priorise.
-              </p>
+              <p class="hero-text">Premiers contacts, mannams, relances et suivi des membres qui ouvrent la relation.</p>
+              <div class="ev-hero-actions">
+                <a class="ev-btn ev-btn-primary" href="/mannams.html">
+                  <span class="material-symbols-rounded" aria-hidden="true">groups</span>
+                  Gerer les mannams
+                </a>
+                <a class="ev-btn ev-btn-secondary" href="/cooperation.html">
+                  <span class="material-symbols-rounded" aria-hidden="true">handshake</span>
+                  Cooperation
+                </a>
+              </div>
             </div>
 
             <aside class="hero-panel">
@@ -80,97 +88,96 @@
               </div>
               <div class="hero-panel-grid">
                 <div class="hero-panel-stat">
-                  <span class="hero-panel-value">Contacts</span>
-                  <span class="hero-panel-label">nouveaux et qualifies</span>
+                  <span class="hero-panel-value" id="ev-stat-total">—</span>
+                  <span class="hero-panel-label">rencontres totales</span>
                 </div>
                 <div class="hero-panel-stat">
-                  <span class="hero-panel-value">Relances</span>
-                  <span class="hero-panel-label">a faire cette semaine</span>
+                  <span class="hero-panel-value" id="ev-stat-period">—</span>
+                  <span class="hero-panel-label">dans la periode</span>
                 </div>
               </div>
             </aside>
           </section>
 
-          <section class="evangelisation-intro-grid">
-            <article class="evangelisation-note">
-              <p class="section-label">Cap du pole</p>
-              <h2 class="evangelisation-note-title">Ordonner les premiers signes d'ouverture pour mieux préparer la coopération.</h2>
-              <p class="evangelisation-note-copy">
-                L'entrée du pole doit montrer ce qui mérite une action immédiate, ce qui nourrit la relation et ce qui demande encore une qualification plus propre.
-              </p>
-              <div class="evangelisation-pulse">
-                <div class="evangelisation-pulse-item">
-                  <span class="evangelisation-pulse-value">Flux</span>
-                  <span class="evangelisation-pulse-label">premiers contacts et mannams</span>
-                </div>
-                <div class="evangelisation-pulse-item">
-                  <span class="evangelisation-pulse-value">Qualite</span>
-                  <span class="evangelisation-pulse-label">correction des noms et qualification</span>
-                </div>
-                <div class="evangelisation-pulse-item">
-                  <span class="evangelisation-pulse-value">Passage</span>
-                  <span class="evangelisation-pulse-label">mise en mouvement vers la cooperation</span>
-                </div>
+          <!-- Controles de filtre date + granularite -->
+          <div class="ev-filterbar">
+            <p class="section-label">Periode</p>
+            <div class="ev-filterbar-controls">
+              <div class="trajectory-date-range">
+                <label class="trajectory-date-label" for="ev-date-from">Du</label>
+                <input class="trajectory-date-input" type="date" id="ev-date-from">
+                <label class="trajectory-date-label" for="ev-date-to">au</label>
+                <input class="trajectory-date-input" type="date" id="ev-date-to">
+                <button class="trajectory-date-reset" type="button" id="ev-date-reset" title="Reinitialiser">×</button>
               </div>
-            </article>
+              <div class="segmented-control" role="group" aria-label="Granularite">
+                <button class="segment-button is-active" type="button" data-ev-granularity="monthly">Mensuel</button>
+                <button class="segment-button" type="button" data-ev-granularity="weekly">Hebdo</button>
+                <button class="segment-button" type="button" data-ev-granularity="daily">Quotidien</button>
+              </div>
+            </div>
+          </div>
 
-            <aside class="evangelisation-focus-card">
-              <p class="panel-label">Points d'attention</p>
-              <h2 class="evangelisation-focus-title">Ce qui doit rester visible chaque semaine</h2>
-              <p class="evangelisation-focus-copy">La lecture du pole doit garder un rythme simple: discerner, relancer, faire avancer.</p>
-              <ul class="evangelisation-focus-list">
-                <li><span class="material-symbols-rounded" aria-hidden="true">priority_high</span><span>Faire remonter les rencontres dont les membres restent non resolus ou partiellement associes.</span></li>
-                <li><span class="material-symbols-rounded" aria-hidden="true">schedule</span><span>Reperer les relances a effectuer sur les relations qui montrent un interet reel mais encore fragile.</span></li>
-                <li><span class="material-symbols-rounded" aria-hidden="true">handshake</span><span>Orienter rapidement les situations mures vers les parcours de cooperation.</span></li>
-              </ul>
-            </aside>
-          </section>
+          <!-- Grille principale : gauche = charts, droite = liste mannams -->
+          <div class="ev-main-grid" id="ev-main-grid">
 
-          <section class="evangelisation-module-grid" id="evangelisation-modules">
-            <article class="card evangelisation-module-card">
-              <div class="evangelisation-module-head">
+            <!-- Colonne gauche : trajectoire + top membres -->
+            <div class="ev-left-col">
+              <article class="card chart-card">
+                <div class="card-head">
+                  <div>
+                    <p class="section-label">Trajectoire</p>
+                    <h3>Rencontres dans le temps</h3>
+                  </div>
+                </div>
+                <div id="ev-monthly-chart" class="trend-chart"></div>
+              </article>
+
+              <article class="card chart-card">
+                <div class="card-head">
+                  <div>
+                    <p class="section-label">Contribution</p>
+                    <h3>Top membres actifs</h3>
+                  </div>
+                  <p class="muted">Efforts recents</p>
+                </div>
+                <div id="ev-activity-chart" class="activity-chart"></div>
+              </article>
+            </div>
+
+            <!-- Colonne droite : liste mannams -->
+            <div class="ev-mannam-panel">
+              <div class="ev-mannam-header">
                 <div>
-                  <p class="section-label">Contacts</p>
-                  <h3 class="evangelisation-module-title">Base de prospection</h3>
+                  <p class="section-label">Rencontres <span class="ev-mannam-count-badge" id="ev-mannams-count">—</span></p>
+                  <p class="muted ev-mannam-subtitle" id="ev-mannams-subtitle">Filtrees par la plage de dates</p>
                 </div>
-                <span class="evangelisation-module-icon" aria-hidden="true"><span class="material-symbols-rounded">travel_explore</span></span>
+                <a href="/mannams.html" class="ev-btn ev-btn-secondary ev-btn-sm">
+                  <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span>
+                  Tout voir
+                </a>
               </div>
-              <p class="evangelisation-module-copy">Nouveaux pasteurs identifies, qualite du premier contact et priorisation des suivis qui preparent une relation plus stable.</p>
-              <div class="evangelisation-module-strip">
-                <span class="evangelisation-module-pill">Qualification</span>
-                <span class="evangelisation-module-pill">Priorisation</span>
-                <span class="evangelisation-module-pill">Relance</span>
+              <hr class="ev-mannam-panel-divider">
+              <div id="ev-mannams-loading" class="ev-mannams-state">
+                <span class="material-symbols-rounded">hourglass_top</span>
+                Chargement…
               </div>
-              <div class="evangelisation-module-links">
-                <a class="module-link evangelisation-module-link" href="/cooperation.html">Voir le passage vers la cooperation <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+              <div id="ev-mannams-empty" hidden class="ev-mannams-state">
+                <span class="material-symbols-rounded">search_off</span>
+                Aucune rencontre.
               </div>
-            </article>
+              <div id="ev-mannams-list" hidden class="ev-mannam-list"></div>
+            </div>
 
-            <article class="card evangelisation-module-card">
-              <div class="evangelisation-module-head">
-                <div>
-                  <p class="section-label">Mannam</p>
-                  <h3 class="evangelisation-module-title">Rencontres et relances</h3>
-                </div>
-                <span class="evangelisation-module-icon" aria-hidden="true"><span class="material-symbols-rounded">groups</span></span>
-              </div>
-              <p class="evangelisation-module-copy">Historique des rencontres, correction des noms, suivi de la progression et lecture plus claire des situations deja mures pour la cooperation.</p>
-              <div class="evangelisation-module-strip">
-                <span class="evangelisation-module-pill">Historique</span>
-                <span class="evangelisation-module-pill">Correction</span>
-                <span class="evangelisation-module-pill">Progression</span>
-              </div>
-              <div class="evangelisation-module-links">
-                <a class="module-link evangelisation-module-link" href="/mannams.html">Gerer les mannams <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
-                <a class="module-link evangelisation-module-link" href="/">Vue direction <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
-              </div>
-            </article>
-          </section>
+          </div>
+
         </main>
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="/auth-client.js" defer></script>
     <script src="/shell.js" defer></script>
+    <script src="/evangelisation.js" defer></script>
   </body>
 </html>

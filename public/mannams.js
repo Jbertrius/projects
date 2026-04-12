@@ -698,6 +698,20 @@ async function bootstrap() {
     applyFilters();
     renderList();
     renderStats();
+
+    // Deep-link: ?id=meetingId pre-selects a meeting on load
+    const urlId = new URLSearchParams(window.location.search).get("id");
+    if (urlId) {
+      const match = mannamState.meetings.find((m) => String(m.id) === String(urlId));
+      if (match) {
+        mannamState.selectedId = String(urlId);
+        renderList();
+        renderDetail();
+        // Scroll the selected row into view
+        const row = document.querySelector(`.mannam-row[data-id="${CSS.escape(urlId)}"]`);
+        row?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
   } catch (err) {
     showFeedback(err.message, "error");
     document.getElementById("mannams-list").innerHTML =

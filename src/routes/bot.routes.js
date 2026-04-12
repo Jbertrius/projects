@@ -19,7 +19,7 @@ const memberRepo = require("../repositories/member.repository");
 const { appCache } = require("../utils/cache");
 const { AppError } = require("../middleware/errorHandler");
 const { validate, required } = require("../utils/validate");
-const { hasFirestoreConfig, deleteMeetingDocument, refreshDashboardAggregate, upsertPastorIfMissing } = require("../../lib/firestore");
+const { hasFirestoreConfig, deleteMeetingByCalendarEventId, refreshDashboardAggregate, upsertPastorIfMissing } = require("../../lib/firestore");
 const { getAccessToken, fetchJson, getEnv } = require("../../lib/google-auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const { log } = require("../middleware/logger");
@@ -288,14 +288,14 @@ router.delete("/meetings/:id", async (req, res, next) => {
     if (!hasFirestoreConfig()) {
       throw new AppError(503, "La base de donnees n'est pas configuree.");
     }
-    const meetingId = String(req.params.id || "").trim();
-    if (!meetingId) {
-      return res.status(400).json({ ok: false, error: "meetingId is required" });
+    const calendarEventId = String(req.params.id || "").trim();
+    if (!calendarEventId) {
+      return res.status(400).json({ ok: false, error: "calendarEventId is required" });
     }
-    await deleteMeetingDocument(meetingId);
+    await deleteMeetingByCalendarEventId(calendarEventId);
     appCache.invalidate("dashboard");
     appCache.invalidate("dashboard:source");
-    res.json({ ok: true, meetingId });
+    res.json({ ok: true, calendarEventId });
   } catch (error) {
     if (!error.status) error.status = 400;
     next(error);
