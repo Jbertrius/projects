@@ -184,6 +184,95 @@ router.get("/students", requireAuth, async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/academy/classes/:id
+// Full class report: students + lessons + attendance, enriched with per-lesson
+// and per-student stats. Used by classe.html.
+// ---------------------------------------------------------------------------
+router.get("/classes/:id", requireAuth, async (req, res, next) => {
+  try {
+    const classId = String(req.params.id || "").trim();
+    if (!classId) return res.status(400).json({ ok: false, error: "classId is required" });
+
+    const report = await academyRepo.getClassReportById(classId);
+    if (!report) return res.status(404).json({ ok: false, error: "Classe introuvable." });
+
+    const { cls, lessons, students, attendanceRows, allClasses } = report;
+
+    // Index attendance by student_id + lesson_id for O(1) lookup.
+    const attByKey = new Map();
+    for (const row of attendanceRows) {
+      attByKey.set(`${row.lesson_id}__${row.student_id}`, row);
+    }
+
+    // Enrich students: compute per-lesson attendance stats.
+    const enrichedStudents = students.map((student) => {
+      const lessonCount = lessons.length;
+      let presentCount = 0, absentCount = 0, lateCount = 0, excusedCount = 0;
+      for (const lesson of lessons) {
+        const row = attByKey.get(`${lesson.lesson_id}__${student.id}`);
+        const status = row ? row.status : "absent";
+        if (status === "present")       presentCount++;
+        else if (status === "late")     lateCount++;
+        else if (status === "excused")  excusedCount++;
+        else                            absentCount++;
+      }
+      return {
+        ...student,
+        lesson_count:   lessonCount,
+        present_count:  presentCount,
+        absent_count:   absentCount,
+        late_count:     lateCount,
+        excused_count:  excusedCount,
+        presence_rate:  lessonCount > 0 ? Math.round((presentCount / lessonCount) * 100) : 0
+      };
+    });
+
+    // Enrich lessons: count present students per lesson + include per-student attendance detail.
+    const enrichedLessons = lessons.map((lesson) => {
+      const lessonAttRows = attendanceRows.filter((r) => r.lesson_id === lesson.lesson_id);
+      const presentCount = lessonAttRows.filter((r) => r.status === "present").length;
+      const totalStudents = students.length;
+      // Build per-student attendance array for block reconstruction on the client.
+      const attendance = students.map((s) => {
+        const row = attByKey.get(`${lesson.lesson_id}__${s.id}`);
+        return { student_id: s.id, student_name: s.name || s.id, status: row ? row.status : "absent" };
+      });
+      return {
+        ...lesson,
+        present_count:  presentCount,
+        total_students: totalStudents,
+        presence_rate:  totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0,
+        attendance
+      };
+    });
+
+    const avgPresenceRate = enrichedLessons.length > 0
+      ? Math.round(enrichedLessons.reduce((sum, l) => sum + l.presence_rate, 0) / enrichedLessons.length)
+      : 0;
+
+    const allClassesSorted = allClasses
+      .map((c) => ({ id: c.id, name: c.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+
+    res.json({
+      ok: true,
+      class:      cls,
+      students:   enrichedStudents,
+      lessons:    enrichedLessons,
+      stats: {
+        student_count:      students.length,
+        lesson_count:       lessons.length,
+        avg_presence_rate:  avgPresenceRate,
+        total_absences:     enrichedStudents.reduce((sum, s) => sum + s.absent_count, 0)
+      },
+      all_classes: allClassesSorted
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // PATCH /api/academy/students/:id/summit
 // Quick update of GMCS summit status for a student.
 // Body: { status: ""| "verbal"|"inscrit"|"paiement", note?: string }

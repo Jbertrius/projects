@@ -1022,12 +1022,23 @@ async function renderClassesChart(items) {
 
   await mountChart("academyClasses", "academy-classes-chart", {
     ...getChartBaseOptions(),
-    chart: { ...getChartBaseOptions().chart, type: "bar", height: 320 },
+    chart: {
+      ...getChartBaseOptions().chart,
+      type: "bar",
+      height: 320,
+      cursor: "pointer",
+      events: {
+        dataPointSelection: (_e, _ctx, config) => {
+          const item = items[config.dataPointIndex];
+          if (item?.id) window.location.href = `/classe.html?id=${encodeURIComponent(item.id)}`;
+        }
+      }
+    },
     series: [{ name: "Presence", data: items.map((item) => item.rate) }],
     plotOptions: { bar: { horizontal: true, borderRadius: 8, barHeight: "52%" } },
     colors: ["#2589c8"],
     xaxis: { categories: items.map((item) => item.name), max: 100 },
-    tooltip: { theme: "light", y: { formatter: (value) => `${value}% de presence` } },
+    tooltip: { theme: "light", y: { formatter: (value) => `${value}% — cliquer pour details` } },
     legend: { show: false }
   });
 }

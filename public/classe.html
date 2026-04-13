@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Classe — Academie DMD</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      /* ── Page-level token overrides ─────────────────────────────────── */
+      .classe-page {
+        --cl-hero-bg:
+          radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 38%),
+          radial-gradient(circle at top right, rgba(14, 116, 144, 0.13), transparent 34%),
+          linear-gradient(180deg, rgba(248, 250, 252, 0.99), rgba(239, 246, 255, 0.94));
+        --cl-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.07);
+        --cl-soft-border: rgba(148, 163, 184, 0.22);
+        --cl-accent: #2563eb;
+      }
+
+      .classe-page .page-shell { background: var(--cl-hero-bg); }
+      .classe-page .dashboard  { display: grid; gap: 22px; }
+
+      /* ── Hero top-bar ─────────────────────────────────────────────── */
+      .classe-page .top-bar {
+        position: relative;
+        overflow: hidden;
+        padding: 28px 30px;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background:
+          radial-gradient(circle at right -20% top, rgba(14, 165, 233, 0.22), transparent 36%),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(239, 246, 255, 0.92));
+        box-shadow: var(--cl-card-shadow);
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: flex-start;
+      }
+
+      .classe-page .top-bar::after {
+        content: "";
+        position: absolute;
+        inset: auto -60px -60px auto;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.2), transparent 70%);
+        pointer-events: none;
+      }
+
+      .classe-page .top-bar > div:first-child { flex: 1 1 260px; }
+
+      #classe-title {
+        margin: 6px 0 0;
+        font-family: "Sora", sans-serif;
+        font-size: clamp(1.7rem, 3vw, 2.5rem);
+        line-height: 1.08;
+        color: #0f172a;
+      }
+
+      .classe-page .top-bar .section-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.8);
+        color: #0f4c5c;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .classe-page .top-bar-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 14px 18px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(10px);
+      }
+
+      /* ── KPI grid ──────────────────────────────────────────────────── */
+      .classe-page .kpi-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .classe-page .kpi-card {
+        position: relative;
+        overflow: hidden;
+        padding: 20px 22px;
+        border-radius: 26px;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), var(--cl-card-shadow);
+        transition: transform .2s ease, box-shadow .2s ease;
+      }
+
+      .classe-page .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.1);
+      }
+
+      .classe-page .kpi-card .section-label {
+        color: #64748b;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+
+      .classe-page .kpi-value {
+        margin: 10px 0 6px;
+        font-family: "Sora", sans-serif;
+        font-size: 2.1rem;
+        line-height: 1;
+        color: #0f172a;
+      }
+
+      .classe-page .kpi-delta {
+        font-size: 0.83rem;
+        color: #64748b;
+      }
+
+      .classe-page .kpi-delta.tone-positive { color: #16a34a; }
+      .classe-page .kpi-delta.tone-warning   { color: #b45309; }
+      .classe-page .kpi-delta.tone-neutral   { color: #64748b; }
+
+      /* ── Feature grid cards ─────────────────────────────────────────── */
+      .classe-page .feature-grid .card,
+      .classe-page .feature-grid-wide .card {
+        padding: 22px;
+        border-radius: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--cl-card-shadow);
+      }
+
+      .classe-page .card-head h3 {
+        font-family: "Sora", sans-serif;
+        font-size: 1.1rem;
+        color: #0f172a;
+        margin: 0;
+      }
+
+      .classe-page .card-head .section-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--cl-accent);
+      }
+
+      /* ── Table refinements ──────────────────────────────────────────── */
+      .classe-page .table-wrap {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid var(--cl-soft-border);
+        margin-top: 14px;
+      }
+
+      .classe-page table thead tr {
+        background: rgba(241, 245, 249, 0.95);
+      }
+
+      .classe-page table thead th {
+        padding: 14px 16px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #475569;
+        border-bottom: 1px solid var(--cl-soft-border);
+      }
+
+      .classe-page table tbody tr {
+        transition: background .15s ease;
+      }
+
+      .classe-page table tbody tr:hover {
+        background: rgba(241, 245, 249, 0.8);
+      }
+
+      .classe-page table tbody td {
+        padding: 13px 16px;
+        font-size: 0.9rem;
+        color: #1e293b;
+        border-bottom: 1px solid rgba(241, 245, 249, 0.9);
+      }
+
+      .classe-page table tbody tr:last-child td { border-bottom: none; }
+
+      /* ── Search & sort row ──────────────────────────────────────────── */
+      .classe-page .card-head .top-bar-actions {
+        padding: 8px 10px;
+        background: rgba(248, 250, 252, 0.85);
+        border-radius: 16px;
+        border: 1px solid var(--cl-soft-border);
+      }
+
+      /* ── Lesson entry panel ─────────────────────────────────────────── */
+      .classe-page .academy-entry-card {
+        padding: 22px;
+        border-radius: 28px;
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        background: linear-gradient(180deg, rgba(245, 243, 255, 0.98), rgba(237, 233, 254, 0.82));
+        box-shadow: 0 18px 40px rgba(139, 92, 246, 0.08);
+      }
+
+      .classe-page .academy-entry-card .card-head h3 {
+        color: #4c1d95;
+      }
+
+      .classe-page .academy-entry-card .card-head .section-label {
+        color: #7c3aed;
+      }
+
+      .classe-page .academy-entry-card .card-head .top-bar-actions {
+        background: rgba(255, 255, 255, 0.78);
+        border-color: rgba(139, 92, 246, 0.2);
+      }
+
+      .classe-page .academy-entry-card .primary-action {
+        background: linear-gradient(135deg, #7c3aed, #4c1d95);
+        box-shadow: 0 12px 24px rgba(124, 58, 237, 0.22);
+      }
+
+      .classe-page .academy-entry-card .academy-entry-textarea {
+        border-radius: 18px;
+        border: 1.5px solid rgba(139, 92, 246, 0.25);
+        background: rgba(255, 255, 255, 0.9);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        transition: border-color .2s ease, box-shadow .2s ease;
+      }
+
+      .classe-page .academy-entry-card .academy-entry-textarea:focus {
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14);
+        outline: none;
+      }
+
+      .classe-page .academy-lesson-item {
+        border-radius: 18px;
+        border: 1px solid rgba(139, 92, 246, 0.15);
+        background: rgba(255, 255, 255, 0.8);
+        transition: box-shadow .2s ease;
+      }
+
+      .classe-page .academy-lesson-item:hover {
+        box-shadow: 0 8px 24px rgba(139, 92, 246, 0.12);
+      }
+
+      .classe-page .validation-issues .validation-issue {
+        border-radius: 10px;
+        background: rgba(254, 242, 242, 0.9);
+        border-left: 3px solid #dc2626;
+      }
+
+      /* ── Empty & responsive ─────────────────────────────────────────── */
+      .classe-page .empty-state {
+        padding: 52px 24px;
+        border-radius: 18px;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        background: rgba(248, 250, 252, 0.9);
+        text-align: center;
+        color: #64748b;
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 900px) {
+        .classe-page .kpi-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .classe-page .top-bar {
+          padding: 20px;
+          border-radius: 24px;
+        }
+
+        .classe-page .kpi-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .classe-page .kpi-value {
+          font-size: 1.75rem;
+        }
+      }
+    </style>
+  </head>
+  <body class="classe-page">
+    <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="app-sidebar">menu</button>
+    <div class="sidebar-overlay" aria-hidden="true"></div>
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Academie DMD</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav" aria-label="Navigation DMD">
+          <p class="nav-section-label">Navigation DMD</p>
+          <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link is-active" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <nav class="sidebar-nav" aria-label="Dans cette classe">
+          <p class="nav-section-label">Dans cette classe</p>
+          <button class="nav-item" type="button" data-target="classe-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Vue generale</span></button>
+          <button class="nav-item" type="button" data-target="classe-presences"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Presences</span></button>
+          <button class="nav-item" type="button" data-target="classe-students"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Etudiants</span></button>
+          <button class="nav-item" type="button" data-target="classe-lessons"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_book</span><span>Lecons</span></button>
+          <button class="nav-item" type="button" data-target="classe-entry-panel"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_note</span><span>Saisir</span></button>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">arrow_back</span><span>Vue academie</span></a>
+        </nav>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+
+          <!-- Top bar / Hero -->
+          <section class="top-bar" id="classe-top">
+            <div>
+              <p class="section-label"><span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">school</span> Academie &mdash; Analyse par classe</p>
+              <h2 id="classe-title">Chargement...</h2>
+            </div>
+            <div class="top-bar-actions">
+              <div class="filter-group">
+                <label class="filter-label" for="classe-selector">Classe</label>
+                <select id="classe-selector" class="filter-control">
+                  <option value="">Choisir une classe...</option>
+                </select>
+              </div>
+              <div class="sync-pill" id="classe-refresh-label">Chargement...</div>
+              <button class="secondary-action compact-action" id="classe-refresh" type="button">Actualiser</button>
+            </div>
+          </section>
+
+          <!-- KPIs -->
+          <section class="kpi-grid" id="classe-kpis"></section>
+
+          <!-- Presence chart -->
+          <section class="feature-grid feature-grid-wide" id="classe-presences">
+            <article class="card chart-card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label"><span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">monitoring</span> Presences</p>
+                  <h3>Evolution par lecon</h3>
+                </div>
+                <p class="muted" id="classe-chart-subtitle">Nombre de presents par seance</p>
+              </div>
+              <div id="classe-presence-chart" class="trend-chart"></div>
+            </article>
+
+            <article class="card chart-card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label"><span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">donut_large</span> Repartition</p>
+                  <h3>Statuts de presence</h3>
+                </div>
+                <p class="muted">Vue synthetique de la classe</p>
+              </div>
+              <div id="classe-status-chart" class="activity-chart"></div>
+            </article>
+          </section>
+
+          <!-- Students table -->
+          <section class="feature-grid" id="classe-students">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label"><span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">groups</span> Etudiants</p>
+                  <h3>Suivi individuel</h3>
+                </div>
+                <div class="top-bar-actions">
+                  <div class="filter-group">
+                    <input id="classe-students-search" class="filter-control" type="search" placeholder="Rechercher un etudiant..." />
+                  </div>
+                  <select id="classe-students-sort" class="filter-control">
+                    <option value="name_asc">Nom (A-Z)</option>
+                    <option value="present_desc">Presences (desc)</option>
+                    <option value="absent_desc">Absences (desc)</option>
+                    <option value="rate_desc">Taux (desc)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Etudiant</th>
+                      <th>Statut</th>
+                      <th class="text-right">Present</th>
+                      <th class="text-right">Absent</th>
+                      <th class="text-right">Retard</th>
+                      <th class="text-right">Taux</th>
+                    </tr>
+                  </thead>
+                  <tbody id="classe-students-table"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <!-- Lessons table -->
+          <section class="feature-grid" id="classe-lessons">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="section-label"><span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">menu_book</span> Lecons</p>
+                  <h3>Historique des seances</h3>
+                </div>
+                <p class="muted" id="classe-lessons-count"></p>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Titre de la lecon</th>
+                      <th class="text-right">Presents</th>
+                      <th class="text-right">Taux</th>
+                    </tr>
+                  </thead>
+                  <tbody id="classe-lessons-table"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <!-- Lesson entry panel -->
+          <section class="card academy-entry-card academy-entry-card-secondary" id="classe-entry-panel">
+            <div class="card-head">
+              <div>
+                <p class="section-label"><span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">edit_note</span> Saisie</p>
+                <h3>Enregistrer une lecon</h3>
+              </div>
+              <div class="top-bar-actions">
+                <button class="secondary-action compact-action" id="classe-open-entry" type="button">Nouvelle lecon</button>
+                <button class="secondary-action compact-action" id="classe-toggle-entry" type="button" aria-expanded="false">Afficher le formulaire</button>
+              </div>
+            </div>
+
+            <div class="academy-entry-body" id="classe-entry-body" hidden>
+              <div class="academy-entry-grid">
+                <div class="filter-group">
+                  <label class="filter-label" for="classe-entry-date">Date (optionnelle)</label>
+                  <input id="classe-entry-date" class="filter-control" type="date" />
+                </div>
+                <label class="academy-entry-option" for="classe-entry-replace">
+                  <input id="classe-entry-replace" type="checkbox" />
+                  <span>Remplacer la lecon si elle existe deja</span>
+                </label>
+              </div>
+
+              <div class="filter-group academy-textarea-group">
+                <label class="filter-label" for="classe-entry-text">Bloc de presence</label>
+                <textarea id="classe-entry-text" class="academy-entry-textarea" rows="12"></textarea>
+              </div>
+
+              <div class="academy-entry-validation" id="classe-entry-validation"></div>
+
+              <div class="hero-actions academy-entry-actions">
+                <button class="primary-action compact-action" id="classe-validate-entry" type="button">Verifier</button>
+                <button class="secondary-action compact-action" id="classe-save-entry" type="button">Enregistrer</button>
+                <button class="secondary-action compact-action" id="classe-delete-entry" type="button">Supprimer la lecon</button>
+                <button class="secondary-action compact-action" id="classe-clear-entry" type="button">Vider</button>
+              </div>
+
+              <!-- Lesson library for this class -->
+              <section class="academy-lesson-library">
+                <div class="card-head academy-lesson-library-head">
+                  <div>
+                    <p class="section-label">Lecons enregistrees</p>
+                    <h3>Charger ou supprimer une lecon existante</h3>
+                  </div>
+                </div>
+                <div class="academy-lesson-list" id="classe-lesson-library"></div>
+              </section>
+            </div>
+          </section>
+
+        </main>
+
+        <div id="app-feedback" class="app-feedback" hidden></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
+    <script src="/classe.js" defer></script>
+  </body>
+</html>

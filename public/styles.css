@@ -1157,6 +1157,20 @@ th {
   z-index: 1;
 }
 
+.text-right {
+  text-align: right;
+}
+
+.table-student-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.table-student-link:hover strong {
+  color: var(--sky-deep);
+  text-decoration: underline;
+}
+
 .status-pill {
   display: inline-flex;
   border-radius: 999px;

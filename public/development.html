@@ -13,7 +13,554 @@
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="development-page">
+    <style>
+      .development-page {
+        --dev-hero-bg:
+          radial-gradient(circle at top left, rgba(20, 121, 100, 0.15), transparent 36%),
+          radial-gradient(circle at top right, rgba(14, 116, 144, 0.12), transparent 34%),
+          linear-gradient(180deg, rgba(248, 250, 252, 0.99), rgba(239, 246, 255, 0.94));
+        --dev-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.07);
+        --dev-soft-border: rgba(148, 163, 184, 0.22);
+        --dev-accent: #0c5949;
+      }
+
+      .development-page .page-shell { background: var(--dev-hero-bg); }
+      .development-page .dashboard { display: grid; gap: 22px; }
+
+      /* Centres section header */
+      #development-centres {
+        margin-top: 0;
+        display: grid;
+        gap: 22px;
+      }
+
+      .centres-header {
+        position: relative;
+        overflow: hidden;
+        padding: 28px 30px;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background:
+          radial-gradient(circle at right -20% top, rgba(20, 121, 100, 0.18), transparent 36%),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(239, 246, 255, 0.92));
+        box-shadow: var(--dev-card-shadow);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .centres-header::after {
+        content: "";
+        position: absolute;
+        inset: auto -60px -60px auto;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 70%);
+        pointer-events: none;
+      }
+
+      .centres-header-copy {
+        flex: 1 1 240px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .centres-header-copy .section-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.8);
+        color: var(--dev-accent);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .centres-header-copy h2 {
+        margin: 8px 0 6px;
+        font-family: "Sora", sans-serif;
+        font-size: clamp(1.5rem, 2.5vw, 2rem);
+        line-height: 1.08;
+        color: #0f172a;
+      }
+
+      .centres-header-copy p {
+        margin: 0;
+        color: #475569;
+        font-size: 0.92rem;
+        line-height: 1.6;
+      }
+
+      .centres-header-actions {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .centres-header-actions button {
+        min-height: 42px;
+        padding-inline: 16px;
+        border-radius: 999px;
+        font-weight: 700;
+      }
+
+      /* Centres grid */
+      #centres-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 18px;
+      }
+
+      .centre-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.93));
+        box-shadow: var(--dev-card-shadow);
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .centre-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.1);
+      }
+
+      .centre-card-header {
+        padding: 22px;
+        background: linear-gradient(135deg, rgba(20, 121, 100, 0.08), rgba(255, 255, 255, 0));
+      }
+
+      .centre-card-title-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .centre-card-title {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .centre-card-label {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: rgba(20, 121, 100, 0.15);
+        color: var(--dev-accent);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        width: fit-content;
+      }
+
+      .centre-card-name {
+        margin: 0;
+        font-family: "Sora", sans-serif;
+        font-size: 1.15rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #0f172a;
+      }
+
+      .centre-card-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 16px;
+        background: rgba(20, 121, 100, 0.12);
+        color: var(--dev-accent);
+        flex-shrink: 0;
+      }
+
+      .centre-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 10px 0 0;
+        font-size: 0.85rem;
+        color: var(--dev-accent);
+        font-weight: 600;
+      }
+
+      .centre-card-meta span:first-child {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+      }
+
+      .centre-card-instructor {
+        margin-top: 8px;
+        font-size: 0.82rem;
+        color: #64748b;
+      }
+
+      .centre-card-instructor span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .centre-card-stats {
+        padding: 16px 22px;
+        border-top: 1px solid rgba(20, 121, 100, 0.1);
+        display: flex;
+        justify-content: space-around;
+        gap: 12px;
+      }
+
+      .centre-card-stat {
+        flex: 1;
+        text-align: center;
+      }
+
+      .centre-card-stat-value {
+        display: block;
+        font-family: "Sora", sans-serif;
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        color: #0f172a;
+        line-height: 1;
+      }
+
+      .centre-card-stat-label {
+        display: block;
+        margin-top: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .centre-card-students {
+        padding: 14px 22px;
+        border-top: 1px solid rgba(20, 121, 100, 0.1);
+      }
+
+      .centre-card-students-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 10px;
+      }
+
+      .centre-card-students-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .centre-student-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(20, 121, 100, 0.08);
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .centre-student-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(20, 121, 100, 0.18);
+        color: var(--dev-accent);
+        font-size: 0.65rem;
+        font-weight: 800;
+        flex-shrink: 0;
+      }
+
+      .centre-card-actions {
+        padding: 14px 22px 18px;
+        border-top: 1px solid rgba(20, 121, 100, 0.1);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .centre-card-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 14px;
+        background: rgba(20, 121, 100, 0.1);
+        color: var(--dev-accent);
+        border: 1px solid rgba(20, 121, 100, 0.2);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .centre-card-action:hover {
+        background: rgba(20, 121, 100, 0.16);
+        box-shadow: 0 6px 16px rgba(20, 121, 100, 0.12);
+      }
+
+      .centre-card-action span {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.9rem;
+      }
+
+      /* Loading state */
+      #centres-loading {
+        padding: 48px 24px;
+        text-align: center;
+        color: #64748b;
+        border-radius: 18px;
+        border: 1px dashed var(--dev-soft-border);
+        background: rgba(248, 250, 252, 0.9);
+      }
+
+      /* Empty state */
+      #centres-empty {
+        padding: 60px 24px;
+        text-align: center;
+        color: #64748b;
+        border-radius: 24px;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        background: rgba(248, 250, 252, 0.9);
+      }
+
+      #centres-empty span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        margin-bottom: 14px;
+        opacity: 0.6;
+      }
+
+      /* Detail panel */
+      #centre-detail {
+        margin-top: 0;
+      }
+
+      .centre-detail-panel {
+        border-radius: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--dev-card-shadow);
+        padding: 24px;
+      }
+
+      .centre-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .centre-detail-title {
+        flex: 1;
+      }
+
+      .centre-detail-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dev-accent);
+        margin-bottom: 4px;
+      }
+
+      .centre-detail-name {
+        margin: 0;
+        font-family: "Sora", sans-serif;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #0f172a;
+      }
+
+      .centre-detail-church {
+        margin-top: 4px;
+        font-size: 0.9rem;
+        color: #64748b;
+      }
+
+      .centre-detail-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .centre-detail-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+        padding: 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(20, 121, 100, 0.1);
+        background: rgba(248, 250, 252, 0.9);
+      }
+
+      .centre-detail-kpi {
+        text-align: center;
+      }
+
+      .centre-detail-kpi-value {
+        display: block;
+        font-family: "Sora", sans-serif;
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        color: var(--dev-accent);
+        line-height: 1;
+      }
+
+      .centre-detail-kpi-label {
+        display: block;
+        margin-top: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .centre-detail-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      .centre-detail-subsection {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--dev-soft-border);
+        background: rgba(248, 250, 252, 0.95);
+      }
+
+      .centre-detail-subsection-label {
+        margin-bottom: 12px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .centre-detail-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+
+      .centre-detail-table thead tr {
+        text-align: left;
+        color: #64748b;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+      }
+
+      .centre-detail-table th {
+        padding: 8px 6px;
+        border-bottom: 1px solid var(--dev-soft-border);
+      }
+
+      .centre-detail-table td {
+        padding: 8px 6px;
+        border-bottom: 1px solid rgba(20, 121, 100, 0.06);
+      }
+
+      .centre-detail-table tbody tr:hover {
+        background: rgba(20, 121, 100, 0.04);
+      }
+
+      .centre-student-stats {
+        display: grid;
+        gap: 8px;
+      }
+
+      .centre-student-stat {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(20, 121, 100, 0.06);
+        border-left: 3px solid rgba(20, 121, 100, 0.2);
+      }
+
+      .centre-student-stat-name {
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .centre-student-stat-detail {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 2px;
+      }
+
+      @media (max-width: 1000px) {
+        .centre-detail-section {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 700px) {
+        .centres-header {
+          padding: 20px;
+          border-radius: 24px;
+        }
+
+        .centres-header-copy h2 {
+          font-size: 1.4rem;
+        }
+
+        #centres-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .centre-detail-header {
+          flex-direction: column;
+        }
+
+        .centre-detail-actions {
+          width: 100%;
+        }
+
+        .centre-detail-kpis {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+
     <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="app-sidebar">menu</button>
     <div class="sidebar-overlay" aria-hidden="true"></div>
     <div class="app-shell">
@@ -117,27 +664,29 @@
           </section>
 
           <!-- Centres missionnaires -->
-          <section id="development-centres" style="margin-top:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
-              <div>
-                <p class="section-label">Developpement</p>
-                <h2 style="font-family:'Sora',sans-serif;font-size:clamp(1.3rem,2.2vw,1.8rem);font-weight:800;letter-spacing:-0.04em;margin-bottom:4px">Centres missionnaires</h2>
-                <p class="muted" style="font-size:0.92rem">Classes academiques implantees dans des eglises partenaires. Ces centres sont geres independamment de l'academie centrale.</p>
+          <section id="development-centres">
+            <div class="centres-header">
+              <div class="centres-header-copy">
+                <span class="section-label"><span class="material-symbols-rounded" style="font-size:14px;vertical-align:middle">location_city</span> Developpement</span>
+                <h2>Centres missionnaires</h2>
+                <p>Classes academiques implantees dans des eglises partenaires. Ces centres sont geres independamment de l'academie centrale.</p>
               </div>
-              <button class="secondary-action compact-action" type="button" id="btn-refresh-centres">Actualiser</button>
+              <div class="centres-header-actions">
+                <button class="secondary-action compact-action" type="button" id="btn-refresh-centres">Actualiser</button>
+              </div>
             </div>
 
-            <div id="centres-loading" style="padding:32px;text-align:center;color:var(--muted)">Chargement des centres…</div>
-            <div id="centres-grid" hidden style="gap:18px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
-            <div id="centres-empty" hidden style="padding:40px;text-align:center;color:var(--muted)">
-              <span class="material-symbols-rounded" style="font-size:2rem;display:block;margin-bottom:10px">location_city</span>
-              Aucun centre missionnaire detecte. Les centres correspondent aux classes academiques avec une eglise partenaire renseignee.
+            <div id="centres-loading">Chargement des centres…</div>
+            <div id="centres-grid" hidden></div>
+            <div id="centres-empty" hidden>
+              <span class="material-symbols-rounded">location_city</span>
+              <p>Aucun centre missionnaire detecte. Les centres correspondent aux classes academiques avec une eglise partenaire renseignee.</p>
             </div>
 
-            <section id="centre-detail" hidden style="margin-top:18px">
-              <article class="card" style="padding:18px 20px;border-radius:20px;border:1px solid rgba(255,255,255,0.7);box-shadow:0 12px 34px rgba(17,59,84,0.08)">
+            <section id="centre-detail" hidden>
+              <div class="centre-detail-panel">
                 <div id="centre-detail-content" class="muted">Clique sur une carte centre missionnaire pour voir son dashboard detaille.</div>
-              </article>
+              </div>
             </section>
           </section>
         </main>

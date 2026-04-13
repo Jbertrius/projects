@@ -108,55 +108,77 @@ function renderCentreDetail(centre) {
       <td>${lesson.late}</td>
       <td>${lesson.total}</td>
     </tr>
-  `).join("") || `<tr><td colspan="6" class="muted">Aucune lecon enregistree.</td></tr>`;
+  `).join("") || `<tr><td colspan="6">Aucune lecon enregistree.</td></tr>`;
 
   const studentStats = buildStudentStats(rows).slice(0, 8);
   const studentCards = studentStats.map((student) => `
-    <div style="padding:10px 12px;border-radius:12px;background:rgba(16,51,71,0.05);border:1px solid rgba(16,51,71,0.08)">
-      <div style="font-weight:700;color:#12314a">${student.name}</div>
-      <div style="font-size:0.8rem;color:var(--muted);margin-top:2px">${student.present}/${student.total} presences (${student.rate}%)</div>
+    <div class="centre-student-stat">
+      <div class="centre-student-stat-name">${student.name}</div>
+      <div class="centre-student-stat-detail">${student.present}/${student.total} presences (${student.rate}%)</div>
     </div>
   `).join("") || `<p class="muted">Aucune statistique etudiant disponible.</p>`;
 
   container.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px">
-      <div>
-        <p class="section-label">Dashboard centre</p>
-        <h3 style="font-family:'Sora',sans-serif;font-size:1.22rem;font-weight:800;letter-spacing:-0.03em;color:#12314a;margin:0">${centre.name || "Centre"}</h3>
-        <p class="muted" style="margin-top:4px">${centre.church_name || ""}${centre.instructor_name ? ` • ${centre.instructor_name}` : ""}</p>
+    <div class="centre-detail-header">
+      <div class="centre-detail-title">
+        <p class="centre-detail-label">Dashboard centre</p>
+        <h3 class="centre-detail-name">${centre.name || "Centre"}</h3>
+        <p class="centre-detail-church">${centre.church_name || ""}${centre.instructor_name ? ` • ${centre.instructor_name}` : ""}</p>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a class="secondary-action compact-action" href="/mission-lessons.html?class=${encodeURIComponent(centre.id || "")}">CRUD lecons/attendances</a>
-        <a class="secondary-action compact-action" href="/academy-students.html?class=${encodeURIComponent(centre.id || "")}">Ouvrir fiches etudiants</a>
+      <div class="centre-detail-actions">
+        <a class="secondary-action compact-action" href="/mission-lessons.html?class=${encodeURIComponent(centre.id || "")}">
+          <span class="material-symbols-rounded">edit_note</span> CRUD lecons
+        </a>
+        <a class="secondary-action compact-action" href="/academy-students.html?class=${encodeURIComponent(centre.id || "")}">
+          <span class="material-symbols-rounded">group</span> Fiches etudiants
+        </a>
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
-      <div style="padding:10px 12px;border-radius:12px;background:rgba(20,121,100,0.08)"><div style="font-size:1.2rem;font-weight:800;color:#0c5949">${registeredStudents.length}</div><div style="font-size:0.76rem;color:#0c5949">Etudiants inscrits</div></div>
-      <div style="padding:10px 12px;border-radius:12px;background:rgba(81,183,234,0.11)"><div style="font-size:1.2rem;font-weight:800;color:#1e5f8a">${centre.lessonCount}</div><div style="font-size:0.76rem;color:#1e5f8a">Lecons</div></div>
-      <div style="padding:10px 12px;border-radius:12px;background:rgba(20,121,100,0.08)"><div style="font-size:1.2rem;font-weight:800;color:#0c5949">${present}</div><div style="font-size:0.76rem;color:#0c5949">Presences</div></div>
-      <div style="padding:10px 12px;border-radius:12px;background:rgba(245,195,44,0.17)"><div style="font-size:1.2rem;font-weight:800;color:#7a5c00">${late}</div><div style="font-size:0.76rem;color:#7a5c00">Retards</div></div>
-      <div style="padding:10px 12px;border-radius:12px;background:rgba(220,38,38,0.11)"><div style="font-size:1.2rem;font-weight:800;color:#9f1239">${absent}</div><div style="font-size:0.76rem;color:#9f1239">Absences</div></div>
-      <div style="padding:10px 12px;border-radius:12px;background:rgba(16,51,71,0.08)"><div style="font-size:1.2rem;font-weight:800;color:#12314a">${presenceRate}%</div><div style="font-size:0.76rem;color:#12314a">Taux presence</div></div>
+    <div class="centre-detail-kpis">
+      <div class="centre-detail-kpi">
+        <span class="centre-detail-kpi-value">${registeredStudents.length}</span>
+        <span class="centre-detail-kpi-label">Etudiants inscrits</span>
+      </div>
+      <div class="centre-detail-kpi">
+        <span class="centre-detail-kpi-value">${centre.lessonCount}</span>
+        <span class="centre-detail-kpi-label">Lecons</span>
+      </div>
+      <div class="centre-detail-kpi">
+        <span class="centre-detail-kpi-value">${present}</span>
+        <span class="centre-detail-kpi-label">Presences</span>
+      </div>
+      <div class="centre-detail-kpi">
+        <span class="centre-detail-kpi-value">${late}</span>
+        <span class="centre-detail-kpi-label">Retards</span>
+      </div>
+      <div class="centre-detail-kpi">
+        <span class="centre-detail-kpi-value">${absent}</span>
+        <span class="centre-detail-kpi-label">Absences</span>
+      </div>
+      <div class="centre-detail-kpi">
+        <span class="centre-detail-kpi-value">${presenceRate}%</span>
+        <span class="centre-detail-kpi-label">Taux presence</span>
+      </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:14px">
-      <div style="padding:12px;border-radius:12px;border:1px solid rgba(16,51,71,0.08);background:rgba(255,255,255,0.9)">
-        <p class="section-label" style="margin-bottom:8px">Dernieres lecons</p>
-        <div style="overflow:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+    <div class="centre-detail-section">
+      <div class="centre-detail-subsection">
+        <p class="centre-detail-subsection-label">Dernieres lecons</p>
+        <div style="overflow-x:auto">
+          <table class="centre-detail-table">
             <thead>
-              <tr style="text-align:left;color:var(--muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em">
-                <th style="padding:6px 4px">Lecon</th><th style="padding:6px 4px">Date</th><th style="padding:6px 4px">P</th><th style="padding:6px 4px">A</th><th style="padding:6px 4px">R</th><th style="padding:6px 4px">Tot</th>
+              <tr>
+                <th>Lecon</th><th>Date</th><th>P</th><th>A</th><th>R</th><th>Tot</th>
               </tr>
             </thead>
             <tbody>${lessonsRows}</tbody>
           </table>
         </div>
       </div>
-      <div style="padding:12px;border-radius:12px;border:1px solid rgba(16,51,71,0.08);background:rgba(255,255,255,0.9)">
-        <p class="section-label" style="margin-bottom:8px">Top etudiants (presence)</p>
-        <div style="display:grid;gap:8px">${studentCards}</div>
+      <div class="centre-detail-subsection">
+        <p class="centre-detail-subsection-label">Top etudiants (presence)</p>
+        <div class="centre-student-stats">${studentCards}</div>
       </div>
     </div>
   `;
@@ -252,68 +274,70 @@ function renderCentres(centres) {
   }
 
   if (empty) empty.hidden = true;
-  if (grid) { grid.hidden = false; grid.style.display = "grid"; }
+  if (grid) grid.hidden = false;
 
   grid.innerHTML = centres.map((centre) => {
     const registeredStudents = centre.students.filter((s) => s.is_registered !== false);
     const studentList = registeredStudents.slice(0, 6).map((s) =>
-      `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(16,51,71,0.06);font-size:0.78rem;font-weight:600">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(20,121,100,0.15);color:#0c5949;font-size:0.65rem;font-weight:800">${getInitials(s.name)}</span>
+      `<span class="centre-student-badge">
+        <span class="centre-student-avatar">${getInitials(s.name)}</span>
         ${s.name}
       </span>`
     ).join("");
     const more = registeredStudents.length > 6
-      ? `<span style="padding:4px 10px;border-radius:999px;background:rgba(16,51,71,0.06);font-size:0.78rem;color:var(--muted)">+${registeredStudents.length - 6} autres</span>`
+      ? `<span class="centre-student-badge"><span style="flex:1">${registeredStudents.length - 6} autres</span></span>`
       : "";
 
     return `
-      <article class="centre-card" data-class-id="${centre.id}" style="border-radius:20px;border:1px solid rgba(255,255,255,0.7);background:rgba(255,255,255,0.92);box-shadow:0 12px 36px rgba(17,59,84,0.08);overflow:hidden;cursor:pointer">
-        <div style="padding:20px 22px 16px;background:linear-gradient(135deg,rgba(20,121,100,0.07),rgba(255,255,255,0))">
-          <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px">
-            <div>
-              <p style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-bottom:4px">Centre missionnaire</p>
-              <h3 style="font-family:'Sora',sans-serif;font-size:1.05rem;font-weight:800;letter-spacing:-0.03em;color:#12314a;margin:0">${centre.name || "—"}</h3>
+      <article class="centre-card" data-class-id="${centre.id}">
+        <div class="centre-card-header">
+          <div class="centre-card-title-wrap">
+            <div class="centre-card-title">
+              <span class="centre-card-label">Centre missionnaire</span>
+              <h3 class="centre-card-name">${centre.name || "—"}</h3>
             </div>
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:14px;background:rgba(20,121,100,0.1);flex-shrink:0">
-              <span class="material-symbols-rounded" style="font-size:1.2rem;color:#0c5949">church</span>
+            <span class="centre-card-icon">
+              <span class="material-symbols-rounded">church</span>
             </span>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#0c5949;font-weight:600">
-            <span class="material-symbols-rounded" style="font-size:1rem">location_on</span>
+          <div class="centre-card-meta">
+            <span class="material-symbols-rounded">location_on</span>
             ${centre.church_name}
           </div>
-          ${centre.instructor_name ? `<div style="margin-top:6px;font-size:0.82rem;color:var(--muted)"><span class="material-symbols-rounded" style="font-size:0.9rem;vertical-align:-3px">person</span> ${centre.instructor_name}</div>` : ""}
+          ${centre.instructor_name ? `<div class="centre-card-instructor"><span><span class="material-symbols-rounded">person</span> ${centre.instructor_name}</span></div>` : ""}
         </div>
 
-        <div style="padding:14px 22px;border-top:1px solid rgba(16,51,71,0.07);display:flex;gap:18px">
-          <div style="text-align:center">
-            <div style="font-family:'Sora',sans-serif;font-size:1.35rem;font-weight:800;letter-spacing:-0.05em;color:#12314a">${registeredStudents.length}</div>
-            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">etudiants</div>
+        <div class="centre-card-stats">
+          <div class="centre-card-stat">
+            <span class="centre-card-stat-value">${registeredStudents.length}</span>
+            <span class="centre-card-stat-label">Etudiants</span>
           </div>
-          <div style="text-align:center">
-            <div style="font-family:'Sora',sans-serif;font-size:1.35rem;font-weight:800;letter-spacing:-0.05em;color:#12314a">${centre.lessonCount}</div>
-            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">lecons</div>
+          <div class="centre-card-stat">
+            <span class="centre-card-stat-value">${centre.lessonCount}</span>
+            <span class="centre-card-stat-label">Lecons</span>
           </div>
-          <div style="text-align:center">
-            <div style="font-size:0.88rem;font-weight:600;color:#12314a">${formatDate(centre.lastLessonDate)}</div>
-            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">derniere lecon</div>
+          <div class="centre-card-stat">
+            <span class="centre-card-stat-value">${formatDate(centre.lastLessonDate)}</span>
+            <span class="centre-card-stat-label">Derniere</span>
           </div>
         </div>
 
         ${registeredStudents.length ? `
-        <div style="padding:14px 22px 18px;border-top:1px solid rgba(16,51,71,0.07)">
-          <p style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:10px">Etudiants</p>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${studentList}${more}</div>
+        <div class="centre-card-students">
+          <p class="centre-card-students-label">Etudiants</p>
+          <div class="centre-card-students-list">${studentList}${more}</div>
         </div>` : ""}
-        <div style="padding:12px 22px 16px;border-top:1px solid rgba(16,51,71,0.07);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">
-          <a class="centre-card-action secondary-action compact-action" href="/mission-lessons.html?class=${encodeURIComponent(centre.id || "")}" style="font-size:0.78rem;text-decoration:none">
-            <span class="material-symbols-rounded" aria-hidden="true" style="font-size:0.9rem">edit_note</span>
+        
+        <div class="centre-card-actions">
+          <a class="centre-card-action" href="/mission-lessons.html?class=${encodeURIComponent(centre.id || "")}">
+            <span class="material-symbols-rounded">edit_note</span>
             CRUD lecons
           </a>
         </div>
       </article>`;
   }).join("");
 
+  // Handle card selection
   grid.querySelectorAll(".centre-card").forEach((card) => {
     card.addEventListener("click", (event) => {
       if (event.target.closest(".centre-card-action")) return;
@@ -321,21 +345,24 @@ function renderCentres(centres) {
       const centre = centres.find((item) => String(item.id) === String(classId));
       developmentState.selectedClassId = classId || "";
       renderCentreDetail(centre || null);
+      // Reset all card highlights
       grid.querySelectorAll(".centre-card").forEach((item) => {
         item.style.outline = "none";
-        item.style.boxShadow = "0 12px 36px rgba(17,59,84,0.08)";
+        item.style.boxShadow = "var(--dev-card-shadow)";
       });
-      card.style.boxShadow = "0 0 0 2px rgba(20,121,100,0.32), 0 16px 40px rgba(17,59,84,0.1)";
+      // Highlight selected card
+      card.style.boxShadow = "0 0 0 2px rgba(20, 121, 100, 0.32), 0 16px 40px rgba(17, 59, 84, 0.1)";
     });
   });
 
+  // Pre-select first or last selected centre
   const selected = centres.find((item) => String(item.id) === String(developmentState.selectedClassId)) || centres[0];
   if (selected) {
     developmentState.selectedClassId = String(selected.id || "");
     renderCentreDetail(selected);
     const selectedCard = grid.querySelector(`.centre-card[data-class-id="${CSS.escape(String(selected.id || ""))}"]`);
     if (selectedCard) {
-      selectedCard.style.boxShadow = "0 0 0 2px rgba(20,121,100,0.32), 0 16px 40px rgba(17,59,84,0.1)";
+      selectedCard.style.boxShadow = "0 0 0 2px rgba(20, 121, 100, 0.32), 0 16px 40px rgba(17, 59, 84, 0.1)";
     }
   }
 }

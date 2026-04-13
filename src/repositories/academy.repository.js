@@ -14,6 +14,24 @@ const {
   listAcademyAttendanceForStudent
 } = require("../../lib/firestore");
 
+async function getClassReportById(classId) {
+  if (!hasFirestoreConfig()) return null;
+  const cid = String(classId || "").trim();
+  if (!cid) return null;
+
+  const allData = await findAll();
+  const cls = (allData.classes || []).find((c) => String(c.id) === cid);
+  if (!cls) return null;
+
+  const [lessons, students, attendanceRows] = await Promise.all([
+    listAcademyLessonsForClass(cid),
+    listAcademyStudentsForClass(cid),
+    listAcademyAttendanceForClass(cid)
+  ]);
+
+  return { cls, lessons, students, attendanceRows, allClasses: allData.classes || [] };
+}
+
 /**
  * Load all academy data (classes, students, attendance, unregistered).
  * Returns empty arrays when Firestore is not configured.
@@ -147,6 +165,7 @@ module.exports = {
   syncFromSheet,
   updateStudent,
   getClassReport,
+  getClassReportById,
   getStudentReport,
   getAbsentees
 };
