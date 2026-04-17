@@ -97,6 +97,10 @@ function buildPastorMemberContext(pastors, meetings, members) {
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
+    if (req.query.force === "1") {
+      appCache.invalidate("pastors");
+      appCache.invalidate("dashboard:source");
+    }
     const [pastors, sourceData] = await Promise.all([
       appCache.get("pastors", PASTORS_TTL_MS, () => pastorRepo.findAll()),
       appCache.get("dashboard:source", PASTORS_TTL_MS, () => dashboardRepo.loadSourceData())

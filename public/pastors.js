@@ -10,7 +10,9 @@ const pastorState = {
     search: "",
     review: "all",
     title: "all",
-    member: "all"
+    member: "all",
+    academyClass: "all",
+    niveau: "all"
   }
 };
 
@@ -78,6 +80,9 @@ function applyFilters() {
     );
     const pastorMembers = Array.isArray(pastor.member_names) ? pastor.member_names.map(normalizeText) : [];
 
+    const academyClass = pastorState.filters.academyClass;
+    const niveau = pastorState.filters.niveau;
+
     const searchOk = !search || haystack.includes(search);
     const reviewOk =
       review === "all" ||
@@ -85,7 +90,9 @@ function applyFilters() {
       (review === "clean" && String(pastor.needs_review).toLowerCase() !== "true");
     const titleOk = title === "all" || normalizeText(pastor.title) === title;
     const memberOk = member === "all" || pastorMembers.includes(member);
-    return searchOk && reviewOk && titleOk && memberOk;
+    const classOk = academyClass === "all" || String(pastor.academy_class || "") === academyClass;
+    const niveauOk = niveau === "all" || String(pastor.niveau || "") === niveau;
+    return searchOk && reviewOk && titleOk && memberOk && classOk && niveauOk;
   });
 }
 
@@ -218,6 +225,19 @@ function populateMemberFilter() {
   memberFilter.value = pastorState.filters.member;
 }
 
+function populateClassFilter() {
+  const classFilter = document.getElementById("class-filter");
+  if (!classFilter) return;
+  const classes = Array.from(
+    new Set(pastorState.pastors.map((p) => p.academy_class).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, "fr"));
+  classFilter.innerHTML = [
+    `<option value="all">Toutes</option>`,
+    ...classes.map((c) => `<option value="${c}">${c}</option>`)
+  ].join("");
+  classFilter.value = pastorState.filters.academyClass;
+}
+
 function populateAcademyClassOptions(selectedValue = "") {
   const classSelect = document.getElementById("pastor-class");
   if (!classSelect) {
@@ -246,7 +266,7 @@ async function loadPastors() {
   updateRefreshButton();
 
   try {
-    const response = await fetch(`/api/pastors?ts=${Date.now()}`, { cache: "no-store" });
+    const response = await fetch(`/api/pastors?force=1&ts=${Date.now()}`, { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok || payload.ok === false) {
       throw new Error(payload.error || "Impossible de charger les pasteurs.");
@@ -279,7 +299,8 @@ async function loadPastors() {
 
     populateTitleFilter();
     populateMemberFilter();
-  populateAcademyClassOptions();
+    populateClassFilter();
+    populateAcademyClassOptions();
     applyFilters();
     renderPastorList();
     renderEditor();
@@ -377,12 +398,27 @@ function attachFilters() {
     renderPastorList();
   });
 
+  document.getElementById("class-filter")?.addEventListener("change", (event) => {
+    pastorState.filters.academyClass = event.target.value;
+    applyFilters();
+    renderPastorList();
+  });
+
+  document.getElementById("niveau-filter")?.addEventListener("change", (event) => {
+    pastorState.filters.niveau = event.target.value;
+    applyFilters();
+    renderPastorList();
+  });
+
   document.getElementById("reset-pastor-filters")?.addEventListener("click", () => {
-    pastorState.filters = { search: "", review: "all", title: "all", member: "all" };
+    pastorState.filters = { search: "", review: "all", title: "all", member: "all", academyClass: "all", niveau: "all" };
     document.getElementById("pastor-search").value = "";
     document.getElementById("review-filter").value = "all";
+    document.getElementById("class-filter").value = "all";
+    document.getElementById("niveau-filter").value = "all";
     populateTitleFilter();
     populateMemberFilter();
+    populateClassFilter();
     applyFilters();
     renderPastorList();
   });
