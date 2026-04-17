@@ -110,6 +110,9 @@ function renderPastorList() {
       const summitBadge = summitStatus
         ? `<span class="status-pill status-pill-summit-${summitStatus}" title="GMCS Summit">${{ verbal: "Summit: verbal", inscrit: "Summit: inscrit", paiement: "Summit: payé" }[summitStatus] || summitStatus}</span>`
         : "";
+      const levelBadge = pastor.pastor_level
+        ? `<span class="status-pill" title="${pastor.niveau || "Pastor Center"}" style="background:rgba(30,90,200,0.12);color:#1a4a8a">${pastor.pastor_level}${pastor.porte_les_fruits ? " ✅" : ""}</span>`
+        : "";
       return `
         <button class="pastor-row ${isActive ? "is-active" : ""}" type="button" data-pastor-id="${pastor.id}">
           <div class="pastor-row-main">
@@ -118,6 +121,7 @@ function renderPastorList() {
           </div>
           <div class="pastor-row-side">
             <span>${pastor.meeting_count || 0} rencontres</span>
+            ${levelBadge}
             ${summitBadge}
             <span class="status-pill ${isReview ? "status-pill-warning" : ""}">${isReview ? "A revoir" : "Valide"}</span>
           </div>
@@ -182,6 +186,10 @@ function renderEditor() {
   document.getElementById("pastor-summit-status").value = pastor.gmcs_summit_status || "";
   document.getElementById("pastor-summit-note").value = pastor.gmcs_summit_note || "";
   document.getElementById("pastor-needs-review").checked = String(pastor.needs_review).toLowerCase() === "true";
+  document.getElementById("pastor-niveau").value = pastor.niveau || "";
+  document.getElementById("pastor-level").value = pastor.pastor_level || "";
+  document.getElementById("pastor-porte-les-fruits").checked = Boolean(pastor.porte_les_fruits);
+  document.getElementById("pastor-center-num").textContent = pastor.pastor_center_num || "-";
   document.getElementById("pastor-source-variants").textContent = pastor.source_variants || "-";
   document.getElementById("pastor-history").textContent =
     `${pastor.meeting_count || 0} rencontres - ${pastor.first_meeting_date || "-"} -> ${pastor.last_meeting_date || "-"}`;
@@ -316,7 +324,11 @@ async function savePastor(event) {
     gmcs_summit_status: document.getElementById("pastor-summit-status").value,
     gmcs_summit_note: document.getElementById("pastor-summit-note").value,
     needs_review: document.getElementById("pastor-needs-review").checked,
+    niveau: document.getElementById("pastor-niveau").value,
+    pastor_level: document.getElementById("pastor-level").value,
+    porte_les_fruits: document.getElementById("pastor-porte-les-fruits").checked,
     // Preserve read-only fields that are not in the form
+    pastor_center_num: current?.pastor_center_num ?? 0,
     meeting_count: current?.meeting_count ?? "0",
     first_meeting_date: current?.first_meeting_date ?? "",
     last_meeting_date: current?.last_meeting_date ?? "",

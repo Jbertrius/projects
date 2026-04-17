@@ -414,8 +414,54 @@
 
       .centre-detail-actions {
         display: flex;
-        gap: 10px;
         flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: stretch;
+        gap: 12px;
+        margin-left: auto;
+        padding: 10px;
+        border-radius: 22px;
+        border: 1px solid rgba(20, 121, 100, 0.1);
+        background: linear-gradient(135deg, rgba(240, 253, 250, 0.92), rgba(239, 246, 255, 0.9));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+      }
+
+      .centre-detail-actions .secondary-action.compact-action {
+        min-width: 190px;
+        min-height: 54px;
+        padding: 0 18px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border: 1px solid rgba(37, 99, 235, 0.14);
+        background: rgba(255, 255, 255, 0.96);
+        color: #0f766e;
+        text-decoration: none;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.2;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+        transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+      }
+
+      .centre-detail-actions .secondary-action.compact-action:hover,
+      .centre-detail-actions .secondary-action.compact-action:focus-visible {
+        transform: translateY(-1px);
+        border-color: rgba(13, 148, 136, 0.32);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(236, 253, 245, 0.96));
+        box-shadow: 0 16px 32px rgba(20, 121, 100, 0.14);
+      }
+
+      .centre-detail-actions .secondary-action.compact-action .material-symbols-rounded {
+        font-size: 1.15rem;
+        color: #0284c7;
+      }
+
+      .centre-detail-actions .secondary-action.compact-action span:last-child {
+        display: inline-block;
+        text-align: center;
       }
 
       .centre-detail-kpis {
@@ -527,6 +573,55 @@
         margin-top: 2px;
       }
 
+      /* Centre edit form */
+      .centre-edit-form {
+        display: grid;
+        gap: 12px;
+      }
+
+
+      .centre-edit-row {
+        display: grid;
+        gap: 4px;
+      }
+
+      .centre-edit-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .centre-edit-input {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: rgba(255, 255, 255, 0.9);
+        font-size: 0.88rem;
+        color: #0f172a;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .centre-edit-input:focus {
+        outline: none;
+        border-color: var(--dev-accent);
+        box-shadow: 0 0 0 3px rgba(20, 121, 100, 0.12);
+      }
+
+      .centre-edit-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 4px;
+      }
+
+      .centre-edit-feedback {
+        margin: 0;
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+
       @media (max-width: 1000px) {
         .centre-detail-section {
           grid-template-columns: 1fr;
@@ -553,6 +648,13 @@
 
         .centre-detail-actions {
           width: 100%;
+          justify-content: stretch;
+          margin-left: 0;
+        }
+
+        .centre-detail-actions .secondary-action.compact-action {
+          flex: 1 1 220px;
+          min-width: 0;
         }
 
         .centre-detail-kpis {

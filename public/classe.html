@@ -284,6 +284,143 @@
         }
       }
 
+      /* Class category toggle */
+      .classe-category-card {
+        background: #fff;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        padding: 20px 24px;
+        box-shadow: 0 2px 8px rgba(17, 59, 84, 0.06);
+      }
+
+      .classe-category-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .classe-category-row-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .toggle-switch {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        gap: 8px;
+        user-select: none;
+      }
+
+      .toggle-switch input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-track {
+        width: 44px;
+        height: 24px;
+        background: #cbd5e1;
+        border-radius: 12px;
+        transition: background 0.2s;
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      .toggle-thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        transition: left 0.2s;
+      }
+
+      .toggle-switch input:checked ~ .toggle-track {
+        background: #147964;
+      }
+
+      .toggle-switch input:checked ~ .toggle-track .toggle-thumb {
+        left: 23px;
+      }
+
+      .toggle-switch-text {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #0f172a;
+        min-width: 32px;
+      }
+
+      .classe-category-fields {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+      }
+
+      .classe-category-fields[hidden] { display: none; }
+
+      .classe-category-field-row { display: grid; gap: 4px; }
+
+      .classe-category-field-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+
+      .classe-category-field-input {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: rgba(255,255,255,0.9);
+        font-size: 0.88rem;
+        color: #0f172a;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .classe-category-field-input:focus {
+        outline: none;
+        border-color: #147964;
+        box-shadow: 0 0 0 3px rgba(20, 121, 100, 0.12);
+      }
+
+      .classe-category-help {
+        margin: 4px 0 0;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        color: #64748b;
+      }
+
+      .classe-category-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+      }
+
+      .classe-category-feedback {
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin: 0;
+      }
+
       @media (max-width: 640px) {
         .classe-page .top-bar {
           padding: 20px;
@@ -447,6 +584,7 @@
                     <tr>
                       <th>Date</th>
                       <th>Titre de la lecon</th>
+                      <th>Instructeur</th>
                       <th class="text-right">Presents</th>
                       <th class="text-right">Taux</th>
                     </tr>
@@ -455,6 +593,45 @@
                 </table>
               </div>
             </article>
+          </section>
+
+          <!-- Class category -->
+          <section class="classe-category-card" id="classe-category-section" hidden>
+            <div class="card-head" style="margin-bottom:12px">
+              <div>
+                <p class="section-label"><span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">label</span> Categorie</p>
+                <h3>Type de classe et instructeur</h3>
+              </div>
+            </div>
+            <div class="classe-category-fields" style="margin-top:0;padding-top:0;border-top:none">
+              <div class="classe-category-field-row">
+                <label class="classe-category-field-label" for="classe-instructor-name">Instructeur par defaut</label>
+                <input class="classe-category-field-input" id="classe-instructor-name" type="text" placeholder="Ex: Pasteur Jean Dupont" />
+                <p class="classe-category-help">Cet instructeur sera propose par defaut pour les nouvelles lecons de la classe. Chaque lecon peut garder un instructeur different.</p>
+              </div>
+            </div>
+            <div class="classe-category-row">
+              <span class="classe-category-row-label">Classe missionnaire</span>
+              <label class="toggle-switch" for="classe-is-missionary">
+                <input type="checkbox" id="classe-is-missionary" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-switch-text" id="classe-is-missionary-text">Non</span>
+              </label>
+            </div>
+            <div class="classe-category-fields" id="classe-category-fields" hidden>
+              <div class="classe-category-field-row">
+                <label class="classe-category-field-label" for="classe-church-name">Nom de l'eglise</label>
+                <input class="classe-category-field-input" id="classe-church-name" type="text" placeholder="Ex: Eglise de la Grace" />
+              </div>
+              <div class="classe-category-field-row">
+                <label class="classe-category-field-label" for="classe-church-pastor">Pasteur de l'eglise</label>
+                <input class="classe-category-field-input" id="classe-church-pastor" type="text" placeholder="Ex: Jean Dupont" />
+              </div>
+            </div>
+            <div class="classe-category-actions">
+              <button class="secondary-action compact-action" id="classe-category-save" type="button">Enregistrer</button>
+              <p class="classe-category-feedback" id="classe-category-feedback" hidden></p>
+            </div>
           </section>
 
           <!-- Lesson entry panel -->

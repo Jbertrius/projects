@@ -2400,3 +2400,92 @@ a[href="/gmcs-summit.html"]::after {
 .sidebar-nav a[href="/gmcs-summit.html"]:hover {
   background: linear-gradient(135deg, rgba(245, 199, 0, 0.25), rgba(245, 199, 0, 0.15));
 }
+
+/* ── Pastor Pipeline Dashboard ── */
+
+.pastor-pipeline-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.pastor-pipeline-total-num {
+  font-family: "Sora", sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--sky-deep);
+  line-height: 1;
+}
+
+.pastor-pipeline-total-lbl {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pp-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 16px 0 8px;
+}
+
+.pp-filter-group {
+  flex: 1 1 220px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(37, 137, 200, 0.04);
+  border: 1px solid var(--line);
+}
+
+.pp-filter-group .section-label {
+  margin-bottom: 10px;
+}
+
+.pp-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pp-country-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+
+.pp-country-label:hover {
+  border-color: var(--sky);
+  background: rgba(37, 137, 200, 0.08);
+}
+
+.pp-country-label:has(input:checked) {
+  background: rgba(37, 137, 200, 0.14);
+  border-color: var(--sky-deep);
+  color: var(--sky-deep);
+  font-weight: 600;
+}
+
+.pp-country-label input[type="checkbox"] {
+  accent-color: var(--sky-deep);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.pp-bar-chart {
+  margin-top: 16px;
+  min-height: 260px;
+}

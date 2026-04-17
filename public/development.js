@@ -10,7 +10,7 @@ const developmentState = {
 };
 
 function isMissionCentre(cls) {
-  return Boolean(String(cls.church_name || "").trim());
+  return Boolean(cls.is_missionary) || Boolean(String(cls.church_name || "").trim());
 }
 
 function normalizeText(value) {
@@ -123,14 +123,14 @@ function renderCentreDetail(centre) {
       <div class="centre-detail-title">
         <p class="centre-detail-label">Dashboard centre</p>
         <h3 class="centre-detail-name">${centre.name || "Centre"}</h3>
-        <p class="centre-detail-church">${centre.church_name || ""}${centre.instructor_name ? ` • ${centre.instructor_name}` : ""}</p>
+        <p class="centre-detail-church">${centre.church_name || ""}${centre.instructor_name ? ` • ${centre.instructor_name}` : ""}${centre.church_pastor_name ? ` • Pst. ${centre.church_pastor_name}` : ""}</p>
       </div>
       <div class="centre-detail-actions">
         <a class="secondary-action compact-action" href="/mission-lessons.html?class=${encodeURIComponent(centre.id || "")}">
-          <span class="material-symbols-rounded">edit_note</span> CRUD lecons
+          <span class="material-symbols-rounded">edit_note</span><span>CRUD lecons</span>
         </a>
         <a class="secondary-action compact-action" href="/academy-students.html?class=${encodeURIComponent(centre.id || "")}">
-          <span class="material-symbols-rounded">group</span> Fiches etudiants
+          <span class="material-symbols-rounded">group</span><span>Fiches etudiants</span>
         </a>
       </div>
     </div>
@@ -181,6 +181,7 @@ function renderCentreDetail(centre) {
         <div class="centre-student-stats">${studentCards}</div>
       </div>
     </div>
+
   `;
 
   section.hidden = false;
@@ -305,6 +306,7 @@ function renderCentres(centres) {
             ${centre.church_name}
           </div>
           ${centre.instructor_name ? `<div class="centre-card-instructor"><span><span class="material-symbols-rounded">person</span> ${centre.instructor_name}</span></div>` : ""}
+          ${centre.church_pastor_name ? `<div class="centre-card-instructor"><span><span class="material-symbols-rounded">supervisor_account</span> Pst. ${centre.church_pastor_name}</span></div>` : ""}
         </div>
 
         <div class="centre-card-stats">

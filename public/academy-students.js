@@ -8,7 +8,8 @@ const academyStudentState = {
   filters: {
     search: "",
     classId: "all",
-    status: "all"
+    status: "all",
+    studentType: "all"
   }
 };
 
@@ -70,6 +71,7 @@ function applyFilters() {
   const search = normalizeText(academyStudentState.filters.search);
   const classId = academyStudentState.filters.classId;
   const status = normalizeText(academyStudentState.filters.status);
+  const studentType = academyStudentState.filters.studentType;
 
   academyStudentState.filtered = academyStudentState.students.filter((student) => {
     const haystack = normalizeText([
@@ -85,7 +87,11 @@ function applyFilters() {
     const searchOk = !search || haystack.includes(search);
     const classOk = classId === "all" || String(student.class_id || "") === classId;
     const statusOk = status === "all" || normalizeText(student.status) === status;
-    return searchOk && classOk && statusOk;
+    const typeOk =
+      studentType === "all" ||
+      (studentType === "missionnaire" && Boolean(student.is_missionary)) ||
+      (studentType === "pasteur" && !student.is_missionary);
+    return searchOk && classOk && statusOk && typeOk;
   });
 }
 
@@ -93,9 +99,11 @@ function applyFiltersToUiControls() {
   const searchInput = document.getElementById("academy-student-records-search");
   const classSelect = document.getElementById("academy-student-records-class");
   const statusSelect = document.getElementById("academy-student-records-status");
+  const typeSelect = document.getElementById("academy-student-records-type");
   if (searchInput) searchInput.value = academyStudentState.filters.search;
   if (classSelect) classSelect.value = academyStudentState.filters.classId;
   if (statusSelect) statusSelect.value = academyStudentState.filters.status;
+  if (typeSelect) typeSelect.value = academyStudentState.filters.studentType;
 }
 
 function applyUrlPrefill() {
@@ -322,10 +330,18 @@ function attachFilters() {
     renderStudentList();
   });
 
+  document.getElementById("academy-student-records-type")?.addEventListener("change", (event) => {
+    academyStudentState.filters.studentType = event.target.value;
+    applyFilters();
+    renderStudentList();
+  });
+
   document.getElementById("academy-student-records-reset")?.addEventListener("click", () => {
-    academyStudentState.filters = { search: "", classId: "all", status: "all" };
+    academyStudentState.filters = { search: "", classId: "all", status: "all", studentType: "all" };
     document.getElementById("academy-student-records-search").value = "";
     document.getElementById("academy-student-records-status").value = "all";
+    const typeSelect = document.getElementById("academy-student-records-type");
+    if (typeSelect) typeSelect.value = "all";
     populateClassFilter();
     applyFilters();
     renderStudentList();

@@ -9,7 +9,11 @@
     granularity: "monthly",
     dateFrom: "",
     dateTo: ""
-  }
+  },
+  pastorCountryFilter: new Set(),
+  pastorTitreFilter: new Set(),
+  allPastors: [],
+  allAcademyStudents: []
 };
 
 function showFeedback(message, tone = "info") {
@@ -747,20 +751,188 @@ async function refreshDashboard() {
 
 async function loadSummitPreview() {
   try {
-    const resp = await fetch(`/api/pastors?ts=${Date.now()}`, { cache: 'no-store' });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    const pastors = data.pastors || [];
-    const registered = pastors.filter((p) => p.gmcs_summit_status);
+    const [pastorResp, studentResp] = await Promise.all([
+      fetch(`/api/pastors?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`/api/academy/students?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
+    if (!pastorResp.ok) return;
+
+    const pastorData  = await pastorResp.json();
+    const studentData = studentResp.ok ? await studentResp.json() : {};
+
+    const pastors  = (pastorData.pastors   || []).map((p) => ({ ...p, _type: 'pastor' }));
+    const students = (studentData.students || [])
+      .filter((s) => s.is_registered !== false)
+      .map((s) => ({ ...s, _type: 'student' }));
+
+    const people = [...pastors, ...students];
+    const registered = people.filter((p) => p.gmcs_summit_status);
     const byLevel = { verbal: 0, inscrit: 0, paiement: 0 };
     registered.forEach((p) => { if (byLevel[p.gmcs_summit_status] !== undefined) byLevel[p.gmcs_summit_status]++; });
+
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    set('dsum-total', registered.length);
-    set('dsum-verbal', byLevel.verbal);
-    set('dsum-inscrit', byLevel.inscrit);
+    set('dsum-total',    registered.length);
+    set('dsum-verbal',   byLevel.verbal);
+    set('dsum-inscrit',  byLevel.inscrit);
     set('dsum-paiement', byLevel.paiement);
   } catch {
     // Summit preview is optional
+  }
+}
+
+const PP_CATEGORIES = [
+  { key: "academie",   label: "A l'academie",   color: "#2589c8" },
+  { key: "montagne",   label: "Sur la montagne", color: "#0e7d3a" },
+  { key: "cooperation",label: "En cooperation",  color: "#f5c32c" },
+  { key: "rencontre",  label: "Juste rencontre", color: "#8ab8d0" }
+];
+
+function getFilteredPastors() {
+  return state.allPastors.filter((p) => {
+    const countryOk = state.pastorCountryFilter.size === 0 || state.pastorCountryFilter.has(p.country || "");
+    const titreOk   = state.pastorTitreFilter.size === 0   || state.pastorTitreFilter.has(
+      String(p.title || "").trim() || "Non renseigne"
+    );
+    return countryOk && titreOk;
+  });
+}
+
+function isInAcademy(p) {
+  return Boolean(p.student_id || p.academy_class);
+}
+
+function computePastorCategories(pastors) {
+  return {
+    academie:    pastors.filter((p) => isInAcademy(p)).length,
+    montagne:    pastors.filter((p) => p.gmcs_summit_status).length,
+    cooperation: pastors.filter((p) => !isInAcademy(p) && Number(p.meeting_count || 0) >= 2).length,
+    rencontre:   pastors.filter((p) => Number(p.meeting_count || 0) === 1 && !isInAcademy(p) && !p.gmcs_summit_status).length
+  };
+}
+
+async function renderPastorPipeline() {
+  const filteredPastors = getFilteredPastors();
+  const counts = computePastorCategories(filteredPastors);
+
+  // Academy count comes from academyStudents collection (the authoritative source),
+  // filtered by selected country (subgroup) if any.
+  const filteredStudents = state.pastorCountryFilter.size > 0
+    ? state.allAcademyStudents.filter((s) => state.pastorCountryFilter.has(String(s.subgroup || "").trim()))
+    : state.allAcademyStudents;
+  counts.academie = filteredStudents.length;
+
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setEl("pp-academy-total", counts.academie);
+
+  const values = PP_CATEGORIES.map((c) => counts[c.key]);
+  const labels = PP_CATEGORIES.map((c) => c.label);
+  const colors = PP_CATEGORIES.map((c) => c.color);
+
+  const chartEl = document.getElementById("pp-bar-chart");
+  if (!chartEl) return;
+
+  if (typeof ApexCharts === "undefined") {
+    chartEl.innerHTML = '<div class="empty-state">Librairie graphique indisponible.</div>';
+    return;
+  }
+
+  destroyChart("pp-bar");
+  chartEl.innerHTML = "";
+
+  const chart = new ApexCharts(chartEl, {
+    ...getChartBaseOptions(),
+    chart: {
+      ...getChartBaseOptions().chart,
+      type: "bar",
+      height: 260
+    },
+    series: [{ name: "Pasteurs", data: values }],
+    colors,
+    plotOptions: {
+      bar: {
+        horizontal: true,
+        borderRadius: 8,
+        barHeight: "48%",
+        distributed: true
+      }
+    },
+    xaxis: {
+      categories: labels,
+      labels: { style: { colors: "#68839d", fontSize: "12px" } }
+    },
+    yaxis: {
+      labels: { style: { colors: "#12314a", fontSize: "13px", fontWeight: 600 } }
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (v) => v,
+      style: { fontSize: "13px", fontWeight: 700, colors: ["#fff"] },
+      dropShadow: { enabled: false }
+    },
+    tooltip: {
+      theme: "light",
+      y: { formatter: (v) => `${v} pasteur${v > 1 ? "s" : ""}` }
+    },
+    legend: { show: false }
+  });
+  state.charts["pp-bar"] = chart;
+  await chart.render();
+}
+
+function buildFilterCheckboxes(containerId, toggleId, values, filterSet, onchange) {
+  const wrapper = document.getElementById(toggleId);
+  const container = document.getElementById(containerId);
+  if (!wrapper || !container) return;
+
+  if (!values.length) { wrapper.hidden = true; return; }
+  wrapper.hidden = false;
+
+  container.innerHTML = values.map((v) => `
+    <label class="pp-country-label">
+      <input type="checkbox" class="pp-filter-cb" value="${v}" />
+      <span>${v}</span>
+    </label>
+  `).join("");
+
+  container.querySelectorAll(".pp-filter-cb").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) filterSet.add(cb.value);
+      else filterSet.delete(cb.value);
+      onchange();
+    });
+  });
+}
+
+async function loadPastorPipeline() {
+  try {
+    const [pastorResp, studentResp] = await Promise.all([
+      fetch(`/api/pastors?ts=${Date.now()}`, { cache: "no-store" }),
+      fetch(`/api/academy/students?ts=${Date.now()}`, { cache: "no-store" })
+    ]);
+    if (!pastorResp.ok) return;
+
+    const pastorData  = await pastorResp.json();
+    const studentData = studentResp.ok ? await studentResp.json() : {};
+
+    state.allPastors       = pastorData.pastors || [];
+    state.allAcademyStudents = (studentData.students || []).filter(
+      (s) => s.is_registered !== false && !s.deleted_at && String(s.status || "").toLowerCase() !== "supprime"
+    );
+
+    const countries = Array.from(new Set(
+      state.allAcademyStudents.map((s) => String(s.subgroup || "").trim()).filter(Boolean)
+    )).sort();
+
+    const titres = Array.from(new Set(
+      state.allPastors.map((p) => String(p.title || "").trim()).filter(Boolean)
+    )).sort();
+
+    buildFilterCheckboxes("pp-country-checkboxes", "pp-country-filters", countries, state.pastorCountryFilter, renderPastorPipeline);
+    buildFilterCheckboxes("pp-titre-checkboxes",   "pp-titre-filters",   titres,    state.pastorTitreFilter,   renderPastorPipeline);
+
+    await renderPastorPipeline();
+  } catch {
+    // Section is optional — silently ignore errors
   }
 }
 
@@ -774,6 +946,7 @@ async function loadDashboard() {
     attachFilterHandlers();
     await refreshDashboard();
     loadSummitPreview().catch(() => {});
+    loadPastorPipeline().catch(() => {});
   } catch (error) {
     app.innerHTML = `
       <section class="loading-state">

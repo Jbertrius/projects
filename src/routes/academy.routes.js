@@ -142,6 +142,8 @@ router.get("/students", requireAuth, async (req, res, next) => {
           class_name: student.class_name || academyClass.name || classId,
           instructor_name: student.instructor_name || academyClass.instructor_name || "",
           church_name: student.church_name || academyClass.church_name || "",
+          church_pastor_name: academyClass.church_pastor_name || "",
+          is_missionary: academyClass.is_missionary || Boolean(student.church_name || academyClass.church_name),
           attendance_count: statsRows.length,
           unregistered_lesson_count: unregisteredRows.length,
           lesson_count: lessonCount,
@@ -311,6 +313,37 @@ router.delete("/classes/:id/church", requireContentManager, async (req, res, nex
   }
 });
 
+// ---------------------------------------------------------------------------
+// PATCH /api/academy/classes/:id
+// Update editable class fields: is_missionary, church_name, church_pastor_name, instructor_name.
+// ---------------------------------------------------------------------------
+router.patch("/classes/:id", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const classId = String(req.params.id || "").trim();
+    if (!classId) return res.status(400).json({ ok: false, error: "classId is required" });
+
+    const body = req.body || {};
+    const updates = {};
+
+    if ("is_missionary" in body) updates.is_missionary = Boolean(body.is_missionary);
+    if ("church_name" in body) updates.church_name = String(body.church_name || "").trim();
+    if ("church_pastor_name" in body) updates.church_pastor_name = String(body.church_pastor_name || "").trim();
+    if ("instructor_name" in body) updates.instructor_name = String(body.instructor_name || "").trim();
+
+    if (updates.is_missionary && !updates.church_name) {
+      return res.status(400).json({ ok: false, error: "church_name est requis pour un centre missionnaire." });
+    }
+
+    await academyRepo.updateClass(classId, updates);
+    appCache.invalidate("academy");
+    res.json({ ok: true, classId, updates });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
 const VALID_SUMMIT_STATUSES = ["", "verbal", "inscrit", "paiement"];
 router.patch("/students/:id/summit", requireContentManager, async (req, res, next) => {
   try {
@@ -405,6 +438,9 @@ router.post("/verify", requireContentManager, async (req, res, next) => {
     if (!rawText) return res.status(400).json({ ok: false, error: "rawText is required" });
 
     const parsed = await parseAttendanceBlockSmart(rawText, lessonDate);
+    if (req.body.teacherName && !parsed.teacher_name) {
+      parsed.teacher_name = String(req.body.teacherName || "").trim();
+    }
 
     const issues = [];
     if (!parsed.class_code)   issues.push("La ligne de classe est manquante.");

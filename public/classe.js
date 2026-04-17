@@ -53,6 +53,10 @@ function rateBadge(rate) {
   return `<span class="suggestion-badge ${cls}">${rate}%</span>`;
 }
 
+function getDefaultInstructorName() {
+  return String(classeState.data?.class?.instructor_name || "").trim();
+}
+
 // ---------------------------------------------------------------------------
 // URL helpers
 // ---------------------------------------------------------------------------
@@ -293,7 +297,7 @@ function renderLessonsTable(lessons) {
   if (countEl) countEl.textContent = `${lessons.length} lecon${lessons.length !== 1 ? "s" : ""}`;
 
   if (!lessons.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Aucune lecon enregistree.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Aucune lecon enregistree.</td></tr>`;
     return;
   }
 
@@ -304,6 +308,7 @@ function renderLessonsTable(lessons) {
     <tr>
       <td>${formatFullDate(l.lesson_date)}</td>
       <td>${l.lesson_title || "-"}</td>
+      <td>${l.instructor_name || getDefaultInstructorName() || "-"}</td>
       <td class="text-right">${l.present_count} / ${l.total_students}</td>
       <td class="text-right">${rateBadge(l.presence_rate)}</td>
     </tr>`
@@ -355,7 +360,7 @@ function renderLessonLibrary(lessons) {
 
 function buildAttendanceBlock(lesson, cls) {
   const classCode   = cls.class_code || cls.name || classeState.classId;
-  const instructor  = cls.instructor_name || "";
+  const instructor  = lesson.instructor_name || cls.instructor_name || "";
   const date        = lesson.lesson_date || "";
   const title       = lesson.lesson_title || "";
   const attendance  = lesson.attendance || [];
@@ -459,13 +464,14 @@ function renderValidation(parsed, issues) {
 async function verifyEntry() {
   const rawText = document.getElementById("classe-entry-text")?.value || "";
   const lessonDate = document.getElementById("classe-entry-date")?.value || "";
+  const teacherName = getDefaultInstructorName();
   if (!rawText.trim()) { showFeedback("Le bloc de presence est vide.", "error"); return; }
 
   try {
     const res = await fetch("/api/academy/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rawText, lessonDate })
+      body: JSON.stringify({ rawText, lessonDate, teacherName })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erreur de verification");
@@ -481,6 +487,7 @@ async function saveEntry() {
   const rawText = document.getElementById("classe-entry-text")?.value || "";
   const lessonDate = document.getElementById("classe-entry-date")?.value || "";
   const replaceExisting = Boolean(document.getElementById("classe-entry-replace")?.checked);
+  const teacherName = getDefaultInstructorName();
   if (!rawText.trim()) { showFeedback("Le bloc de presence est vide.", "error"); return; }
 
   classeState.entry.isSaving = true;
@@ -491,7 +498,8 @@ async function saveEntry() {
       rawText,
       lessonDate,
       replaceExisting,
-      classId: classeState.classId
+      classId: classeState.classId,
+      teacherName
     };
     if (replaceExisting && classeState.entry.selectedLessonId) {
       body.lessonId = classeState.entry.selectedLessonId;
@@ -581,6 +589,31 @@ function updateEntryButtons() {
 // Full render
 // ---------------------------------------------------------------------------
 
+function renderCategorySection(cls) {
+  const section = document.getElementById("classe-category-section");
+  if (!section) return;
+
+  const checkbox = document.getElementById("classe-is-missionary");
+  const text = document.getElementById("classe-is-missionary-text");
+  const fields = document.getElementById("classe-category-fields");
+  const churchInput = document.getElementById("classe-church-name");
+  const pastorInput = document.getElementById("classe-church-pastor");
+  const instructorInput = document.getElementById("classe-instructor-name");
+  const feedback = document.getElementById("classe-category-feedback");
+
+  if (!checkbox) return;
+
+  checkbox.checked = Boolean(cls.is_missionary);
+  text.textContent = cls.is_missionary ? "Oui" : "Non";
+  fields.hidden = !cls.is_missionary;
+  if (instructorInput) instructorInput.value = cls.instructor_name || "";
+  if (churchInput) churchInput.value = cls.church_name || "";
+  if (pastorInput) pastorInput.value = cls.church_pastor_name || "";
+  if (feedback) feedback.hidden = true;
+
+  section.hidden = false;
+}
+
 async function renderAll(data) {
   classeState.data = data;
 
@@ -597,6 +630,7 @@ async function renderAll(data) {
 
   populateClassSelector(data.all_classes, classeState.classId);
   renderKPIs(data.stats);
+  renderCategorySection(cls);
 
   await Promise.all([
     renderPresenceChart(data.lessons, data.stats.student_count),
@@ -670,6 +704,61 @@ function attachEvents() {
 
   document.getElementById("classe-toggle-entry")?.addEventListener("click", () => {
     setEntryOpen(!classeState.entry.isOpen);
+  });
+
+  // Category toggle
+  document.getElementById("classe-is-missionary")?.addEventListener("change", (e) => {
+    const checked = e.target.checked;
+    const text = document.getElementById("classe-is-missionary-text");
+    const fields = document.getElementById("classe-category-fields");
+    if (text) text.textContent = checked ? "Oui" : "Non";
+    if (fields) fields.hidden = !checked;
+  });
+
+  document.getElementById("classe-category-save")?.addEventListener("click", async () => {
+    if (!classeState.classId) return;
+    const isMissionary = Boolean(document.getElementById("classe-is-missionary")?.checked);
+    const churchName = String(document.getElementById("classe-church-name")?.value || "").trim();
+    const churchPastor = String(document.getElementById("classe-church-pastor")?.value || "").trim();
+    const instructorName = String(document.getElementById("classe-instructor-name")?.value || "").trim();
+    const btn = document.getElementById("classe-category-save");
+    const feedback = document.getElementById("classe-category-feedback");
+
+    if (isMissionary && !churchName) {
+      if (feedback) { feedback.textContent = "Le nom de l'eglise est requis."; feedback.style.color = "#ef4444"; feedback.hidden = false; }
+      return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Enregistrement..."; }
+    if (feedback) feedback.hidden = true;
+
+    const payload = isMissionary
+      ? { is_missionary: true, church_name: churchName, church_pastor_name: churchPastor, instructor_name: instructorName }
+      : { is_missionary: false, church_name: "", church_pastor_name: "", instructor_name: instructorName };
+
+    try {
+      const res = await fetch(`/api/academy/classes/${encodeURIComponent(classeState.classId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!res.ok || json.ok === false) throw new Error(json.error || "Erreur serveur");
+
+      if (classeState.data?.class) {
+        classeState.data.class.is_missionary = isMissionary;
+        classeState.data.class.church_name = isMissionary ? churchName : "";
+        classeState.data.class.church_pastor_name = isMissionary ? churchPastor : "";
+        classeState.data.class.instructor_name = instructorName;
+      }
+
+      await renderAll(classeState.data);
+      if (feedback) { feedback.textContent = "Configuration de la classe mise a jour."; feedback.style.color = "#147964"; feedback.hidden = false; }
+    } catch (err) {
+      if (feedback) { feedback.textContent = err.message; feedback.style.color = "#ef4444"; feedback.hidden = false; }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Enregistrer"; }
+    }
   });
 
   document.getElementById("classe-validate-entry")?.addEventListener("click", () => verifyEntry());

@@ -5,8 +5,8 @@ const {
   hasFirestoreConfig,
   loadAcademyDataFromFirestore,
   replaceAcademyLessonRecord,
-  syncAcademySheetToFirestore,
   updateAcademyStudent,
+  updateAcademyClass,
   getAcademyClassByCode,
   listAcademyLessonsForClass,
   listAcademyStudentsForClass,
@@ -64,15 +64,12 @@ async function recordLesson(parsed, options = {}) {
   return createAcademyLessonRecord(parsed);
 }
 
-/**
- * Sync the academy Google Sheet to Firestore.
- */
-async function syncFromSheet() {
-  return syncAcademySheetToFirestore();
-}
-
 async function updateStudent(input) {
   return updateAcademyStudent(input);
+}
+
+async function updateClass(classId, updates) {
+  return updateAcademyClass(classId, updates);
 }
 
 /**
@@ -162,8 +159,8 @@ async function getAbsentees(code, lessonFilter = "") {
 module.exports = {
   findAll,
   recordLesson,
-  syncFromSheet,
   updateStudent,
+  updateClass,
   getClassReport,
   getClassReportById,
   getStudentReport,

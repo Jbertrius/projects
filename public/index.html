@@ -49,6 +49,7 @@
         <nav class="sidebar-nav" aria-label="Dans cette page">
           <p class="nav-section-label">Dans cette page</p>
           <button class="nav-item" type="button" data-target="summit-preview-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></button>
+          <button class="nav-item" type="button" data-target="pastor-pipeline-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">people</span><span>Pasteurs</span></button>
           <button class="nav-item" type="button" data-target="meetings-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Trajectoire</span></button>
           <button class="nav-item" type="button" data-target="members-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Equipe</span></button>
           <button class="nav-item" type="button" data-target="training-section"><span class="nav-icon material-symbols-rounded" aria-hidden="true">conversion_path</span><span>Pipeline</span></button>
@@ -186,6 +187,34 @@
               <span class="summit-preview-lbl">Paiement recu</span>
             </div>
           </div>
+        </article>
+      </section>
+
+      <section class="feature-grid" id="pastor-pipeline-section">
+        <article class="card" style="grid-column:1/-1">
+          <div class="card-head">
+            <div>
+              <p class="section-label">Pasteurs &bull; Repartition</p>
+              <h3>Pipeline des pasteurs par categorie</h3>
+            </div>
+            <div class="pastor-pipeline-total">
+              <span class="pastor-pipeline-total-num" id="pp-academy-total">&mdash;</span>
+              <span class="pastor-pipeline-total-lbl">inscrits a l'academie</span>
+            </div>
+          </div>
+
+          <div class="pp-filters-row">
+            <div class="pp-filter-group" id="pp-country-filters" hidden>
+              <p class="section-label">Pays</p>
+              <div class="pp-checkboxes" id="pp-country-checkboxes"></div>
+            </div>
+            <div class="pp-filter-group" id="pp-titre-filters" hidden>
+              <p class="section-label">Titre</p>
+              <div class="pp-checkboxes" id="pp-titre-checkboxes"></div>
+            </div>
+          </div>
+
+          <div id="pp-bar-chart" class="pp-bar-chart"></div>
         </article>
       </section>
 

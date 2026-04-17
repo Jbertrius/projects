@@ -3,17 +3,14 @@ const {
   loadPastorsFromFirestore,
   updatePastorInFirestore
 } = require("../../lib/firestore");
-const { loadPastorsSheet, updatePastorRecord } = require("../../lib/pastors");
 
 /**
  * Return all pastors, sorted by meeting count desc.
  * @returns {Promise<Array>}
  */
 async function findAll() {
-  if (hasFirestoreConfig()) {
-    return loadPastorsFromFirestore();
-  }
-  return loadPastorsSheet();
+  if (!hasFirestoreConfig()) return [];
+  return loadPastorsFromFirestore();
 }
 
 /**
@@ -22,10 +19,10 @@ async function findAll() {
  * @returns {Promise<object>}
  */
 async function update(input) {
-  if (hasFirestoreConfig()) {
-    return updatePastorInFirestore(input);
+  if (!hasFirestoreConfig()) {
+    throw new Error("Firestore n'est pas configure.");
   }
-  return updatePastorRecord(input);
+  return updatePastorInFirestore(input);
 }
 
 module.exports = { findAll, update };
