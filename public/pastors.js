@@ -261,12 +261,13 @@ function populateAcademyClassOptions(selectedValue = "") {
   classSelect.value = normalizedSelected;
 }
 
-async function loadPastors() {
+async function loadPastors({ force = false } = {}) {
   pastorState.isLoading = true;
   updateRefreshButton();
 
   try {
-    const response = await fetch(`/api/pastors?force=1&ts=${Date.now()}`, { cache: "no-store" });
+    const forceParam = force ? "&force=1" : "";
+    const response = await fetch(`/api/pastors?ts=${Date.now()}${forceParam}`, { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok || payload.ok === false) {
       throw new Error(payload.error || "Impossible de charger les pasteurs.");
@@ -425,7 +426,7 @@ function attachFilters() {
 
   document.getElementById("refresh-pastors")?.addEventListener("click", async () => {
     try {
-      await loadPastors();
+      await loadPastors({ force: true });
       showFeedback("Liste pasteurs actualisee.", "success");
     } catch (error) {
       showFeedback(error.message, "error");
