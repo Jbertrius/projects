@@ -8,3 +8,15 @@ yarn-error.log*
 .claude/settings.local.json
 service-account.json
 .gcloudignore
+
+# Python bots
+apps/**/venv/
+apps/**/.venv/
+apps/**/__pycache__/
+apps/**/*.pyc
+apps/**/.pytest_cache/
+apps/**/credentials.json
+apps/**/token.pickle
+
+# api_client.py is canonical in shared/python/ — not tracked in bot dirs
+apps/**/api_client.py

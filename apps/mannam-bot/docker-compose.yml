@@ -1,0 +1,20 @@
+# docker-compose pour tester le bot en local dans un conteneur Docker
+# Utilise le mode POLLING (main_dev.py) donc pas besoin de domaine public
+#
+# Usage :
+#   docker-compose up --build
+#   docker-compose down
+
+version: '3.8'
+
+services:
+  mannam_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    volumes:
+      # Monter le code source pour recharger les changements sans rebuild
+      - .:/app
+    restart: unless-stopped

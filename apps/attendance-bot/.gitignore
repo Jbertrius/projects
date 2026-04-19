@@ -1,0 +1,5 @@
+.env
+service-account.json
+_pycache__
+**/__pycache__
+.vscode

@@ -1,0 +1,27 @@
+services:
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:8080"
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+
+  attendance-bot:
+    build:
+      context: .
+      dockerfile: apps/attendance-bot/Dockerfile
+    env_file: apps/attendance-bot/.env
+    depends_on:
+      - web
+
+  mannam-bot:
+    build:
+      context: .
+      dockerfile: apps/mannam-bot/Dockerfile
+    env_file: apps/mannam-bot/.env
+    depends_on:
+      - web

@@ -1,0 +1,12 @@
+credentials.json
+.idea/
+.idea/*
+.venv/
+.venv-wsl/
+.env
+*.pyc
+__pycache__/
+token.pickle
+.pytest_cache/
+
+

@@ -1,0 +1,12 @@
+# ── Telegram ──────────────────────────────────────────────────────────────────
+python-telegram-bot[webhooks]==21.6
+
+# ── Google Gemini AI ──────────────────────────────────────────────────────────
+google-generativeai==0.7.2
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+
+# ── HTTP / async (pulled in by python-telegram-bot – pinned for stability) ──
+httpx==0.27.0
+aiohttp==3.11.0

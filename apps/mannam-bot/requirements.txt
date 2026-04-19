@@ -1,0 +1,11 @@
+# ── Telegram ─────────────────────────────────────────────────────────────────
+python-telegram-bot[webhooks]==21.9
+
+# ── Google APIs (Calendar access, Gemini) ────────────────────────────────────
+google-api-python-client==2.94.0
+google-auth==2.20.0
+google-auth-oauthlib==1.1.0
+google-genai>=1.0.0,<2.0.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
