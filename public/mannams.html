@@ -808,8 +808,8 @@
           <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
         </section>
 
-        <nav class="sidebar-nav" aria-label="Navigation DMD">
-          <p class="nav-section-label">Navigation DMD</p>
+        <nav class="sidebar-nav is-pages" aria-label="Pages">
+          <p class="nav-section-label">Pages</p>
           <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
           <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
           <a class="nav-item nav-link is-active" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
@@ -819,11 +819,17 @@
           <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
         </nav>
 
-        <nav class="sidebar-nav" aria-label="Dans ce pole">
-          <p class="nav-section-label">Evangelisation</p>
-          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">travel_explore</span><span>Vue d'ensemble</span></a>
-          <a class="nav-item nav-link is-active" href="/mannams.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Gestion Mannams</span></a>
-        </nav>
+        <section class="sidebar-nav is-local-menu" aria-label="Menu de page courante">
+          <p class="nav-section-label">Page courante</p>
+          <button class="nav-item nav-group-toggle" type="button" data-nav-toggle aria-expanded="true" aria-controls="mannams-page-menu">
+            <span class="nav-group-toggle-copy"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_open</span><span>Sur cette page</span></span>
+            <span class="nav-group-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+          </button>
+          <div class="nav-submenu" id="mannams-page-menu">
+            <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">travel_explore</span><span>Vue d'ensemble</span></a>
+            <a class="nav-item nav-link is-active" href="/mannams.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Gestion Mannams</span></a>
+          </div>
+        </section>
 
         <div class="sidebar-card" style="margin-top:auto">
           <p class="section-label">Stats rapides</p>

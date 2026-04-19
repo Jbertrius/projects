@@ -7,6 +7,8 @@ const {
   replaceAcademyLessonRecord,
   updateAcademyStudent,
   updateAcademyClass,
+  createAcademyClass,
+  deleteAcademyClassIfEmpty,
   getAcademyClassByCode,
   listAcademyLessonsForClass,
   listAcademyStudentsForClass,
@@ -70,6 +72,14 @@ async function updateStudent(input) {
 
 async function updateClass(classId, updates) {
   return updateAcademyClass(classId, updates);
+}
+
+async function createClass(input) {
+  return createAcademyClass(input);
+}
+
+async function deleteClassIfEmpty(classId) {
+  return deleteAcademyClassIfEmpty(classId);
 }
 
 /**
@@ -161,6 +171,8 @@ module.exports = {
   recordLesson,
   updateStudent,
   updateClass,
+  createClass,
+  deleteClassIfEmpty,
   getClassReport,
   getClassReportById,
   getStudentReport,

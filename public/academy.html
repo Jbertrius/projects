@@ -35,27 +35,34 @@
           <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
         </section>
 
-        <nav class="sidebar-nav" aria-label="Navigation DMD">
-          <p class="nav-section-label">Navigation DMD</p>
+        <nav class="sidebar-nav is-pages" aria-label="Pages">
+          <p class="nav-section-label">Pages</p>
           <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
           <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
           <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
           <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
           <a class="nav-item nav-link is-active" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Academie</span></a>
+          <a class="nav-item nav-link" href="/academy-classes.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">group_work</span><span>Classes & etudiants</span></a>
+          <a class="nav-item nav-link" href="/academy-students.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">badge</span><span>Fiches etudiants</span></a>
+          <a class="nav-item nav-link" href="/classe.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">analytics</span><span>Analyse par classe</span></a>
           <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
           <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
         </nav>
 
-        <nav class="sidebar-nav" aria-label="Dans cette page">
-          <p class="nav-section-label">Dans cette page</p>
-          <button class="nav-item" type="button" data-target="academy-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Vue academie</span></button>
-          <button class="nav-item" type="button" data-target="academy-trajectory"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Presences</span></button>
-          <button class="nav-item" type="button" data-target="academy-students"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Etudiants</span></button>
-          <button class="nav-item" type="button" data-target="academy-evaluation"><span class="nav-icon material-symbols-rounded" aria-hidden="true">donut_small</span><span>Evaluations</span></button>
-          <button class="nav-item" type="button" data-target="academy-entry-panel"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_note</span><span>Lecons</span></button>
-          <a class="nav-item nav-link" href="/classe.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">class</span><span>Analyse par classe</span></a>
-          <a class="nav-item nav-link" href="/academy-students.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">badge</span><span>Fiches etudiants</span></a>
-        </nav>
+        <section class="sidebar-nav is-local-menu" aria-label="Menu de page courante">
+          <p class="nav-section-label">Page courante</p>
+          <button class="nav-item nav-group-toggle" type="button" data-nav-toggle aria-expanded="true" aria-controls="academy-page-menu">
+            <span class="nav-group-toggle-copy"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_open</span><span>Sur cette page</span></span>
+            <span class="nav-group-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+          </button>
+          <div class="nav-submenu" id="academy-page-menu">
+            <button class="nav-item" type="button" data-target="academy-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Vue academie</span></button>
+            <button class="nav-item" type="button" data-target="academy-trajectory"><span class="nav-icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Presences</span></button>
+            <button class="nav-item" type="button" data-target="academy-students"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Etudiants</span></button>
+            <button class="nav-item" type="button" data-target="academy-evaluation"><span class="nav-icon material-symbols-rounded" aria-hidden="true">donut_small</span><span>Evaluations</span></button>
+            <button class="nav-item" type="button" data-target="academy-entry-panel"><span class="nav-icon material-symbols-rounded" aria-hidden="true">edit_note</span><span>Lecons</span></button>
+          </div>
+        </section>
       </aside>
 
       <div class="page-shell">

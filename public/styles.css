@@ -132,6 +132,18 @@ body {
   margin-bottom: 20px;
 }
 
+.sidebar-nav.is-pages {
+  margin-bottom: 16px;
+}
+
+.sidebar-nav.is-local-menu {
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(37, 137, 200, 0.16);
+  background: rgba(255, 255, 255, 0.66);
+}
+
 .nav-section-label {
   margin: 4px 0 8px;
   padding: 0 6px;
@@ -139,6 +151,11 @@ body {
   letter-spacing: 0.16em;
   font-size: 0.68rem;
   color: var(--muted);
+}
+
+.sidebar-nav.is-local-menu .nav-section-label {
+  margin: 2px 0 0;
+  color: var(--sky-deep);
 }
 
 .nav-item {
@@ -184,6 +201,39 @@ body {
 .nav-link.is-active {
   background: linear-gradient(135deg, rgba(37, 137, 200, 0.14), rgba(81, 183, 234, 0.08));
   color: var(--sky-deep);
+}
+
+.nav-group-toggle {
+  justify-content: space-between;
+  border: 1px solid rgba(37, 137, 200, 0.16);
+  background: rgba(37, 137, 200, 0.06);
+}
+
+.nav-group-toggle-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-group-chevron {
+  color: var(--sky-deep);
+  transition: transform 0.2s ease;
+}
+
+.nav-group-toggle[aria-expanded="false"] .nav-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.nav-submenu {
+  display: grid;
+  gap: 8px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(37, 137, 200, 0.14);
+}
+
+.nav-submenu .nav-item {
+  padding-top: 11px;
+  padding-bottom: 11px;
 }
 
 .sidebar-card {

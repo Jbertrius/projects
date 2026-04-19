@@ -299,6 +299,35 @@ router.delete("/classes/empty", requireContentManager, async (req, res, next) =>
   }
 });
 
+router.post("/classes", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const payload = req.body || {};
+    const name = String(payload.name || payload.class_code || "").trim();
+    if (!name) return res.status(400).json({ ok: false, error: "Le nom de la classe est requis." });
+    const created = await academyRepo.createClass(payload);
+    appCache.invalidate("academy");
+    res.json({ ok: true, class: created });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
+router.delete("/classes/:id", requireContentManager, async (req, res, next) => {
+  try {
+    if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");
+    const classId = String(req.params.id || "").trim();
+    if (!classId) return res.status(400).json({ ok: false, error: "classId is required" });
+    const result = await academyRepo.deleteClassIfEmpty(classId);
+    appCache.invalidate("academy");
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    if (!error.status) error.status = 400;
+    next(error);
+  }
+});
+
 router.delete("/classes/:id/church", requireContentManager, async (req, res, next) => {
   try {
     if (!hasFirestoreConfig()) throw new AppError(503, "Firestore n'est pas configure.");

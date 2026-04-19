@@ -1,4 +1,22 @@
 (function attachShellPage() {
+  function wireCollapsibleMenus() {
+    document.querySelectorAll("[data-nav-toggle]").forEach((toggle) => {
+      const targetId = toggle.getAttribute("aria-controls");
+      if (!targetId) return;
+      const submenu = document.getElementById(targetId);
+      if (!submenu) return;
+
+      const expanded = toggle.getAttribute("aria-expanded") !== "false";
+      submenu.hidden = !expanded;
+
+      toggle.addEventListener("click", () => {
+        const nextExpanded = toggle.getAttribute("aria-expanded") === "false";
+        toggle.setAttribute("aria-expanded", nextExpanded ? "true" : "false");
+        submenu.hidden = !nextExpanded;
+      });
+    });
+  }
+
   function wireSectionNavigation() {
     document.addEventListener("click", (event) => {
       const trigger = event.target.closest("[data-target]");
@@ -62,6 +80,9 @@
     // Close on nav link click
     sidebar.querySelectorAll(".nav-link, .nav-item").forEach((link) => {
       link.addEventListener("click", () => {
+        if (link.hasAttribute("data-nav-toggle")) {
+          return;
+        }
         if (window.innerWidth <= 1200) {
           closeMenu();
         }
@@ -80,6 +101,7 @@
     if (window.AppAuth?.requireAuth) {
       await window.AppAuth.requireAuth();
     }
+    wireCollapsibleMenus();
     wireSectionNavigation();
     wireMobileMenu();
   }

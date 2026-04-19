@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Academie - Administration des classes</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .academy-classes-page .dashboard { display: grid; gap: 22px; }
+      .academy-classes-page .create-card {
+        padding: 22px;
+      }
+      .academy-classes-page .classes-layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.35fr);
+        gap: 22px;
+      }
+      .academy-classes-page .class-list {
+        display: grid;
+        gap: 12px;
+        max-height: 72vh;
+        overflow: auto;
+        padding-right: 4px;
+      }
+      .academy-classes-page .class-row {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 20px;
+        padding: 16px 18px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+        text-align: left;
+        cursor: pointer;
+        transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+      }
+      .academy-classes-page .class-row:hover,
+      .academy-classes-page .class-row.is-active {
+        border-color: rgba(37, 99, 235, 0.24);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+        transform: translateY(-1px);
+      }
+      .academy-classes-page .class-row-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .academy-classes-page .class-row-title {
+        margin: 0;
+        font-family: "Sora", sans-serif;
+        font-size: 1rem;
+        color: #0f172a;
+      }
+      .academy-classes-page .class-row-meta {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .academy-classes-page .class-row-line {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 0.88rem;
+      }
+      .academy-classes-page .class-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+      .academy-classes-page .class-detail-card {
+        min-height: 520px;
+      }
+      .academy-classes-page .admin-panel {
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(37, 99, 235, 0.12);
+        background: linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(255, 255, 255, 0.96));
+      }
+      .academy-classes-page .admin-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .academy-classes-page .admin-field {
+        display: grid;
+        gap: 6px;
+      }
+      .academy-classes-page .admin-field.is-span-2 {
+        grid-column: 1 / -1;
+      }
+      .academy-classes-page .admin-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+      .academy-classes-page .admin-help {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.82rem;
+      }
+      .academy-classes-page .admin-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255,255,255,0.8);
+      }
+      .academy-classes-page .admin-toggle-copy strong {
+        display: block;
+        color: #0f172a;
+      }
+      .academy-classes-page .admin-toggle-copy span {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.85rem;
+        color: #64748b;
+      }
+      .academy-classes-page .toggle-switch {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        gap: 8px;
+        user-select: none;
+      }
+      .academy-classes-page .toggle-switch input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .academy-classes-page .toggle-track {
+        width: 44px;
+        height: 24px;
+        background: #cbd5e1;
+        border-radius: 12px;
+        transition: background 0.2s;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .academy-classes-page .toggle-thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        transition: left 0.2s;
+      }
+      .academy-classes-page .toggle-switch input:checked ~ .toggle-track {
+        background: #147964;
+      }
+      .academy-classes-page .toggle-switch input:checked ~ .toggle-track .toggle-thumb {
+        left: 23px;
+      }
+      .academy-classes-page .admin-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .academy-classes-page .admin-feedback {
+        margin: 0;
+        font-size: 0.84rem;
+        font-weight: 600;
+      }
+      .academy-classes-page .class-detail-hero {
+        display: grid;
+        gap: 18px;
+      }
+      .academy-classes-page .class-detail-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .academy-classes-page .class-detail-head h3 {
+        margin: 6px 0 0;
+        font-family: "Sora", sans-serif;
+        font-size: 1.45rem;
+        color: #0f172a;
+      }
+      .academy-classes-page .class-detail-subtitle {
+        margin: 6px 0 0;
+        color: #64748b;
+      }
+      .academy-classes-page .class-detail-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+      }
+      .academy-classes-page .class-stat {
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(248, 250, 252, 0.88);
+      }
+      .academy-classes-page .class-stat strong {
+        display: block;
+        font-family: "Sora", sans-serif;
+        font-size: 1.4rem;
+        color: #0f172a;
+      }
+      .academy-classes-page .class-stat span {
+        display: block;
+        margin-top: 6px;
+        font-size: 0.76rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 700;
+      }
+      .academy-classes-page .students-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .academy-classes-page .student-card {
+        display: block;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(255, 255, 255, 0.98);
+        text-decoration: none;
+      }
+      .academy-classes-page .student-card strong {
+        display: block;
+        color: #0f172a;
+      }
+      .academy-classes-page .member-badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .academy-classes-page .member-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+      }
+      .academy-classes-page .member-badge.is-student {
+        color: #0b4aa2;
+        background: rgba(219, 234, 254, 0.8);
+        border-color: rgba(147, 197, 253, 0.7);
+      }
+      .academy-classes-page .member-badge.is-pastor {
+        color: #8a4305;
+        background: rgba(255, 237, 213, 0.9);
+        border-color: rgba(253, 186, 116, 0.7);
+      }
+      .academy-classes-page .member-badge.is-status {
+        color: #334155;
+        background: rgba(241, 245, 249, 0.95);
+        border-color: rgba(203, 213, 225, 0.8);
+      }
+      .academy-classes-page .student-card span {
+        display: block;
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.88rem;
+      }
+      .academy-classes-page .student-card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .academy-classes-page .student-card-actions .secondary-action {
+        width: auto;
+      }
+      .academy-classes-page .detail-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      @media (max-width: 980px) {
+        .academy-classes-page .classes-layout {
+          grid-template-columns: 1fr;
+        }
+        .academy-classes-page .class-list {
+          max-height: none;
+        }
+        .academy-classes-page .admin-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body class="academy-classes-page">
+    <button class="mobile-menu-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="app-sidebar">menu</button>
+    <div class="sidebar-overlay" aria-hidden="true"></div>
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar">
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/assets/department-logo.png" alt="Logo du departement" />
+          <div>
+            <p class="eyebrow">Departement des missions domestiques</p>
+            <p class="brand-title">Academie</p>
+          </div>
+        </div>
+
+        <section class="sidebar-card sidebar-user-card">
+          <p class="section-label">Connexion</p>
+          <div class="sidebar-user-meta">
+            <strong data-auth-user>Session</strong>
+            <span data-auth-role>Chargement...</span>
+          </div>
+          <button class="secondary-action compact-action" type="button" data-logout>Se deconnecter</button>
+        </section>
+
+        <nav class="sidebar-nav is-pages" aria-label="Pages">
+          <p class="nav-section-label">Pages</p>
+          <a class="nav-item nav-link" href="/gmcs-summit.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span>GMCS Summit</span></a>
+          <a class="nav-item nav-link" href="/"><span class="nav-icon material-symbols-rounded" aria-hidden="true">space_dashboard</span><span>Direction</span></a>
+          <a class="nav-item nav-link" href="/evangelisation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">campaign</span><span>Evangelisation</span></a>
+          <a class="nav-item nav-link" href="/cooperation.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">handshake</span><span>Cooperation</span></a>
+          <a class="nav-item nav-link" href="/academy.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Vue academie</span></a>
+          <a class="nav-item nav-link is-active" href="/academy-classes.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">group_work</span><span>Classes & etudiants</span></a>
+          <a class="nav-item nav-link" href="/academy-students.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">badge</span><span>Fiches etudiants</span></a>
+          <a class="nav-item nav-link" href="/classe.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">analytics</span><span>Analyse par classe</span></a>
+          <a class="nav-item nav-link" href="/development.html"><span class="nav-icon material-symbols-rounded" aria-hidden="true">location_city</span><span>Developpement</span></a>
+          <a class="nav-item nav-link" href="/admin.html" data-manage-users-link hidden><span class="nav-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Administration</span></a>
+        </nav>
+
+        <section class="sidebar-nav is-local-menu" aria-label="Menu de page courante">
+          <p class="nav-section-label">Page courante</p>
+          <button class="nav-item nav-group-toggle" type="button" data-nav-toggle aria-expanded="true" aria-controls="academy-classes-page-menu">
+            <span class="nav-group-toggle-copy"><span class="nav-icon material-symbols-rounded" aria-hidden="true">menu_open</span><span>Sur cette page</span></span>
+            <span class="nav-group-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+          </button>
+          <div class="nav-submenu" id="academy-classes-page-menu">
+            <button class="nav-item is-active" type="button" data-target="academy-classes-top"><span class="nav-icon material-symbols-rounded" aria-hidden="true">school</span><span>Admin classes</span></button>
+            <button class="nav-item" type="button" data-target="academy-classes-list"><span class="nav-icon material-symbols-rounded" aria-hidden="true">format_list_bulleted</span><span>Liste classes</span></button>
+            <button class="nav-item" type="button" data-target="academy-classes-detail"><span class="nav-icon material-symbols-rounded" aria-hidden="true">groups</span><span>Detail membres</span></button>
+          </div>
+        </section>
+      </aside>
+
+      <div class="page-shell">
+        <main class="dashboard">
+          <section class="top-bar" id="academy-classes-top">
+            <div>
+              <p class="section-label">Academie</p>
+              <h2>Administration des classes</h2>
+            </div>
+            <div class="top-bar-actions">
+              <div class="sync-pill" id="academy-classes-summary">Chargement...</div>
+              <button class="secondary-action compact-action" id="academy-classes-refresh" type="button">Actualiser</button>
+            </div>
+          </section>
+
+          <section class="card create-card">
+            <div class="card-head">
+              <div>
+                <p class="section-label">Creation</p>
+                <h3>Nouvelle classe</h3>
+              </div>
+              <p class="muted">Ajoutez une classe vide, puis rattachez-lui des etudiants depuis le panneau d'administration.</p>
+            </div>
+            <div class="admin-grid" style="margin-top:14px">
+              <label class="admin-field">
+                <span class="admin-label">Nom de classe</span>
+                <input id="academy-class-create-name" class="filter-control" type="text" placeholder="Ex: 166-1P" />
+              </label>
+              <label class="admin-field">
+                <span class="admin-label">Instructeur par defaut</span>
+                <input id="academy-class-create-instructor" class="filter-control" type="text" placeholder="Ex: Pasteur Jean Dupont" />
+              </label>
+              <label class="admin-field">
+                <span class="admin-label">Nom de l'eglise</span>
+                <input id="academy-class-create-church" class="filter-control" type="text" placeholder="Optionnel" />
+              </label>
+              <label class="admin-field">
+                <span class="admin-label">Pasteur de l'eglise</span>
+                <input id="academy-class-create-pastor" class="filter-control" type="text" placeholder="Optionnel" />
+              </label>
+            </div>
+            <div class="admin-actions" style="margin-top:16px">
+              <button class="primary-action compact-action" id="academy-class-create-save" type="button">Creer la classe</button>
+              <p class="admin-feedback" id="academy-class-create-feedback" hidden></p>
+            </div>
+          </section>
+
+          <section class="filters-bar">
+            <div class="filter-group">
+              <label class="filter-label" for="academy-classes-search">Recherche</label>
+              <input id="academy-classes-search" class="filter-control" type="search" placeholder="Classe, instructeur, etudiant..." />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label" for="academy-classes-type">Type</label>
+              <select id="academy-classes-type" class="filter-control">
+                <option value="all">Toutes</option>
+                <option value="academy">Academie centrale</option>
+                <option value="mission">Missionnaires</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label" for="academy-classes-sort">Tri</label>
+              <select id="academy-classes-sort" class="filter-control">
+                <option value="name_asc">Nom (A-Z)</option>
+                <option value="students_desc">Etudiants (desc)</option>
+                <option value="lessons_desc">Lecons (desc)</option>
+              </select>
+            </div>
+            <div class="filter-group filter-actions">
+              <button class="secondary-action compact-action" id="academy-classes-reset" type="button">Reinitialiser</button>
+            </div>
+          </section>
+
+          <section class="classes-layout">
+            <article class="card" id="academy-classes-list">
+              <div class="card-head">
+                <div>
+                  <p class="section-label">Liste</p>
+                  <h3>Classes</h3>
+                </div>
+                <p class="muted" id="academy-classes-visible">-</p>
+              </div>
+              <div class="class-list" id="academy-classes-list-content"></div>
+            </article>
+
+            <article class="card class-detail-card" id="academy-classes-detail">
+              <div id="academy-classes-detail-content" class="empty-state">Selectionnez une classe pour voir ses membres, meme sans aucune lecon.</div>
+            </article>
+          </section>
+        </main>
+
+        <div id="app-feedback" class="app-feedback" hidden></div>
+      </div>
+    </div>
+
+    <script src="/auth-client.js" defer></script>
+    <script src="/shell.js" defer></script>
+    <script src="/academy-classes.js" defer></script>
+  </body>
+</html>
