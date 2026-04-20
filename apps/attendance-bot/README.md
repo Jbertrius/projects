@@ -1130,3 +1130,5 @@ Set `WEBHOOK_URL` correctly in Secret Manager and redeploy. You can verify:
 ```bash
 curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 ```
+
+CI trigger test 2026-04-20
