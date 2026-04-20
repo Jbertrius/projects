@@ -66,13 +66,19 @@ Champs attendus :
 
 Règles :
 - Si une information est absente du message, utilise null pour ce champ.
-- Normalise la date même si elle est écrite en toutes lettres (ex: "15 mars 2026" → "2026-03-15").
+- Normalise la date même si elle est écrite en toutes lettres (ex: "15 mars" → "{year}-03-15").
+- Si l'année n'est pas mentionnée dans le message, utilise {year} comme année par défaut.
 - Normalise l'heure même si elle est en format 12h ou avec des mots (ex: "2h30 de l'après-midi" → "14:30").
 - Retourne exclusivement le JSON, rien d'autre.
 
 Message de l'utilisateur :
-{message}
+{{message}}
 """
+
+
+def _build_gemini_prompt(message: str) -> str:
+    year = datetime.utcnow().year
+    return _GEMINI_PROMPT.format(year=year).replace("{{message}}", message)
 
 
 def normalize_event_with_gemini(message: str) -> dict | None:
@@ -83,7 +89,7 @@ def normalize_event_with_gemini(message: str) -> dict | None:
     try:
         response = _gemini_client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=_GEMINI_PROMPT.format(message=message),
+            contents=_build_gemini_prompt(message),
             config=genai_types.GenerateContentConfig(
                 response_mime_type="application/json",
             ),
@@ -183,13 +189,25 @@ def sync_calendar_to_api(cal_service):
 
 # -- Utilitaires ────────────────────────────────────────────────────────────────
 
+def _ensure_year_in_date(date_str: str) -> str:
+    """If date_str is MM-DD or lacks a 4-digit year prefix, prepend the current year."""
+    s = date_str.strip()
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', s):
+        return s
+    # e.g. "03-15" or "15/03"
+    current_year = datetime.utcnow().year
+    if re.match(r'^\d{2}-\d{2}$', s):
+        return f"{current_year}-{s}"
+    return s
+
+
 def parse_event_details(message: str):
     pattern = r"Titre : (.*?)\nDate : (.*?)\nHeure : (.*?)\nLieu : (.*?)\nDescription : (.*?)\nMannamjas : (.*?)(?:\nSection\s*:\s*(.*))?"
     match = re.search(pattern, message, re.DOTALL)
     if match:
         return {
             'summary':     match.group(1).strip(),
-            'date':        match.group(2).strip(),
+            'date':        _ensure_year_in_date(match.group(2).strip()),
             'time':        match.group(3).strip(),
             'location':    match.group(4).strip(),
             'description': match.group(5).strip(),
@@ -340,7 +358,8 @@ async def add_event(update: Update, _):
         "Mannamjas : [nom1, nom2]\n"
         "Section : [New/Old, Talak, Fideles, Centre]\n\n"
         "💡 Vous pouvez aussi écrire naturellement, ex :\n"
-        "\"Visite Pastor Kim le 15 mars 2026 à 14h30 à Paris, mannamjas Alice et Bob\""
+        "\"Visite Pastor Kim le 15 mars à 14h30 à Paris, section Talak, mannamjas Alice et Bob\"\n"
+        "(si l'année n'est pas précisée, l'année en cours est utilisée)"
     )
     return ADD_EVENT
 
