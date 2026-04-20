@@ -62,6 +62,7 @@ Champs attendus :
 - "location"  : lieu de l'événement
 - "description" : objet / but de la visite
 - "mannamjas" : liste des participants séparés par des virgules
+- "section"   : section des participants parmi "New/Old", "Talak", "Fideles", "Centre" (null si non mentionné)
 
 Règles :
 - Si une information est absente du message, utilise null pour ce champ.
@@ -92,7 +93,9 @@ def normalize_event_with_gemini(message: str) -> dict | None:
         if not required.issubset(data.keys()):
             logging.warning(f"Gemini: champs manquants dans la réponse: {data}")
             return None
-        return {k: (v or "") for k, v in data.items()}
+        result = {k: (v or "") for k, v in data.items()}
+        result.setdefault("section", "")
+        return result
     except Exception as e:
         logging.error(f"Erreur Gemini: {e}")
         return None
@@ -157,6 +160,7 @@ def sync_calendar_to_api(cal_service):
                 date_val = start_raw
                 time_val = ''
             mannamjas, description = extract_mannamjas_and_clean_description(event.get('description', ''))
+            section = extract_section_from_description(event.get('description', ''))
             try:
                 firestore_sync.upsert_mannam_event(event['id'], {
                     'summary': event.get('summary') or '(Sans titre)',
@@ -165,6 +169,7 @@ def sync_calendar_to_api(cal_service):
                     'location': event.get('location', ''),
                     'description': description,
                     'mannamjas': mannamjas,
+                    'section': section,
                     'figure_name': _extract_figure_name(event.get('summary', '')),
                 })
                 synced += 1
@@ -179,7 +184,7 @@ def sync_calendar_to_api(cal_service):
 # -- Utilitaires ────────────────────────────────────────────────────────────────
 
 def parse_event_details(message: str):
-    pattern = r"Titre : (.*?)\nDate : (.*?)\nHeure : (.*?)\nLieu : (.*?)\nDescription : (.*?)\nMannamjas : (.*)"
+    pattern = r"Titre : (.*?)\nDate : (.*?)\nHeure : (.*?)\nLieu : (.*?)\nDescription : (.*?)\nMannamjas : (.*?)(?:\nSection\s*:\s*(.*))?"
     match = re.search(pattern, message, re.DOTALL)
     if match:
         return {
@@ -189,6 +194,7 @@ def parse_event_details(message: str):
             'location':    match.group(4).strip(),
             'description': match.group(5).strip(),
             'mannamjas':   match.group(6).strip(),
+            'section':     (match.group(7) or "").strip(),
         }
     return None
 
@@ -235,6 +241,12 @@ def extract_mannamjas_and_clean_description(description: str):
             mannamjas = _normalize_mannamjas(match.group(1).strip())
             cleaned = re.sub(r'Mannamjas\s*:\s*.+', '', cleaned).strip()
     return mannamjas, cleaned
+
+
+def extract_section_from_description(description: str) -> str:
+    cleaned = sanitize_string(description)
+    match = re.search(r'Section\s*:\s*(.+)', cleaned)
+    return match.group(1).strip() if match else ""
 
 
 _figure_name_cache: dict[str, str] = {}
@@ -289,10 +301,13 @@ def _extract_figure_name(summary: str) -> str:
 def create_event(service, event_details: dict):
     start_dt = datetime.fromisoformat(f"{event_details['date']}T{event_details['time']}:00")
     end_dt   = start_dt + timedelta(hours=1)
+    desc_parts = [event_details['description'], f"Mannamjas: {event_details['mannamjas']}"]
+    if event_details.get('section'):
+        desc_parts.append(f"Section: {event_details['section']}")
     event = {
         'summary':  event_details['summary'],
         'location': event_details['location'],
-        'description': f"{event_details['description']}\nMannamjas: {event_details['mannamjas']}",
+        'description': "\n".join(desc_parts),
         'start': {'dateTime': start_dt.isoformat(), 'timeZone': 'Europe/Paris'},
         'end':   {'dateTime': end_dt.isoformat(),   'timeZone': 'Europe/Paris'},
     }
@@ -322,7 +337,8 @@ async def add_event(update: Update, _):
         "Heure : [HH:MM]\n"
         "Lieu : [lieu]\n"
         "Description : [purpose of visit]\n"
-        "Mannamjas : [nom1, nom2]\n\n"
+        "Mannamjas : [nom1, nom2]\n"
+        "Section : [New/Old, Talak, Fideles, Centre]\n\n"
         "💡 Vous pouvez aussi écrire naturellement, ex :\n"
         "\"Visite Pastor Kim le 15 mars 2026 à 14h30 à Paris, mannamjas Alice et Bob\""
     )
@@ -352,6 +368,7 @@ async def handle_add_event(update: Update, _):
         )
         return ConversationHandler.END
 
+    section = event_details.get('section', '') or ''
     await update.message.reply_text(
         f"✅ Événement détecté :\n"
         f"📌 Titre : {event_details['summary']}\n"
@@ -359,7 +376,8 @@ async def handle_add_event(update: Update, _):
         f"🕐 Heure : {event_details['time']}\n"
         f"📍 Lieu : {event_details['location']}\n"
         f"📝 Description : {event_details.get('description', '-')}\n"
-        f"🚶 Mannamjas : {event_details.get('mannamjas', '-')}\n\nCréation en cours..."
+        f"🚶 Mannamjas : {event_details.get('mannamjas', '-')}\n"
+        f"🏷 Section : {section or '-'}\n\nCréation en cours..."
     )
 
     service = get_calendar_service()
@@ -458,6 +476,7 @@ async def edit_event(update: Update, context):
     start_raw = event.get('start', {}).get('dateTime', event.get('start', {}).get('date', ''))
     start_dt  = datetime.fromisoformat(start_raw) if start_raw else None
     mannamjas, clean_desc = extract_mannamjas_and_clean_description(event.get('description', ''))
+    section_old = extract_section_from_description(event.get('description', ''))
 
     await update.message.reply_text(
         f"✏️ Édition de l'événement [{idx}] :\n"
@@ -466,7 +485,8 @@ async def edit_event(update: Update, context):
         f"🕐 Heure : {start_dt.strftime('%H:%M') if start_dt else '-'}\n"
         f"📍 Lieu : {event.get('location', '-')}\n"
         f"📝 Description : {clean_desc or '-'}\n"
-        f"🚶 Mannamjas : {mannamjas}\n\n"
+        f"🚶 Mannamjas : {mannamjas}\n"
+        f"🏷 Section : {section_old or '-'}\n\n"
         "Décrivez les modifications à apporter (les champs non mentionnés seront conservés).\n"
         "Ex : \"Changer l'heure à 15h00 et le lieu à Lyon\""
     )
@@ -499,19 +519,24 @@ async def handle_edit_event(update: Update, context):
     current_time = start_dt.strftime('%H:%M') if start_dt else '00:00'
     mannamjas_old, desc_old = extract_mannamjas_and_clean_description(event.get('description', ''))
 
+    section_old = extract_section_from_description(event.get('description', ''))
     new_date        = changes.get('date')        or current_date
     new_time        = changes.get('time')        or current_time
     new_summary     = changes.get('summary')     or event.get('summary', '')
     new_location    = changes.get('location')    or event.get('location', '')
     new_description = changes.get('description') or desc_old
     new_mannamjas   = changes.get('mannamjas')   or mannamjas_old
+    new_section     = changes.get('section')     or section_old
 
     edit_start_dt = datetime.fromisoformat(f"{new_date}T{new_time}:00")
     edit_end_dt   = edit_start_dt + timedelta(hours=1)
+    desc_parts = [new_description, f"Mannamjas: {new_mannamjas}"]
+    if new_section:
+        desc_parts.append(f"Section: {new_section}")
     patch_body = {
         'summary':  new_summary,
         'location': new_location,
-        'description': f"{new_description}\nMannamjas: {new_mannamjas}",
+        'description': "\n".join(desc_parts),
         'start': {'dateTime': edit_start_dt.isoformat(), 'timeZone': 'Europe/Paris'},
         'end':   {'dateTime': edit_end_dt.isoformat(),   'timeZone': 'Europe/Paris'},
     }
@@ -522,7 +547,7 @@ async def handle_edit_event(update: Update, context):
         _sync_mannam_to_api(event_id, {
             'summary': new_summary, 'date': new_date, 'time': new_time,
             'location': new_location, 'description': new_description,
-            'mannamjas': new_mannamjas,
+            'mannamjas': new_mannamjas, 'section': new_section,
         })
         await update.message.reply_text(
             f"✅ Événement mis à jour :\n"
@@ -531,7 +556,8 @@ async def handle_edit_event(update: Update, context):
             f"🕐 Heure : {new_time}\n"
             f"📍 Lieu : {new_location}\n"
             f"📝 Description : {new_description}\n"
-            f"🚶 Mannamjas : {new_mannamjas}"
+            f"🚶 Mannamjas : {new_mannamjas}\n"
+            f"🏷 Section : {new_section or '-'}"
         )
     except Exception as e:
         logging.error(f"Error patching event: {e}")

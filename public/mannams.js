@@ -361,6 +361,10 @@ function renderDetail() {
   const descEl = document.getElementById("d-description");
   descEl.textContent = desc || "Aucune description";
   descEl.className = `detail-value${desc ? "" : " muted"}`;
+  const sectionEl = document.getElementById("d-section");
+  const sectionVal = meeting.meeting_section || "";
+  sectionEl.textContent = sectionVal || "—";
+  sectionEl.className = `detail-value${sectionVal ? "" : " muted"}`;
   document.getElementById("d-source").textContent = meeting.source || "—";
 
   // Match badge

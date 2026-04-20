@@ -180,6 +180,7 @@ router.post("/meetings", async (req, res, next) => {
       time,
       location,
       description,
+      section,
       participants = [],
       calendarEventId,
       source = "mannam_bot"
@@ -220,6 +221,7 @@ router.post("/meetings", async (req, res, next) => {
         memberNameRaw: { stringValue: participantList[0] || "" },
         // Extended bot fields preserved for auditing
         meetingTime: { stringValue: String(time || "").trim() },
+        meetingSection: { stringValue: String(section || "").trim() },
         calendarEventId: { stringValue: String(calendarEventId || "").trim() },
         source: { stringValue: String(source).trim() },
         createdAt: { stringValue: new Date().toISOString() }
@@ -239,7 +241,8 @@ router.post("/meetings", async (req, res, next) => {
       const updateFields = {
         meetingDate: doc.fields.meetingDate,
         zone:        doc.fields.zone,
-        eventSummary: doc.fields.eventSummary
+        eventSummary: doc.fields.eventSummary,
+        meetingSection: doc.fields.meetingSection
       };
       const maskParams = Object.keys(updateFields)
         .map((f) => `updateMask.fieldPaths=${encodeURIComponent(f)}`)
