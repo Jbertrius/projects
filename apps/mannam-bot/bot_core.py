@@ -65,8 +65,9 @@ Champs attendus (TOUS OBLIGATOIRES - ne jamais retourner null) :
 - "section"   : section des participants parmi "New/Old", "Talak", "Fideles", "Centre". Si non mentionné, utilise ""
 
 Règles importantes :
-- TOUS les champs doivent avoir une valeur NON VIDE (jamais null).
-- Si une information manque vraiment, invente une valeur plausible ou utilise un placeholder descriptif.
+- NE JAMAIS inventer de valeurs ni utiliser des placeholders.
+- Interdits absolus (dans n'importe quel champ): "inconnu", "par défaut", "non spécifié", "unknown", "n/a".
+- Si une information manque vraiment, retourne une chaîne vide "" pour ce champ.
 - Normalise la date : "23 avril 2026" → "{year}-04-23", "15/03" → "{year}-03-15"
 - Si l'année n'est pas mentionnée, utilise {year} comme année par défaut.
 - Normalise l'heure : "18h00" → "18:00", "6h30 du soir" → "18:30", "2h30 PM" → "14:30"
@@ -91,6 +92,22 @@ def _extract_json_object(text: str) -> str:
     cleaned = re.sub(r"```(?:json)?", "", text, flags=re.IGNORECASE).replace("```", "").strip()
     match = re.search(r"\{.*\}", cleaned, re.DOTALL)
     return match.group(0).strip() if match else cleaned
+
+
+def _looks_like_placeholder(value: str) -> bool:
+    s = (value or "").strip().lower()
+    if not s:
+        return True
+    placeholder_tokens = [
+        "inconnu", "unknown", "n/a", "non specifie", "non spécifié",
+        "aucun", "pas precise", "pas précisé", "non renseigne", "non renseigné",
+    ]
+    return any(tok in s for tok in placeholder_tokens)
+
+
+def _event_contains_placeholder_defaults(event_details: dict) -> bool:
+    check_fields = ("summary", "date", "time", "location", "description", "mannamjas")
+    return any(_looks_like_placeholder(str(event_details.get(k, ""))) for k in check_fields)
 
 
 def normalize_event_with_gemini(message: str) -> dict | None:
@@ -119,6 +136,14 @@ def normalize_event_with_gemini(message: str) -> dict | None:
             return None
         result = {k: (v or "") for k, v in data.items()}
         result.setdefault("section", "")
+
+        # Rejette les réponses trop génériques pour laisser le fallback regex agir.
+        critical_fields = ("summary", "date", "time", "location")
+        placeholder_count = sum(1 for k in critical_fields if _looks_like_placeholder(str(result.get(k, ""))))
+        if placeholder_count >= 2:
+            logging.warning(f"Gemini: réponse jugée trop générique, fallback activé: {result}")
+            return None
+
         return result
     except Exception as e:
         logging.error(f"Erreur Gemini: {e}")
@@ -221,7 +246,15 @@ def _ensure_year_in_date(date_str: str) -> str:
 
 def parse_event_details(message: str):
     """Parse format structuré : Titre : ... / Date : ... / Heure : ... / Lieu : ... / etc."""
-    pattern = r"Titre : (.*?)\nDate : (.*?)\nHeure : (.*?)\nLieu : (.*?)\nDescription : (.*?)\nMannamjas : (.*?)(?:\nSection\s*:\s*(.*))?"
+    line_break = r"(?:\r?\n)"
+    pattern = (
+        r"Titre\s*:\s*(.*?)" + line_break +
+        r"Date\s*:\s*(.*?)" + line_break +
+        r"Heure\s*:\s*(.*?)" + line_break +
+        r"Lieu\s*:\s*(.*?)" + line_break +
+        r"Description\s*:\s*(.*?)" + line_break +
+        r"Mannamjas\s*:\s*(.*?)(?:" + line_break + r"Section\s*:\s*(.*))?"
+    )
     match = re.search(pattern, message, re.DOTALL)
     if match:
         return {
@@ -395,6 +428,11 @@ def parse_event_details_freeform(message: str) -> dict | None:
     return None
 
 
+def _looks_like_structured_event_message(message: str) -> bool:
+    required_labels = ["Titre", "Date", "Heure", "Lieu", "Description", "Mannamjas"]
+    return all(re.search(rf"(?im)^\s*{label}\s*:", message or "") for label in required_labels)
+
+
 def sanitize_string(s: str) -> str:
     return re.sub(r'<[^>]*>', '', s)
 
@@ -545,16 +583,29 @@ async def add_event(update: Update, _):
 async def handle_add_event(update: Update, _):
     message = update.message.text
 
-    # Essai 1 : Gemini (le plus flexible)
-    event_details = normalize_event_with_gemini(message)
-    
-    # Essai 2 : Format structuré (Titre : / Date : / etc.)
-    if event_details is None:
+    # On privilégie les parseurs déterministes avant Gemini.
+    event_details = None
+    parser_used = "none"
+
+    # Essai 1 : Format structuré (Titre : / Date : / etc.)
+    if _looks_like_structured_event_message(message):
         event_details = parse_event_details(message)
-    
-    # Essai 3 : Format libre (texte naturel avec regexes)
+        if event_details is not None:
+            parser_used = "structured_regex"
+
+    # Essai 2 : Format libre (texte naturel avec regexes)
     if event_details is None:
         event_details = parse_event_details_freeform(message)
+        if event_details is not None:
+            parser_used = "freeform_regex"
+
+    # Essai 3 : Gemini (fallback intelligent)
+    if event_details is None:
+        event_details = normalize_event_with_gemini(message)
+        if event_details is not None:
+            parser_used = "gemini"
+
+    logging.info(f"add_event parser utilisé: {parser_used}")
 
     if not event_details:
         await update.message.reply_text(
@@ -569,6 +620,14 @@ async def handle_add_event(update: Update, _):
         await update.message.reply_text(
             f"⚠️ Champs manquants : {', '.join(labels[k] for k in missing)}\n"
             "Merci de renvoyer le message en précisant ces informations."
+        )
+        return ConversationHandler.END
+
+    if _event_contains_placeholder_defaults(event_details):
+        logging.warning(f"Événement rejeté: valeurs placeholder détectées: {event_details}")
+        await update.message.reply_text(
+            "⚠️ Les informations extraites semblent incomplètes (valeurs par défaut détectées).\n"
+            "Merci de renvoyer un message plus précis (titre, date, heure, lieu, description, participants)."
         )
         return ConversationHandler.END
 
