@@ -82,7 +82,8 @@ Message de l'utilisateur :
 
 def _build_gemini_prompt(message: str) -> str:
     year = datetime.utcnow().year
-    return _GEMINI_PROMPT.format(year=year).replace("{{message}}", message)
+    # Replace {year} via simple string replace to avoid conflicts with {message} placeholder.
+    return _GEMINI_PROMPT.replace("{year}", str(year)).replace("{{message}}", message)
 
 
 def _extract_json_object(text: str) -> str:
@@ -583,27 +584,8 @@ async def add_event(update: Update, _):
 async def handle_add_event(update: Update, _):
     message = update.message.text
 
-    # On privilégie les parseurs déterministes avant Gemini.
-    event_details = None
-    parser_used = "none"
-
-    # Essai 1 : Format structuré (Titre : / Date : / etc.)
-    if _looks_like_structured_event_message(message):
-        event_details = parse_event_details(message)
-        if event_details is not None:
-            parser_used = "structured_regex"
-
-    # Essai 2 : Format libre (texte naturel avec regexes)
-    if event_details is None:
-        event_details = parse_event_details_freeform(message)
-        if event_details is not None:
-            parser_used = "freeform_regex"
-
-    # Essai 3 : Gemini (fallback intelligent)
-    if event_details is None:
-        event_details = normalize_event_with_gemini(message)
-        if event_details is not None:
-            parser_used = "gemini"
+    event_details = normalize_event_with_gemini(message)
+    parser_used = "gemini" if event_details is not None else "none"
 
     logging.info(f"add_event parser utilisé: {parser_used}")
 
