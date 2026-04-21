@@ -81,6 +81,15 @@ def _build_gemini_prompt(message: str) -> str:
     return _GEMINI_PROMPT.format(year=year).replace("{{message}}", message)
 
 
+def _extract_json_object(text: str) -> str:
+    """Extrait le premier objet JSON d'une réponse Gemini (même si entouré de markdown)."""
+    if not text:
+        return ""
+    cleaned = re.sub(r"```(?:json)?", "", text, flags=re.IGNORECASE).replace("```", "").strip()
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    return match.group(0).strip() if match else cleaned
+
+
 def normalize_event_with_gemini(message: str) -> dict | None:
     """Utilise Gemini pour extraire les champs d'un événement depuis un message libre."""
     if not _gemini_client:
@@ -94,7 +103,13 @@ def normalize_event_with_gemini(message: str) -> dict | None:
                 response_mime_type="application/json",
             ),
         )
-        data = json.loads(response.text)
+        raw_text = getattr(response, "text", "") or ""
+        raw_json = _extract_json_object(raw_text)
+        if not raw_json:
+            logging.warning("Gemini: réponse vide ou non exploitable.")
+            return None
+
+        data = json.loads(raw_json)
         required = {"summary", "date", "time", "location", "description", "mannamjas"}
         if not required.issubset(data.keys()):
             logging.warning(f"Gemini: champs manquants dans la réponse: {data}")
