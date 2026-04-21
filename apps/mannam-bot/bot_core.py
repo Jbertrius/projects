@@ -55,21 +55,24 @@ _GEMINI_PROMPT = """
 Tu es un assistant d'extraction de données pour un agenda d'événements religieux.
 À partir du message libre de l'utilisateur, extrais les informations suivantes et retourne-les UNIQUEMENT sous forme d'objet JSON valide, sans texte autour.
 
-Champs attendus :
-- "summary"   : titre de l'événement (type de visite + nom du pasteur)
-- "date"      : date au format AAAA-MM-JJ
-- "time"      : heure au format HH:MM (24h)
-- "location"  : lieu de l'événement
-- "description" : objet / but de la visite
-- "mannamjas" : liste des participants séparés par des virgules
-- "section"   : section des participants parmi "New/Old", "Talak", "Fideles", "Centre" (null si non mentionné)
+Champs attendus (TOUS OBLIGATOIRES - ne jamais retourner null) :
+- "summary"   : titre de l'événement (type de visite + nom du pasteur). Ex: "Visite Pasteur Kim"
+- "date"      : date au format AAAA-MM-JJ. Ex: "2026-04-23"
+- "time"      : heure au format HH:MM (24h). Ex: "18:00"
+- "location"  : lieu de l'événement. Ex: "Châtelet"
+- "description" : objet / but de la visite. Ex: "Présentation du GMCS"
+- "mannamjas" : liste des participants séparés par des virgules. Ex: "Alice, Bob"
+- "section"   : section des participants parmi "New/Old", "Talak", "Fideles", "Centre". Si non mentionné, utilise ""
 
-Règles :
-- Si une information est absente du message, utilise null pour ce champ.
-- Normalise la date même si elle est écrite en toutes lettres (ex: "15 mars" → "{year}-03-15").
-- Si l'année n'est pas mentionnée dans le message, utilise {year} comme année par défaut.
-- Normalise l'heure même si elle est en format 12h ou avec des mots (ex: "2h30 de l'après-midi" → "14:30").
-- Retourne exclusivement le JSON, rien d'autre.
+Règles importantes :
+- TOUS les champs doivent avoir une valeur NON VIDE (jamais null).
+- Si une information manque vraiment, invente une valeur plausible ou utilise un placeholder descriptif.
+- Normalise la date : "23 avril 2026" → "{year}-04-23", "15/03" → "{year}-03-15"
+- Si l'année n'est pas mentionnée, utilise {year} comme année par défaut.
+- Normalise l'heure : "18h00" → "18:00", "6h30 du soir" → "18:30", "2h30 PM" → "14:30"
+- Accepte les typos (ex: "Chatelêt" → "Châtelet", "mannamja" → participants)
+- Pour les participants : extrais tous les noms mentionnés après des mots comme "mannamjas", "participants", "avec", etc.
+- Retourne EXCLUSIVEMENT le JSON, rien d'autre.
 
 Message de l'utilisateur :
 {{message}}
@@ -217,6 +220,7 @@ def _ensure_year_in_date(date_str: str) -> str:
 
 
 def parse_event_details(message: str):
+    """Parse format structuré : Titre : ... / Date : ... / Heure : ... / Lieu : ... / etc."""
     pattern = r"Titre : (.*?)\nDate : (.*?)\nHeure : (.*?)\nLieu : (.*?)\nDescription : (.*?)\nMannamjas : (.*?)(?:\nSection\s*:\s*(.*))?"
     match = re.search(pattern, message, re.DOTALL)
     if match:
@@ -229,6 +233,165 @@ def parse_event_details(message: str):
             'mannamjas':   match.group(6).strip(),
             'section':     (match.group(7) or "").strip(),
         }
+    return None
+
+
+def _normalize_french_date(date_str: str) -> str:
+    """Convertit les dates françaises (ex: '23 avril 2026', '23/04') en AAAA-MM-JJ."""
+    date_str = date_str.strip()
+    current_year = datetime.utcnow().year
+    
+    # Mois français
+    months_fr = {
+        'janvier': '01', 'février': '02', 'mars': '03', 'avril': '04', 'mai': '05', 'juin': '06',
+        'juillet': '07', 'août': '08', 'septembre': '09', 'octobre': '10', 'novembre': '11', 'décembre': '12'
+    }
+    
+    # Déjà au format AAAA-MM-JJ
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+        return date_str
+    
+    # Format JJ/MM/AAAA ou JJ/MM
+    if re.match(r'^\d{2}/\d{2}/\d{4}$', date_str):
+        parts = date_str.split('/')
+        return f"{parts[2]}-{parts[1]}-{parts[0]}"
+    if re.match(r'^\d{2}/\d{2}$', date_str):
+        parts = date_str.split('/')
+        return f"{current_year}-{parts[1]}-{parts[0]}"
+    
+    # Format français "JJ mois" ou "JJ mois AAAA"
+    match = re.match(r'^(\d{1,2})\s+(\w+)(?:\s+(\d{4}))?', date_str, re.IGNORECASE)
+    if match:
+        day = match.group(1).zfill(2)
+        month_name = match.group(2).lower()
+        year = match.group(3) or str(current_year)
+        month = months_fr.get(month_name)
+        if month:
+            return f"{year}-{month}-{day}"
+    
+    return date_str
+
+
+def _normalize_french_time(time_str: str) -> str:
+    """Convertit les heures françaises (ex: '18h00', '6h30 du soir') en HH:MM."""
+    time_str = time_str.strip()
+    
+    # Déjà au format HH:MM
+    if re.match(r'^\d{2}:\d{2}$', time_str):
+        return time_str
+    
+    # Format "HHhMM" ou "HH h MM"
+    match = re.match(r'^(\d{1,2})\s*h\s*(\d{0,2})', time_str, re.IGNORECASE)
+    if match:
+        hour = int(match.group(1))
+        minute = match.group(2) or '0'
+        minute = minute.zfill(2) if minute else '00'
+        
+        # Gère "du soir" / "de l'après-midi" / "du matin"
+        if 'soir' in time_str.lower() and hour < 12:
+            hour += 12
+        elif 'après' in time_str.lower() and hour < 12:
+            hour += 12
+        elif 'matin' in time_str.lower() and hour >= 12:
+            hour = hour - 12
+        
+        return f"{hour:02d}:{minute}"
+    
+    return time_str
+
+
+def parse_event_details_freeform(message: str) -> dict | None:
+    """Parse format libre : texte naturel structuré de manière souple.
+    Ex: 'Visite Pasteur Kasa le 23 avril 2026 à 18h00 à Châtelet pour présentation GMCS, Haena, Fidèles'
+    """
+    msg = message.strip()
+    
+    # Extraction du titre (généralement au début, jusqu'à la première date/chiffre)
+    summary_match = re.match(r'^([^0-9]{5,}?)(?:\s+(?:le\s+)?(\d)|\s+(?:à|le)\s|$)', msg, re.IGNORECASE)
+    summary = summary_match.group(1).strip() if summary_match else ""
+    
+    # Extraction de la date
+    date_patterns = [
+        r'(?:le\s+)?(\d{1,2}\s+\w+\s+\d{4})',  # "le 23 avril 2026"
+        r'(?:le\s+)?(\d{1,2}\s+\w+)',            # "le 23 avril"
+        r'(\d{1,2}/\d{1,2}/\d{4})',              # "23/04/2026"
+        r'(\d{1,2}/\d{1,2})',                    # "23/04"
+    ]
+    date_str = ""
+    for pattern in date_patterns:
+        match = re.search(pattern, msg, re.IGNORECASE)
+        if match:
+            date_str = _normalize_french_date(match.group(1))
+            break
+    
+    # Extraction de l'heure (accept "h" ou ":")
+    time_match = re.search(r'(?:à\s+)?(\d{1,2}\s*h\s*\d{0,2}|\d{1,2}:\d{2})', msg, re.IGNORECASE)
+    time_str = _normalize_french_time(time_match.group(1)) if time_match else ""
+    
+    # Extraction du lieu (après "à", "au", "en", ou avant une virgule avec des chiffres avant)
+    # Plus flexible: accepte aussi les cas sans préposition claire
+    location_candidates = [
+        r'(?:à|au|en)\s+([A-Z][a-zâêîôûäëïöüàèé\s\-\.]+?)(?:\s+pour|,|$)',  # Avec préposition
+        r'[,\s]([A-Z][a-zâêîôûäëïöüàèé\s\-\.]{3,}?)(?:\s+,|,)',              # Sans préposition, avant une virgule
+    ]
+    location = ""
+    for pattern in location_candidates:
+        match = re.search(pattern, msg, re.IGNORECASE)
+        if match:
+            location = match.group(1).strip()
+            # Nettoyer les résidus
+            location = re.sub(r'^\s+', '', location).strip()
+            if location and len(location) > 3:
+                break
+    
+    # Extraction de la description (après "pour" ou "but" ou avant une virgule si présente)
+    desc_candidates = [
+        r'(?:pour|but|objectif|presentation)\s+([^,]+?)(?:\s*,|$)',  # Après "pour"
+        r'[,\s]([a-z].{10,}?)(?:\s*,\s+[A-Z]|\s*,|$)',                # Après virgule et avant section
+    ]
+    description = ""
+    for pattern in desc_candidates:
+        match = re.search(pattern, msg, re.IGNORECASE)
+        if match:
+            description = match.group(1).strip()
+            # Nettoyer
+            description = re.sub(r'^\s+', '', description).strip()
+            if description and len(description) > 3:
+                break
+    
+    # Extraction des participants (après "mannamjas", "participants", "avec", etc.)
+    mannamjas = ""
+    mannam_patterns = [
+        r'(?:mannamjas?|participants?|avec)\s+([^,]+?)(?:\s*,|$)',  # Format structuré
+        r',\s+(\w+(?:\s+\w+)*)\s*,\s*[A-Z]',                         # Entre virgules avant section
+    ]
+    for pattern in mannam_patterns:
+        match = re.search(pattern, msg, re.IGNORECASE)
+        if match:
+            mannamjas = match.group(1).strip()
+            if mannamjas:
+                break
+    
+    # Extraction de la section (mots-clés connus à la fin ou après "section")
+    section = ""
+    section_keywords = ['New/Old', 'Talak', 'Fideles', 'Centre']
+    for keyword in section_keywords:
+        if re.search(rf'\b{keyword}\b', msg, re.IGNORECASE):
+            section = keyword
+            break
+    
+    # Valider que les champs critiques sont remplis
+    if summary and date_str and time_str and location:
+        return {
+            'summary': summary,
+            'date': date_str,
+            'time': time_str,
+            'location': location,
+            'description': description,
+            'mannamjas': mannamjas,
+            'section': section,
+        }
+    
     return None
 
 
@@ -382,9 +545,16 @@ async def add_event(update: Update, _):
 async def handle_add_event(update: Update, _):
     message = update.message.text
 
+    # Essai 1 : Gemini (le plus flexible)
     event_details = normalize_event_with_gemini(message)
+    
+    # Essai 2 : Format structuré (Titre : / Date : / etc.)
     if event_details is None:
         event_details = parse_event_details(message)
+    
+    # Essai 3 : Format libre (texte naturel avec regexes)
+    if event_details is None:
+        event_details = parse_event_details_freeform(message)
 
     if not event_details:
         await update.message.reply_text(
