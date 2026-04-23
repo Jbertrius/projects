@@ -605,14 +605,6 @@ async def handle_add_event(update: Update, _):
         )
         return ConversationHandler.END
 
-    if _event_contains_placeholder_defaults(event_details):
-        logging.warning(f"Événement rejeté: valeurs placeholder détectées: {event_details}")
-        await update.message.reply_text(
-            "⚠️ Les informations extraites semblent incomplètes (valeurs par défaut détectées).\n"
-            "Merci de renvoyer un message plus précis (titre, date, heure, lieu, description, participants)."
-        )
-        return ConversationHandler.END
-
     section = event_details.get('section', '') or ''
     await update.message.reply_text(
         f"✅ Événement détecté :\n"
