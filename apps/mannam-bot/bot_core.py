@@ -151,6 +151,75 @@ def normalize_event_with_gemini(message: str) -> dict | None:
         return None
 
 
+_GEMINI_EDIT_PROMPT = """
+Tu es un assistant de modification d'événements pour un agenda religieux.
+L'utilisateur te décrit les changements à apporter à un événement existant.
+Extrais UNIQUEMENT les champs modifiés et retourne-les sous forme d'objet JSON valide, sans texte autour.
+
+Champs possibles (retourne SEULEMENT ceux explicitement mentionnés dans le message) :
+- "summary"   : nouveau titre. Ex: "Visite Pasteur Kim"
+- "date"      : nouvelle date au format AAAA-MM-JJ. Ex: "2026-04-25"
+- "time"      : nouvelle heure au format HH:MM (24h). Ex: "20:00"
+- "location"  : nouveau lieu. Ex: "Lyon"
+- "description" : nouvelle description.
+- "mannamjas" : nouveaux participants séparés par des virgules.
+- "section"   : nouvelle section parmi "New/Old", "Talak", "Fideles", "Centre".
+
+Règles :
+- NE retourne QUE les champs dont la valeur est clairement mentionnée dans le message.
+- Ne jamais inventer de valeurs ni utiliser des placeholders.
+- Normalise la date : "25 avril 2026" → "{year}-04-25", "25/04" → "{year}-04-25"
+- Si l'année n'est pas mentionnée, utilise {year}.
+- Normalise l'heure : "20h00" → "20:00", "8h du soir" → "20:00"
+- Retourne EXCLUSIVEMENT le JSON, rien d'autre.
+
+Message de l'utilisateur :
+{{message}}
+"""
+
+
+def _build_gemini_edit_prompt(message: str) -> str:
+    year = datetime.utcnow().year
+    return _GEMINI_EDIT_PROMPT.replace("{year}", str(year)).replace("{{message}}", message)
+
+
+def normalize_edit_with_gemini(message: str) -> dict | None:
+    """Utilise Gemini pour extraire les champs à modifier depuis une instruction d'édition libre.
+    Contrairement à normalize_event_with_gemini, accepte les réponses partielles (champs non
+    mentionnés → absents du dict) sans les rejeter comme 'trop génériques'.
+    """
+    if not _gemini_client:
+        logging.warning("GEMINI_API_KEY absent — fallback sur le parsing regex.")
+        return None
+    try:
+        response = _gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=_build_gemini_edit_prompt(message),
+            config=genai_types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+        raw_text = getattr(response, "text", "") or ""
+        raw_json = _extract_json_object(raw_text)
+        if not raw_json:
+            logging.warning("Gemini edit: réponse vide ou non exploitable.")
+            return None
+
+        data = json.loads(raw_json)
+        # Pour un message d'édition, un dict vide signifie que Gemini n'a rien compris.
+        if not data:
+            logging.warning("Gemini edit: aucun champ extrait.")
+            return None
+
+        result = {k: (v or "") for k, v in data.items() if k in
+                  ("summary", "date", "time", "location", "description", "mannamjas", "section")}
+        logging.info(f"Gemini edit: champs extraits: {result}")
+        return result if result else None
+    except Exception as e:
+        logging.error(f"Erreur Gemini edit: {e}")
+        return None
+
+
 # ── Google API services ────────────────────────────────────────────────────────
 
 def _creds_from_env(scopes: list[str]):
@@ -738,7 +807,7 @@ async def handle_edit_event(update: Update, context):
         return ConversationHandler.END
 
     message = update.message.text
-    changes = normalize_event_with_gemini(message)
+    changes = normalize_edit_with_gemini(message)
     if changes is None:
         changes = parse_event_details(message) or {}
 
