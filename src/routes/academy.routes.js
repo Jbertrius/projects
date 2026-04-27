@@ -208,10 +208,16 @@ router.get("/classes/:id", requireAuth, async (req, res, next) => {
 
     // Enrich students: compute per-lesson attendance stats.
     const enrichedStudents = students.map((student) => {
-      const lessonCount = lessons.length;
+      const isRegisteredStudent = student.is_registered !== false;
+      let lessonCount = 0;
       let presentCount = 0, absentCount = 0, lateCount = 0, excusedCount = 0;
       for (const lesson of lessons) {
         const row = attByKey.get(`${lesson.lesson_id}__${student.id}`);
+        if (!row && !isRegisteredStudent) {
+          continue;
+        }
+
+        lessonCount += 1;
         const status = row ? row.status : "absent";
         if (status === "present")       presentCount++;
         else if (status === "late")     lateCount++;
@@ -233,11 +239,12 @@ router.get("/classes/:id", requireAuth, async (req, res, next) => {
     const enrichedLessons = lessons.map((lesson) => {
       const lessonAttRows = attendanceRows.filter((r) => r.lesson_id === lesson.lesson_id);
       const presentCount = lessonAttRows.filter((r) => r.status === "present").length;
-      const totalStudents = students.length;
+      const totalStudents = students.filter((s) => s.is_registered !== false).length;
       // Build per-student attendance array for block reconstruction on the client.
       const attendance = students.map((s) => {
         const row = attByKey.get(`${lesson.lesson_id}__${s.id}`);
-        return { student_id: s.id, student_name: s.name || s.id, status: row ? row.status : "absent" };
+        const status = row ? row.status : (s.is_registered === false ? "unregistered" : "absent");
+        return { student_id: s.id, student_name: s.name || s.id, status };
       });
       return {
         ...lesson,
@@ -467,6 +474,9 @@ router.post("/verify", requireContentManager, async (req, res, next) => {
     if (!rawText) return res.status(400).json({ ok: false, error: "rawText is required" });
 
     const parsed = await parseAttendanceBlockSmart(rawText, lessonDate);
+    if (lessonDate) {
+      parsed.lesson_date = lessonDate;
+    }
     if (req.body.teacherName && !parsed.teacher_name) {
       parsed.teacher_name = String(req.body.teacherName || "").trim();
     }
@@ -508,10 +518,14 @@ router.post("/record-lesson", requireContentManager, async (req, res, next) => {
     }
 
     // Parse the raw attendance block (Gemini if available, regex fallback)
+    const normalizedLessonDate = normalizeIsoDate(payload.lessonDate || "");
     const parsed = await parseAttendanceBlockSmart(
       String(payload.rawText || "").trim(),
-      normalizeIsoDate(payload.lessonDate || "")
+      normalizedLessonDate
     );
+    if (normalizedLessonDate) {
+      parsed.lesson_date = normalizedLessonDate;
+    }
     if (payload.classCode && !parsed.class_code)   parsed.class_code   = String(payload.classCode   || "").trim();
     if (payload.lessonTitle && !parsed.lesson_title) parsed.lesson_title = String(payload.lessonTitle || "").trim();
     if (payload.lessonDate && !parsed.lesson_date) {
