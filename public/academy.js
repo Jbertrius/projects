@@ -180,7 +180,16 @@ function normalizeAcademyDataset(payload) {
       .filter(Boolean)
   );
 
-  const normalizedAttendance = attendance.map((row) => {
+  const attendanceStatusPriority = {
+    present: 4,
+    late: 3,
+    excused: 2,
+    unknown: 1,
+    absent: 0
+  };
+  const attendanceByStudentLesson = new Map();
+
+  attendance.forEach((row) => {
     const nextClassId = classAliases.get(String(row.class_id || row.class_name)) || String(row.class_id || "");
     const canonicalClass = classesById.get(String(nextClassId));
     const aliasStudentId = studentAliases.get(String(row.student_id || "").trim()) || "";
@@ -188,14 +197,33 @@ function normalizeAcademyDataset(payload) {
       `${nextClassId}::${normalizeStudentKey(row.student_name || "")}`
     );
     const nextStudentId = aliasStudentId || studentByName?.id || String(row.student_id || "");
-    return {
+    const mapped = {
       ...row,
       student_id: nextStudentId,
       student_name: studentByName?.name || row.student_name || "",
       class_id: nextClassId,
       class_name: canonicalClass?.name || row.class_name || row.class_id || ""
     };
+    const dedupeKey = [
+      String(mapped.class_id || ""),
+      String(mapped.lesson_id || ""),
+      normalizeStudentKey(mapped.student_name || mapped.student_id || "")
+    ].join("::");
+
+    const existing = attendanceByStudentLesson.get(dedupeKey);
+    if (!existing) {
+      attendanceByStudentLesson.set(dedupeKey, mapped);
+      return;
+    }
+
+    const existingScore = attendanceStatusPriority[String(existing.status || "").toLowerCase()] ?? 0;
+    const nextScore = attendanceStatusPriority[String(mapped.status || "").toLowerCase()] ?? 0;
+    if (nextScore > existingScore) {
+      attendanceByStudentLesson.set(dedupeKey, mapped);
+    }
   });
+
+  const normalizedAttendance = Array.from(attendanceByStudentLesson.values());
 
   const normalizedUnregistered = unregistered.map((row) => {
     const nextClassId = classAliases.get(String(row.class_id || row.class_name)) || String(row.class_id || "");
@@ -289,8 +317,35 @@ function getSubgroupHeader(groupName, count) {
 }
 
 function buildLessonTemplate(lesson) {
-  const lessonRows = academyState.rawData.attendance
-    .filter((row) => String(row.lesson_id || "") === String(lesson.id))
+  const statusPriority = {
+    present: 4,
+    late: 3,
+    excused: 2,
+    unknown: 1,
+    absent: 0
+  };
+  const lessonRowsRaw = academyState.rawData.attendance
+    .filter((row) => String(row.lesson_id || "") === String(lesson.id));
+  const lessonRowsByStudent = new Map();
+  lessonRowsRaw.forEach((row) => {
+    const key = normalizeStudentKey(row.student_name || row.student_id || "");
+    if (!key) {
+      return;
+    }
+    const existing = lessonRowsByStudent.get(key);
+    if (!existing) {
+      lessonRowsByStudent.set(key, row);
+      return;
+    }
+
+    const existingScore = statusPriority[String(existing.status || "").toLowerCase()] ?? 0;
+    const incomingScore = statusPriority[String(row.status || "").toLowerCase()] ?? 0;
+    if (incomingScore > existingScore) {
+      lessonRowsByStudent.set(key, row);
+    }
+  });
+
+  const lessonRows = Array.from(lessonRowsByStudent.values())
     .sort((left, right) => {
       const subgroupDelta = String(left.subgroup || "").localeCompare(String(right.subgroup || ""), "fr");
       if (subgroupDelta !== 0) {
@@ -298,8 +353,17 @@ function buildLessonTemplate(lesson) {
       }
       return String(left.student_name || "").localeCompare(String(right.student_name || ""), "fr");
     });
-  const unregisteredRows = (academyState.rawData.unregistered || [])
-    .filter((row) => String(row.lesson_id || "") === String(lesson.id))
+  const unregisteredRowsRaw = (academyState.rawData.unregistered || [])
+    .filter((row) => String(row.lesson_id || "") === String(lesson.id));
+  const unregisteredByStudent = new Map();
+  unregisteredRowsRaw.forEach((row) => {
+    const key = normalizeStudentKey(row.student_name || "");
+    if (!key || unregisteredByStudent.has(key)) {
+      return;
+    }
+    unregisteredByStudent.set(key, row);
+  });
+  const unregisteredRows = Array.from(unregisteredByStudent.values())
     .sort((left, right) => {
       return String(left.student_name || "").localeCompare(String(right.student_name || ""), "fr");
     });
