@@ -94,3 +94,58 @@ describe("Config validation", () => {
     assert.equal(typeof config.hasFirestore(), "boolean");
   });
 });
+
+describe("Auth secret material", () => {
+  const originalEnv = { ...process.env };
+
+  function restoreEnv() {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+
+    for (const [key, value] of Object.entries(originalEnv)) {
+      process.env[key] = value;
+    }
+  }
+
+  function loadAuthModule() {
+    delete require.cache[require.resolve("../lib/auth")];
+    return require("../lib/auth");
+  }
+
+  after(() => {
+    restoreEnv();
+    delete require.cache[require.resolve("../lib/auth")];
+  });
+
+  it("uses APP_SESSION_SECRET when explicitly configured", () => {
+    restoreEnv();
+    process.env.APP_SESSION_SECRET = "explicit-test-secret";
+    delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH;
+    delete process.env.GOOGLE_CLIENT_EMAIL;
+    delete process.env.GOOGLE_PRIVATE_KEY;
+
+    const { readStableSecretMaterial } = loadAuthModule();
+    assert.equal(readStableSecretMaterial(), "explicit-test-secret");
+  });
+
+  it("uses a stable per-process secret when no configured secret material exists", () => {
+    restoreEnv();
+    delete process.env.APP_SESSION_SECRET;
+    delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH;
+    delete process.env.GOOGLE_CLIENT_EMAIL;
+    delete process.env.GOOGLE_PRIVATE_KEY;
+
+    const { readStableSecretMaterial } = loadAuthModule();
+    const first = readStableSecretMaterial();
+    const second = readStableSecretMaterial();
+
+    assert.ok(first);
+    assert.equal(first, second);
+    assert.notEqual(first, "dmd-fallback-secret");
+  });
+});

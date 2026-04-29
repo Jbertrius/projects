@@ -84,8 +84,6 @@ steps:
       - "--set-secrets=GOOGLE_SHEET_ID=attendance-google-sheet-id:latest"
       - "--set-secrets=GOOGLE_SERVICE_ACCOUNT_JSON=attendance-service-account-key:latest"
       - "--set-secrets=WEBHOOK_URL=attendance-webhook-url:latest"
-      - "--set-secrets=FIRESTORE_PROJECT_ID=attendance-firestore-project-id:latest"
-      - "--set-secrets=FIRESTORE_DATABASE_ID=attendance-firestore-database-id:latest"
       - "--set-secrets=BOT_API_KEY=bot-api-key-attendance:latest"
       - "--set-env-vars=API_BASE_URL=https://member-evolution-dashboard-vq3zefjqia-od.a.run.app"
       - "--no-traffic"                  # stage the new revision first …..

@@ -1,9 +1,10 @@
 # Attendance Bot
 
 Un bot Telegram de production qui gère les listes de présences d'événements
-**et** le suivi d'assiduité des classes ouvertes, le tout stocké dans Google
-Sheets. Il s'appuie sur Google Gemini AI pour la compréhension du langage
-naturel.
+**et** le suivi d'assiduité des classes ouvertes. Les écritures applicatives
+passent désormais par l'API centrale, tandis que Google Sheets reste utilisé
+comme source auxiliaire pour certains workflows historiques. Le bot s'appuie
+sur Google Gemini AI pour la compréhension du langage naturel.
 
 ---
 
@@ -39,15 +40,12 @@ User → Telegram → HTTPS Webhook
               │          ↓                          │
               │  AttendanceService                  │
               │          ↓                          │
-              │  SheetsService (gspread + retry)    │
+              │  API centrale (/api/bot/*)          │
               └────────────────────────────────────┘
                         ↓
-              Google Sheets (data store)
+              Firestore / services du dashboard
               ┌──────────────────────────────────────┐
-              │ EVENTS / CATEGORIES / ATTENDANCE      │  ← event tracking
-              │ CLASSES / LESSONS / STUDENTS          │  ← class tracking
-              │ LESSON_ATTENDANCE                     │
-              │ "Fatoumata Class"  "Hada Class"  …   │  ← pivot tabs
+              │ members / meetings / academy*         │
               └──────────────────────────────────────┘
 ```
 
@@ -243,22 +241,18 @@ gcloud iam service-accounts keys create service-account.json \
   --iam-account=attendance-sheets-sa@$PROJECT_ID.iam.gserviceaccount.com
 ```
 
-### Step 3b – Create the Cloud Run runtime service account (Firestore access)
+### Step 3b – Create the Cloud Run runtime service account
 
 ```bash
 RUNTIME_SA="attendance-runtime-sa@$PROJECT_ID.iam.gserviceaccount.com"
 
 gcloud iam service-accounts create attendance-runtime-sa \
   --display-name="Attendance Bot Runtime SA"
-
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${RUNTIME_SA}" \
-  --role="roles/datastore.user"
 ```
 
-> `roles/datastore.user` is the minimum recommended role for reading/writing
-> Firestore documents from Cloud Run. You can replace it with a stricter custom
-> role if needed.
+Le bot n'écrit plus directement dans Firestore. Ce compte sert seulement
+comme identité d'exécution Cloud Run si vous souhaitez séparer le runtime
+du compte Compute par défaut.
 
 ### Step 4 – Grant Cloud Build permissions
 
@@ -306,8 +300,7 @@ create_secret TELEGRAM_BOT_TOKEN      "123456789:ABCDEF..."
 create_secret GEMINI_API_KEY          "AIzaXXXXXXX..."
 create_secret GOOGLE_SHEET_ID         "1BxiMV..."
 create_secret WEBHOOK_URL             "https://attendance-bot-xxxx-uc.a.run.app"
-create_secret FIRESTORE_PROJECT_ID    "cedar-freedom-138023"
-create_secret FIRESTORE_DATABASE_ID   "(default)"
+create_secret BOT_API_KEY             "$(openssl rand -hex 32)"
 
 SA_JSON=$(cat service-account.json | tr -d '\n')
 create_secret GOOGLE_SERVICE_ACCOUNT_JSON "$SA_JSON"
@@ -374,8 +367,8 @@ Cloud Build va automatiquement :
 | `GOOGLE_SHEET_ID` | ✅ | The long ID in the Google Sheets URL |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | ✅ | Service account key JSON (single-line string) |
 | `WEBHOOK_URL` | ✅ prod | Public HTTPS URL of the Cloud Run service |
-| `FIRESTORE_PROJECT_ID` | ✅ pour Firestore | ID du projet GCP hébergeant Firestore |
-| `FIRESTORE_DATABASE_ID` | ❌ | Nom de la base Firestore (défaut: `(default)`) |
+| `API_BASE_URL` | ✅ | Base URL of the central dashboard API |
+| `BOT_API_KEY` | ✅ | Shared Bearer token accepted by `/api/bot/*` |
 | `PORT` | auto | Injected by Cloud Run (default: 8080) |
 | `GEMINI_MODEL` | ❌ | Gemini model name (default: `gemini-2.5-flash`) |
 

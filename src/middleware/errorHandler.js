@@ -1,16 +1,16 @@
+const { log } = require("./logger");
+
 function errorHandler(err, req, res, _next) {
   const status = err.status || err.statusCode || 500;
   const message = err.message || "Erreur interne du serveur.";
 
   if (status >= 500) {
-    console.error(JSON.stringify({
-      level: "error",
-      msg: message,
+    log("error", message, {
       stack: err.stack,
       path: req.path,
       method: req.method,
-      ts: new Date().toISOString()
-    }));
+      status
+    });
   }
 
   res.status(status).json({

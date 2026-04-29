@@ -21,6 +21,7 @@
  */
 
 const crypto = require("crypto");
+const { readStableSecretMaterial } = require("../../lib/auth");
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -59,7 +60,7 @@ function csrfProtection(req, res, next) {
   if (!req.sessionUser) return next();
 
   const provided = String(req.headers["x-csrf-token"] || "").trim();
-  const expected = generateCsrfToken(req.sessionUser.id, process.env.APP_SESSION_SECRET);
+  const expected = generateCsrfToken(req.sessionUser.id, readStableSecretMaterial());
 
   if (!provided || !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))) {
     return res.status(403).json({ ok: false, error: "CSRF token invalide ou manquant." });
@@ -74,7 +75,7 @@ function csrfProtection(req, res, next) {
  */
 function getCsrfToken(sessionUser) {
   if (!sessionUser) return null;
-  return generateCsrfToken(sessionUser.id, process.env.APP_SESSION_SECRET);
+  return generateCsrfToken(sessionUser.id, readStableSecretMaterial());
 }
 
 module.exports = { csrfProtection, getCsrfToken };

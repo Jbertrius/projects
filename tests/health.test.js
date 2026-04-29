@@ -57,4 +57,19 @@ describe("Health & routing", () => {
     assert.equal(res.status, 302);
     assert.ok(res.headers.get("location")?.includes("login.html"));
   });
+
+  it("GET /login.html returns 200 without auth", async () => {
+    const res = await fetch(`http://localhost:${server.address().port}/login.html`, {
+      redirect: "manual"
+    });
+    assert.equal(res.status, 200);
+  });
+
+  it("GET /users.html redirects to /login.html without auth", async () => {
+    const res = await fetch(`http://localhost:${server.address().port}/users.html`, {
+      redirect: "manual"
+    });
+    assert.equal(res.status, 302);
+    assert.ok(res.headers.get("location")?.includes("login.html"));
+  });
 });

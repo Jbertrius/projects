@@ -32,6 +32,11 @@ describe("Auth routes", () => {
       const { body } = await api.get("/api/auth/session");
       assert.ok("authConfigured" in body);
     });
+
+    it("returns csrfToken:null when no session exists", async () => {
+      const { body } = await api.get("/api/auth/session");
+      assert.equal(body.csrfToken, null);
+    });
   });
 
   // -------------------------------------------------------------------------

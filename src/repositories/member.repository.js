@@ -1,4 +1,4 @@
-const { loadDashboardDataFromFirestore, hasFirestoreConfig } = require("../../lib/firestore");
+const { listMemberDocuments, hasFirestoreConfig } = require("../../lib/firestore");
 
 /**
  * Return all members from Firestore.
@@ -6,8 +6,7 @@ const { loadDashboardDataFromFirestore, hasFirestoreConfig } = require("../../li
  */
 async function findAll() {
   if (!hasFirestoreConfig()) return [];
-  const data = await loadDashboardDataFromFirestore();
-  return data.members || [];
+  return listMemberDocuments();
 }
 
 module.exports = { findAll };

@@ -1,5 +1,7 @@
 # Architecture Audit & Refactoring Plan
 
+Status note: this document remains useful as the detailed audit baseline, but parts of the implementation status are now stale. For the current prioritized plan, use `docs/roadmap.md` first and treat this file as supporting context.
+
 **Date:** 2026-04-07
 **Scope:** Full system audit (Web Dashboard, Telegram Bots, Firestore, Infrastructure)
 

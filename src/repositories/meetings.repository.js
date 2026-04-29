@@ -1,4 +1,4 @@
-const { listMeetingDocuments, patchMeetingDocument, deleteMeetingDocument, hasFirestoreConfig, loadDashboardDataFromFirestore } = require("../../lib/firestore");
+const { listMeetingDocuments, listMemberDocuments, patchMeetingDocument, deleteMeetingDocument, hasFirestoreConfig } = require("../../lib/firestore");
 const { buildMemberDirectory, resolveMeetingMembers } = require("../../lib/member-matching");
 
 /**
@@ -7,12 +7,11 @@ const { buildMemberDirectory, resolveMeetingMembers } = require("../../lib/membe
 async function findAll() {
   if (!hasFirestoreConfig()) return [];
 
-  const [meetingDocs, dashboardData] = await Promise.all([
+  const [meetingDocs, members] = await Promise.all([
     listMeetingDocuments(),
-    loadDashboardDataFromFirestore()
+    listMemberDocuments()
   ]);
   const meetings = meetingDocs;
-  const members = dashboardData.members || [];
 
   const directory = buildMemberDirectory(members);
   const memberById = new Map(members.map((m) => [String(m.id), m]));

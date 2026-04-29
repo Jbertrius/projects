@@ -40,8 +40,18 @@ scheduleJob("link-pastors-to-students", linkPastorsToStudentsJob, EIGHT_HOURS_MS
 // We stop accepting new connections, let in-flight requests finish (up to
 // 10 s), then exit cleanly so the platform can route traffic elsewhere.
 // ---------------------------------------------------------------------------
-function shutdown(signal) {
-  log("info", `${signal} received — shutting down gracefully`);
+let shutdownStarted = false;
+
+function shutdown(reason, { exitCode = 0, error } = {}) {
+  if (shutdownStarted) {
+    return;
+  }
+  shutdownStarted = true;
+
+  log("info", `${reason} received — shutting down gracefully`, {
+    exitCode,
+    ...(error ? { error: error.message, stack: error.stack } : {})
+  });
 
   server.close((err) => {
     if (err) {
@@ -49,7 +59,7 @@ function shutdown(signal) {
       process.exit(1);
     }
     log("info", "server closed — process exiting");
-    process.exit(0);
+    process.exit(exitCode);
   });
 
   // Force-exit if requests do not drain within 10 seconds
@@ -60,4 +70,11 @@ function shutdown(signal) {
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT",  () => shutdown("SIGINT"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("unhandledRejection", (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  shutdown("unhandledRejection", { exitCode: 1, error });
+});
+process.on("uncaughtException", (error) => {
+  shutdown("uncaughtException", { exitCode: 1, error });
+});

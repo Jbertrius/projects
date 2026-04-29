@@ -12,7 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY apps/mannam-bot/main.py        ./main.py
 COPY apps/mannam-bot/bot_core.py    ./bot_core.py
-COPY apps/mannam-bot/firestore_sync.py ./firestore_sync.py
 COPY shared/python/api_client.py    ./api_client.py
 
 EXPOSE 8080

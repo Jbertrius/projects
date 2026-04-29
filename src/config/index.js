@@ -43,7 +43,7 @@ const RULES = [
     name:    "APP_SESSION_SECRET",
     check:   () => Boolean(getEnv("APP_SESSION_SECRET")),
     level:   "warn",
-    message: "APP_SESSION_SECRET not set — session signing will fall back to service account key material."
+    message: "APP_SESSION_SECRET not set — session signing will use service account key material when available, otherwise a per-process runtime secret."
   },
   {
     name:    "Google service account",

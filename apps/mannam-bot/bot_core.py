@@ -7,7 +7,6 @@ import os
 import json
 import asyncio
 from collections import defaultdict
-import firestore_sync
 import api_client
 
 from google import genai
@@ -238,7 +237,7 @@ def get_calendar_service():
 
 def _sync_mannam_to_api(event_id: str, event_details: dict):
     try:
-        firestore_sync.upsert_mannam_event(event_id, {
+        api_client.upsert_meeting(event_id, {
             **event_details,
             'figure_name': _extract_figure_name(event_details.get('summary', '')),
         })
@@ -248,13 +247,13 @@ def _sync_mannam_to_api(event_id: str, event_details: dict):
 
 def _delete_mannam_from_api(event_id: str):
     try:
-        firestore_sync.delete_mannam_event(event_id)
+        api_client.delete_meeting(event_id)
     except Exception as fs_err:
         logging.warning(f"Erreur sync API mannam (delete): {fs_err}")
 
 
 def sync_calendar_to_api(cal_service):
-    """Synchronise les evenements du calendrier vers Firestore via API."""
+    """Synchronise les evenements du calendrier vers l'API centrale."""
     synced = 0
     page_token = None
     time_min = datetime.utcnow().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -281,7 +280,7 @@ def sync_calendar_to_api(cal_service):
             mannamjas, description = extract_mannamjas_and_clean_description(event.get('description', ''))
             section = extract_section_from_description(event.get('description', ''))
             try:
-                firestore_sync.upsert_mannam_event(event['id'], {
+                api_client.upsert_meeting(event['id'], {
                     'summary': event.get('summary') or '(Sans titre)',
                     'date': date_val or datetime.utcnow().strftime('%Y-%m-%d'),
                     'time': time_val,
