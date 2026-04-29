@@ -30,7 +30,16 @@ async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     event_name = parse_list_command(context.args)
 
-    candidates = svc.find_event_candidates(event_name)
+    try:
+        candidates = svc.find_event_candidates(event_name)
+    except Exception as exc:
+        logger.exception("Erreur lors de la recherche d'événements")
+        await update.message.reply_text(
+            format_error(f"Impossible de récupérer les événements : {exc}"),
+            parse_mode="Markdown",
+        )
+        return
+
     if not candidates:
         await update.message.reply_text(
             format_error(f"Événement *{event_name}* introuvable.\nUtilisez /events pour voir la liste."),
