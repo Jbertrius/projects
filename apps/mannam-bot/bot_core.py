@@ -539,10 +539,16 @@ def extract_mannamjas_and_clean_description(description: str):
     mannamjas = "No Mannamjas"
     cleaned = sanitize_string(description)
     if cleaned:
-        match = re.search(r'Mannamjas\s*:\s*(.+)', cleaned)
+        match = re.search(r'^\s*Mannamjas\s*:\s*(.+)$', cleaned, flags=re.IGNORECASE | re.MULTILINE)
         if match:
-            mannamjas = _normalize_mannamjas(match.group(1).strip())
-            cleaned = re.sub(r'Mannamjas\s*:\s*.+', '', cleaned).strip()
+            raw_mannamjas = match.group(1).strip()
+            # Ignore malformed payloads like "Mannamjas: Section: New/Old"
+            if not re.match(r'^section\s*:', raw_mannamjas, flags=re.IGNORECASE):
+                mannamjas = _normalize_mannamjas(raw_mannamjas)
+
+        cleaned = re.sub(r'^\s*Mannamjas\s*:\s*.*$', '', cleaned, flags=re.IGNORECASE | re.MULTILINE)
+        cleaned = re.sub(r'^\s*Section\s*:\s*.+$', '', cleaned, flags=re.IGNORECASE | re.MULTILINE)
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
     return mannamjas, cleaned
 
 
@@ -604,7 +610,8 @@ def _extract_figure_name(summary: str) -> str:
 def create_event(service, event_details: dict):
     start_dt = datetime.fromisoformat(f"{event_details['date']}T{event_details['time']}:00")
     end_dt   = start_dt + timedelta(hours=1)
-    desc_parts = [event_details['description'], f"Mannamjas: {event_details['mannamjas']}"]
+    _, base_description = extract_mannamjas_and_clean_description(event_details.get('description', ''))
+    desc_parts = [base_description, f"Mannamjas: {event_details['mannamjas']}"]
     if event_details.get('section'):
         desc_parts.append(f"Section: {event_details['section']}")
     event = {
@@ -732,10 +739,12 @@ async def list_events(update, _):
             results.append(f"📆 Date: {datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d (%A)')}")
             for event, start_time in evts:
                 mannamjas, desc = extract_mannamjas_and_clean_description(event.get('description', ''))
+                section = extract_section_from_description(event.get('description', ''))
                 results.append(
                     f"[{idx}] 🇫🇷☀️ {event.get('summary', 'N/A')} / {desc}\n"
                     f"    🗝 {event.get('location', 'N/A')} ({start_time.strftime('%H:%M')})\n"
                     f"    🚶 Mannamjas: {mannamjas.replace('&amp;', ', ')}\n"
+                    f"    🏷 Section: {section or '-'}\n"
                 )
                 idx += 1
             results.append("")
@@ -830,6 +839,7 @@ async def handle_edit_event(update: Update, context):
     new_summary     = changes.get('summary')     or event.get('summary', '')
     new_location    = changes.get('location')    or event.get('location', '')
     new_description = changes.get('description') or desc_old
+    _, new_description = extract_mannamjas_and_clean_description(new_description)
     new_mannamjas   = changes.get('mannamjas')   or mannamjas_old
     new_section     = changes.get('section')     or section_old
 
