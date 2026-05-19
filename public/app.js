@@ -958,3 +958,8 @@ async function loadDashboard() {
 }
 
 loadDashboard().catch((error) => showFeedback(error.message, 'error'));
+
+// Service Worker registration
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
