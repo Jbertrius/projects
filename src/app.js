@@ -82,8 +82,8 @@ app.use((req, res, next) => {
     return res.redirect(302, "/");
   }
 
-  // Require auth for all pages except login
-  if (requestedPath !== "/login.html" && !sessionUser) {
+  // Require auth for all pages except login and legal
+  if (requestedPath !== "/login.html" && requestedPath !== "/legal.html" && !sessionUser) {
     return res.redirect(302, "/login.html");
   }
 
