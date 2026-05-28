@@ -1,383 +1,251 @@
-# Evolution des membres
+# Member Evolution Dashboard
 
-Premier MVP d'une application web de pilotage pour:
+Dashboard web de pilotage pour suivre l'activité des membres, leurs rencontres avec les pasteurs et leur progression en formation. Complété par deux bots Telegram qui collectent les données.
 
-- suivre les rencontres déclarées par les membres;
-- identifier les membres actifs, inactifs ou à relancer;
-- suivre les inscriptions et la progression à une formation;
-- préparer une architecture peu coûteuse pour un déploiement sur Google Cloud Run.
+---
 
-## Lancer le projet
+## Vue d'ensemble
 
-```bash
-node server.js
+Ce dépôt contient **trois services indépendants** déployés séparément sur Google Cloud Run :
+
+| Service | Dossier | Langage | Rôle |
+|---|---|---|---|
+| **Dashboard** | `/` (racine) | Node.js / Express | API REST + interface web |
+| **Attendance Bot** | `apps/attendance-bot/` | Python | Bot Telegram gestion présences & formation |
+| **Mannam Bot** | `apps/mannam-bot/` | Python | Bot Telegram suivi des mannams (visites pastorales) |
+
+### Flux de données
+
+```
+Telegram
+   ↓
+Attendance Bot / Mannam Bot (Python)
+   ↓ HTTP (/api/bot/*)
+Dashboard API (Node.js / Express)
+   ↓
+Firestore (source de vérité principale)
+   ↑
+Google Sheets / Calendar (import historique & sync)
 ```
 
-L'application sera disponible sur `http://localhost:8080`.
+---
 
-## Authentification et roles
+## Architecture du dashboard (racine)
 
-L'application expose maintenant:
+```
+server.js          — point d'entrée, démarre Express + jobs planifiés
+src/
+  app.js           — montage des middlewares et des routes
+  config/          — validation des variables d'environnement au démarrage
+  routes/          — endpoints REST (auth, users, dashboard, pastors, academy, meetings, bot, admin)
+  repositories/    — accès Firestore (membres, rencontres, formation…)
+  jobs/            — tâches de fond (résolution membres ↔ rencontres, lien pasteurs ↔ étudiants)
+  middleware/      — auth session, API key, CSRF, logger, headers sécurité
+  utils/           — fonctions partagées
+lib/               — clients Google (Firestore, Sheets, Calendar, Gemini, Auth)
+public/            — interface web statique (HTML/JS/CSS)
+scripts/           — scripts d'import, de sync et de maintenance Firestore
+tests/             — tests unitaires Node.js
+```
 
-- une page de connexion: `http://localhost:8080/login.html`
-- une page d'administration utilisateurs: `http://localhost:8080/users.html`
+### Routes API principales
 
-Roles supportes:
+| Préfixe | Rôle |
+|---|---|
+| `GET /health` | Health check (Cloud Run) |
+| `/api/auth` | Connexion / déconnexion session |
+| `/api/users` | Gestion des utilisateurs (admin/gérant) |
+| `/api/dashboard` | Agrégats pour le dashboard |
+| `/api/pastors` | Données pasteurs |
+| `/api/academy` | Formation (classes, étudiants, leçons) |
+| `/api/meetings` | Rencontres |
+| `/api/bot/*` | Point d'entrée pour les bots Telegram |
 
-- `admin`: gere les roles et tous les acces
-- `gerant`: ajoute ou retire des acces membre
-- `membre`: consulte l'application
+### Rôles utilisateurs
 
-Pour initialiser le premier admin, configure au minimum:
+| Rôle | Droits |
+|---|---|
+| `admin` | Gère les rôles et tous les accès |
+| `gerant` | Ajoute ou retire des accès membres |
+| `membre` | Consulte l'application |
+
+---
+
+## Prérequis
+
+- **Node.js** ≥ 20
+- Un projet **Google Cloud** avec Firestore activé
+- Un **service account** GCP avec accès Firestore (et optionnellement Sheets / Calendar)
+
+---
+
+## Installation locale
 
 ```bash
-APP_SESSION_SECRET=change-me
+# Cloner le dépôt
+git clone <url>
+cd projects
+
+# Installer les dépendances Node
+npm install
+
+# Copier et remplir les variables d'environnement
+cp .env.example .env.local
+```
+
+Édite `.env.local` avec au minimum :
+
+```dotenv
+PORT=8080
+
+# Session
+APP_SESSION_SECRET=une-chaine-aleatoire-longue
+
+# Premier compte admin (créé automatiquement si Firestore est vide)
 APP_INITIAL_ADMIN_EMAIL=admin@example.com
 APP_INITIAL_ADMIN_PASSWORD=motdepassefort
 APP_INITIAL_ADMIN_NAME=Administrateur
-```
 
-Le premier compte admin est cree automatiquement si aucun utilisateur n'existe encore dans Firestore.
+# Firestore (requis pour l'auth et les données live)
+FIRESTORE_PROJECT_ID=ton-project-id
+FIRESTORE_DATABASE_ID=(default)
 
-## Variables d'environnement Google Sheets
+# Service account GCP (méthode recommandée en local)
+GOOGLE_SERVICE_ACCOUNT_JSON_PATH=C:\\chemin\\vers\\service-account.json
 
-Pour brancher la vraie donnée Google Sheets, configure:
-
-```bash
-GOOGLE_SPREADSHEET_ID=...
-GOOGLE_CLIENT_EMAIL=service-account@project-id.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# Google Sheets (optionnel, pour les imports historiques)
+GOOGLE_SPREADSHEET_ID=ton-spreadsheet-id
 GOOGLE_SHEET_MEMBERS_RANGE=members!A1:Z
 GOOGLE_SHEET_MEETINGS_RANGE=meetings!A1:Z
-GOOGLE_SHEET_TRAINING_RANGE=training!A1:Z
-```
 
-Le service account doit avoir accès en lecture au spreadsheet.
-
-Le projet charge automatiquement `.env` et `.env.local` au démarrage. Pour un test local simple, crée un fichier `.env.local` à la racine du projet.
-
-## Test local avec vraies données Google Sheets
-
-### 1. Créer un service account GCP
-
-Dans Google Cloud:
-
-- va dans `IAM & Admin > Service Accounts`
-- crée un compte de service
-- génère une clé JSON
-- récupère:
-  - `client_email`
-  - `private_key`
-
-### 2. Partager le Google Sheet avec le service account
-
-Ouvre ton spreadsheet et partage-le en lecture avec l'adresse email du service account, par exemple:
-
-```text
-my-service-account@my-project.iam.gserviceaccount.com
-```
-
-### 3. Créer `.env.local`
-
-Exemple:
-
-```bash
-PORT=8080
-GOOGLE_SPREADSHEET_ID=ton_spreadsheet_id
-GOOGLE_SERVICE_ACCOUNT_JSON_PATH=C:\\path\\to\\service-account.json
-GOOGLE_SHEET_MEMBERS_RANGE=members!A1:Z
-GOOGLE_SHEET_MEETINGS_RANGE=meetings!A1:Z
-GOOGLE_SHEET_TRAINING_RANGE=
-```
-
-C'est la methode recommandee en local.
-
-Alternative possible si tu veux tout mettre en variables:
-
-```bash
-GOOGLE_CLIENT_EMAIL=service-account@your-project.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY=\"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n\"
-```
-
-Mais cette methode est plus fragile, surtout sur Windows, a cause du format de la cle privee.
-
-`GOOGLE_SHEET_TRAINING_RANGE` est optionnel. Si ton onglet formation n'existe pas encore, laisse cette variable vide.
-
-### 4. Lancer l'application
-
-```bash
-node server.js
-```
-
-### Initialiser automatiquement le spreadsheet vide
-
-Si ton Google Sheet est vide, tu peux creer la structure attendue avec:
-
-```bash
-npm run setup:sheets
-```
-
-Le script cree ou verifie les onglets:
-
-- `members`
-- `meetings`
-- `training`
-
-Et il pose les en-tetes attendus par l'application.
-
-### 5. Vérifier la connexion
-
-Dans le navigateur:
-
-- [http://localhost:8080/api/connection-status](http://localhost:8080/api/connection-status)
-- [http://localhost:8080/api/test/google-sheets](http://localhost:8080/api/test/google-sheets)
-- [http://localhost:8080/api/test/google-calendar](http://localhost:8080/api/test/google-calendar)
-
-Le premier endpoint te dit si la config est présente.
-Le second teste réellement l'accès au Google Sheet et te retourne un échantillon de données.
-Le troisième teste l'accès au Google Calendar configuré.
-
-## Synchroniser Google Calendar vers Google Sheets
-
-Pour ton process actuel, on peut garder le bot sur Google Calendar puis synchroniser les événements vers l'onglet `meetings`.
-
-Configuration locale:
-
-```bash
+# Google Calendar (optionnel)
 GOOGLE_CALENDAR_ID=primary
 GOOGLE_CALENDAR_PAST_DAYS=180
 GOOGLE_CALENDAR_FUTURE_DAYS=30
 ```
 
-Test du calendrier:
+> Voir `.env.example` pour la liste complète des variables.
+
+### Créer le service account GCP
+
+1. Dans Google Cloud : `IAM & Admin > Service Accounts`
+2. Crée un compte de service, génère une clé JSON
+3. Accorde-lui les rôles `Cloud Datastore User` (Firestore) et éventuellement `Viewer` sur le Spreadsheet
+
+---
+
+## Lancer en local
 
 ```bash
-http://localhost:8080/api/test/google-calendar
+npm start
+# ou
+node server.js
 ```
 
-Synchronisation:
+L'application démarre sur `http://localhost:8080`.
+
+> Le projet charge automatiquement `.env` puis `.env.local` au démarrage. Mets tes overrides locaux dans `.env.local`.
+
+Au premier démarrage avec Firestore vide, le compte admin initial est créé automatiquement à partir des variables `APP_INITIAL_ADMIN_*`.
+
+---
+
+## Scripts disponibles
+
+| Commande | Description |
+|---|---|
+| `npm start` | Démarre le serveur |
+| `npm test` | Lance les tests unitaires Node.js |
+| `npm run setup:sheets` | Crée/vérifie la structure du Google Sheet (onglets + en-têtes) |
+| `npm run sync:calendar` | Synchronise Google Calendar → Google Sheets |
+| `npm run sync:firestore` | Synchronise Google Sheets → Firestore |
+| `npm run sync:academy` | Synchronise la feuille académie → Firestore |
+| `npm run db:check` | Vérifie le schéma Firestore |
+| `npm run db:fix` | Corrige les incohérences de schéma Firestore |
+
+### Jobs de fond (automatiques au démarrage)
+
+Deux jobs tournent toutes les 8 heures si Firestore est configuré :
+- **resolve-meeting-members** : associe les rencontres aux membres correspondants
+- **link-pastors-to-students** : lie les pasteurs à leurs étudiants
+
+---
+
+## Tests
 
 ```bash
-npm run sync:calendar
+npm test
 ```
 
-Ou via l'API:
+Les tests se trouvent dans `tests/`. Ils utilisent le runner natif Node.js (`node --test`).
 
-```bash
-http://localhost:8080/api/sync/calendar-to-sheets
+---
+
+## Collections Firestore
+
+| Collection | Contenu |
+|---|---|
+| `members` | Membres (nom, zone, rôle, statut, aliases) |
+| `meetings` | Rencontres (membre, pasteur, date, source) |
+| `academyLessons` | Leçons de formation |
+| `academyStudents` | Étudiants inscrits en formation |
+| `users` | Comptes utilisateurs de l'application |
+
+---
+
+## Bots Telegram
+
+Chaque bot a son propre README détaillé :
+
+- **Attendance Bot** (`apps/attendance-bot/README.md`) — présences aux événements et suivi de formation, écrit via `/api/bot/`
+- **Mannam Bot** (`apps/mannam-bot/README.md`) — suivi des visites pastorales (mannams), utilise Google Calendar + Gemini AI
+
+Les bots communiquent avec le dashboard via des clés API :
+
+```dotenv
+# Sur les bots et sur le dashboard (même valeur)
+BOT_API_KEY_ATTENDANCE=<openssl rand -hex 32>
+BOT_API_KEY_MANNAM=<openssl rand -hex 32>
+API_BASE_URL=https://ton-dashboard.run.app
 ```
 
-Le synchroniseur:
+> ⚠️ Migration en cours : les bots passent progressivement de l'écriture directe Firestore à l'appel de `/api/bot/*`. Voir `docs/bot-migration.md`.
 
-- lit les événements du calendrier;
-- convertit les événements en lignes `meetings`;
-- fusionne avec les lignes déjà présentes;
-- évite les doublons par `event.id`.
-
-## Rattachement automatique aux members
-
-La synchronisation enrichit aussi les lignes `meetings` avec:
-
-- `member_name_raw`: valeur brute venant du Calendar
-- `member_ids`: ids membres résolus
-- `member_names_canonical`: noms canoniques issus de `members`
-- `member_match_status`: `exact`, `fuzzy`, `partial` ou `unmatched`
-- `member_unmatched_names`: morceaux non reconnus
-
-Pour aider le matching, tu peux ajouter dans la feuille `members` une colonne `aliases`, avec des variantes séparées par `;`.
-
-Exemple:
-
-```text
-Stephane;Stéphane;Stephèn
-```
-
-## Preparation Sheets -> Firestore
-
-Une premiere couche est prête pour la phase 2:
-
-```bash
-npm run sync:firestore
-```
-
-Variables à prévoir quand tu activeras Firestore:
-
-```bash
-FIRESTORE_PROJECT_ID=ton-project-id
-FIRESTORE_DATABASE_ID=(default)
-```
-
-Le script synchronisera les collections:
-
-- `members`
-- `meetings`
-- `trainingSessions`
-
-## Rapport de matching members
-
-Pour voir quels noms n'ont pas été rattachés automatiquement:
-
-```bash
-npm run report:matching
-```
-
-Ce rapport aide à compléter la colonne `aliases` dans `members`.
-
-### Format attendu des onglets
-
-`members`
-
-- `id`
-- `name`
-- `zone`
-- `department_role`
-- `status`
-
-`meetings`
-
-- `id`
-- `member_id`
-- `member_name`
-- `pastor_name`
-- `meeting_date`
-- `month`
-- `zone`
-- `calendar_logged`
-
-`training`
-
-- `id`
-- `member_id`
-- `member_name`
-- `cohort`
-- `week`
-- `attendance`
-- `completed`
-- `completion_score`
-- `enrolled`
+---
 
 ## Déploiement Cloud Run
-
-Construire puis déployer:
 
 ```bash
 gcloud run deploy member-evolution-dashboard --source .
 ```
 
-## CI/CD GitHub -> Cloud Run
+### CI/CD automatique (GitHub Actions)
 
-Le workflow GitHub Actions est dans [.github/workflows/deploy-cloud-run.yml](C:\Applications\projects\.github\workflows\deploy-cloud-run.yml).
+Le pipeline `.github/workflows/deploy-cloud-run.yml` déploie automatiquement sur Cloud Run à chaque push sur `main`.
 
-Il déploie automatiquement sur Cloud Run à chaque `push` sur `main` ou `master`.
+**Variables GitHub à définir** (`Settings > Secrets and variables > Actions`) :
 
-### Variables GitHub à définir
+| Type | Nom |
+|---|---|
+| Variable | `GCP_PROJECT_ID`, `GCP_REGION`, `CLOUD_RUN_SERVICE`, `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`, `FIRESTORE_PROJECT_ID`, `FIRESTORE_DATABASE_ID` |
+| Secret | `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT_EMAIL` |
 
-Dans `Settings > Secrets and variables > Actions`, ajoute:
+L'authentification utilise **Workload Identity Federation** (pas de clé JSON statique).
 
-Variables de repository:
+**Pré-requis GCP :**
+- Activer Cloud Run, Artifact Registry, IAM Credentials API, Firestore API
+- Créer un service account pour le déploiement GitHub avec les rôles Cloud Run et Artifact Registry
+- Autoriser GitHub via Workload Identity Federation
 
-- `GCP_PROJECT_ID`
-- `GCP_REGION`
-- `CLOUD_RUN_SERVICE`
-- `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`
-- `GOOGLE_SPREADSHEET_ID`
-- `GOOGLE_SHEET_MEMBERS_RANGE`
-- `GOOGLE_SHEET_MEETINGS_RANGE`
-- `GOOGLE_SHEET_TRAINING_RANGE`
-- `GOOGLE_CALENDAR_ID`
-- `GOOGLE_CALENDAR_PAST_DAYS`
-- `GOOGLE_CALENDAR_FUTURE_DAYS`
-- `FIRESTORE_PROJECT_ID`
-- `FIRESTORE_DATABASE_ID`
+---
 
-Secrets de repository:
+## Documentation complémentaire
 
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`
-- `GCP_SERVICE_ACCOUNT_EMAIL`
-
-### Recommandation d'authentification
-
-Je recommande `Workload Identity Federation` entre GitHub et GCP, pas une clé JSON statique. C'est plus propre et plus sûr pour le déploiement CI/CD.
-
-### Ce que fait le pipeline
-
-1. checkout du repo;
-2. authentification à Google Cloud;
-3. build Docker de l'application;
-4. push de l'image dans Artifact Registry;
-5. déploiement de l'image sur Cloud Run.
-
-### Variables runtime Cloud Run
-
-Le workflow est prêt pour une approche plus propre:
-
-- variables runtime injectées au déploiement;
-- compte de service Cloud Run attaché au service;
-- plus besoin de fichier JSON local sur Cloud Run si le compte de service a accès à Sheets, Calendar et Firestore.
-
-### Pré-requis GCP
-
-- activer `Cloud Run`
-- activer `Artifact Registry`
-- activer `IAM Credentials API`
-- activer `Firestore API`
-- créer la base Firestore si elle n'existe pas encore
-- créer un service account pour le déploiement GitHub
-- autoriser GitHub via Workload Identity Federation
-- donner au service account les rôles nécessaires sur Cloud Run et Artifact Registry
-- partager le Google Sheet et le Google Calendar avec le service account runtime Cloud Run
-
-### Initialiser le remote GitHub
-
-Exemple:
-
-```bash
-git remote add origin https://github.com/<owner>/<repo>.git
-git add .
-git commit -m "Initial dashboard MVP with Cloud Run CI/CD"
-git branch -M main
-git push -u origin main
-```
-
-## Architecture recommandée
-
-### Phase 1: la moins chère possible
-
-- `Cloud Run` pour héberger l'application web.
-- `Google Sheets` comme source de vérité temporaire.
-- `Telegram Bot` continue à recevoir les déclarations.
-- `Google Calendar` reste alimenté pour les rendez-vous.
-- Le backend de l'application lit les données via `Google Sheets API` et les consolide dans un format dashboard.
-
-Pourquoi cette phase:
-
-- presque aucun coût fixe;
-- tu gardes tes flux existants;
-- tu centralises enfin l'affichage, le pilotage et les graphiques.
-
-### Phase 2: sortir progressivement de Google Sheets
-
-Quand le volume augmente ou si tu veux une vraie application autonome:
-
-- `Firestore` pour stocker membres, rencontres, formations et journaux d'activité;
-- `Cloud Run` garde l'API et le frontend;
-- un job planifié peut synchroniser Telegram, Calendar et éventuellement Sheets pendant la transition.
-
-Pourquoi `Firestore`:
-
-- offre gratuite intéressante pour un petit volume;
-- très simple à intégrer avec Cloud Run;
-- pas besoin de gérer un serveur SQL.
-
-## Structure
-
-- `server.js`: serveur HTTP minimal compatible Cloud Run.
-- `public/`: interface utilisateur.
-- `data/dashboard.json`: données d'exemple pour le MVP visuel.
-
-## Prochaines étapes utiles
-
-1. Connecter `Google Sheets API` à la place du fichier JSON.
-2. Définir les entités métier: membres, rencontres, pasteurs, sessions de formation, présences.
-3. Ajouter l'authentification Google.
-4. Construire les écrans de détail par membre et par pasteur.
+| Fichier | Contenu |
+|---|---|
+| `docs/architecture.md` | Proposition d'architecture initiale |
+| `docs/data-architecture.md` | Choix et évolution du modèle de données |
+| `docs/bot-migration.md` | Guide de migration des bots vers l'API centrale |
+| `docs/roadmap.md` | État actuel, prochaines étapes, risques |
+| `docs/openapi.yaml` | Contrat d'API REST |
+| `.env.example` | Référence complète des variables d'environnement |
