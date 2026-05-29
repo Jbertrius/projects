@@ -24,6 +24,7 @@ substitutions:
   _REGISTRY: "europe-west1-docker.pkg.dev/cedar-freedom-138023/my-repo"
   _DOMAIN: "https://google-calendar-bot-649794681789.europe-west1.run.app"
   _API_BASE_URL: "https://member-evolution-dashboard-vq3zefjqia-od.a.run.app"
+  _RUNTIME_SA: "mannam-collect-bot@cedar-freedom-138023.iam.gserviceaccount.com"
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -73,6 +74,7 @@ steps:
       - "--region=${_REGION}"
       - "--platform=managed"
       - "--allow-unauthenticated"
+      - "--service-account=${_RUNTIME_SA}"
       - "--port=8080"
       - "--cpu=1"
       - "--memory=512Mi"
