@@ -11,6 +11,7 @@ import api_client
 
 from google import genai
 from google.genai import types as genai_types
+from google.auth import default as google_auth_default
 from google.oauth2.service_account import Credentials
 import re
 from datetime import datetime, timedelta
@@ -222,10 +223,17 @@ def normalize_edit_with_gemini(message: str) -> dict | None:
 # ── Google API services ────────────────────────────────────────────────────────
 
 def _creds_from_env(scopes: list[str]):
-    key = os.environ.get('service_account_key')
-    if not key:
-        raise EnvironmentError("Variable d'env 'service_account_key' manquante.")
-    return Credentials.from_service_account_info(json.loads(key), scopes=scopes)
+    # Prefer Application Default Credentials (Cloud Run attached service account).
+    try:
+        creds, _ = google_auth_default(scopes=scopes)
+        return creds
+    except Exception:
+        key = os.environ.get('service_account_key')
+        if key:
+            return Credentials.from_service_account_info(json.loads(key), scopes=scopes)
+        raise EnvironmentError(
+            "Impossible d'obtenir des credentials Google: ADC indisponible et 'service_account_key' absent."
+        )
 
 
 def get_calendar_service():
