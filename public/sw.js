@@ -1,4 +1,4 @@
-const CACHE_NAME = "dmd-v1";
+const CACHE_NAME = "dmd-v3";
 const STATIC_ASSETS = [
   "/",
   "/styles.css",
@@ -33,10 +33,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first for HTML, cache-first for assets
+  // Network-first for HTML and styles/scripts so design fixes are visible quickly.
   if (request.headers.get("accept")?.includes("text/html")) {
     event.respondWith(
       fetch(request).catch(() => caches.match(request).then((r) => r || caches.match("/")))
+    );
+  } else if (["style", "script"].includes(request.destination)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
   } else {
     event.respondWith(
