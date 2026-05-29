@@ -930,6 +930,7 @@ button:disabled {
   gap: 18px;
   margin-bottom: 18px;
   align-items: start;
+  flex-wrap: wrap;
 }
 
 .card-head > div,
@@ -940,47 +941,51 @@ button:disabled {
 .chart-head-actions {
   display: grid;
   gap: 10px;
-  justify-items: end;
-  max-width: 360px;
+  justify-items: stretch;
+  width: min(100%, 540px);
+  margin-left: auto;
 }
 
 .trajectory-date-range {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .trajectory-date-label {
   font-size: 0.82rem;
-  color: var(--color-muted, #888);
+  color: var(--muted);
   white-space: nowrap;
 }
 
 .trajectory-date-input {
   font-size: 0.82rem;
-  padding: 3px 6px;
-  border: 1px solid var(--color-border, #ddd);
-  border-radius: 6px;
-  background: var(--color-surface, #fff);
-  color: var(--color-text, #222);
+  min-width: 154px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel-strong);
+  color: var(--ink);
   cursor: pointer;
 }
 
 .trajectory-date-input:focus {
-  outline: 2px solid var(--color-accent, #2d6a4f);
+  outline: 2px solid rgba(81, 183, 234, 0.45);
   outline-offset: 1px;
 }
 
 .trajectory-date-reset {
   font-size: 1rem;
   line-height: 1;
-  padding: 2px 7px;
-  border: 1px solid var(--color-border, #ddd);
-  border-radius: 6px;
-  background: none;
-  color: var(--color-muted, #888);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel-strong);
+  color: var(--muted);
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
@@ -1104,13 +1109,16 @@ button:disabled {
 }
 
 .segmented-control {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: 6px;
   padding: 5px;
-  border-radius: 999px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.84);
   border: 1px solid var(--line);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .segment-button {
@@ -1120,6 +1128,8 @@ button:disabled {
   font-weight: 700;
   border: 0;
   box-shadow: none;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .segment-button.is-active {
@@ -1750,6 +1760,7 @@ th {
   justify-content: space-between;
   align-items: end;
   gap: 16px;
+  flex-wrap: wrap;
   margin-bottom: 18px;
 }
 
@@ -1757,7 +1768,7 @@ th {
   display: grid;
   grid-template-columns: repeat(2, minmax(170px, 1fr));
   gap: 12px;
-  width: min(100%, 390px);
+  width: min(100%, 430px);
 }
 
 .academy-tooltip {
@@ -2416,6 +2427,19 @@ th {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .segment-button {
+    padding-inline: 8px;
+    white-space: normal;
+  }
+
+  .trajectory-date-range {
+    justify-content: stretch;
+  }
+
+  .trajectory-date-input {
+    flex: 1 1 150px;
+  }
+
   /* Tables: allow horizontal scroll on mobile */
   .table-wrap,
   .summit-table-wrap {
@@ -2632,11 +2656,16 @@ th {
   .filters-bar,
   .loading-state,
   .sidebar-card,
+  .sidebar-nav.is-local-menu,
   .module-link,
   .evangelisation-module-link,
   .summit-preview-stat,
   .pipeline-item,
   .table-wrap,
+  .trend-chart,
+  .activity-chart,
+  .status-chart,
+  .progress-chart,
   .academy-entry-option,
   .academy-lesson-item,
   .app-feedback {
@@ -2671,7 +2700,11 @@ th {
 
   .secondary-action,
   .filter-control,
+  .trajectory-date-input,
+  .trajectory-date-reset,
   .segmented-control,
+  .summit-chart-group,
+  .summit-chart-chip,
   .pp-country-label {
     background: rgba(22, 36, 54, 0.96);
     color: #bdeaff;
@@ -2680,6 +2713,45 @@ th {
 
   .nav-item {
     color: var(--ink);
+  }
+
+  .nav-section-label,
+  .trajectory-date-label,
+  .hero-metric-label,
+  .summit-preview-lbl {
+    color: var(--muted);
+  }
+
+  .segment-button {
+    color: var(--muted);
+  }
+
+  .segment-button.is-active {
+    background: rgba(81, 183, 234, 0.2);
+    color: var(--ink);
+  }
+
+  .summit-chart-controls {
+    width: min(100%, 560px);
+  }
+
+  .summit-chart-group {
+    border-radius: 18px;
+    min-width: 0;
+  }
+
+  .summit-chart-chip.is-active {
+    color: #122236;
+  }
+
+  .apexcharts-text,
+  .apexcharts-xaxis-label,
+  .apexcharts-yaxis-label {
+    fill: #b4c7d8 !important;
+  }
+
+  .apexcharts-gridline {
+    stroke: rgba(140, 180, 220, 0.16) !important;
   }
 
   .sidebar-nav a[href="/gmcs-summit.html"] {
