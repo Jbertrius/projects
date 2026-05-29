@@ -8,6 +8,9 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 .claude/settings.local.json
+.claude/worktrees/
+.claude/**/service-account.json
+.claude/**/credentials.json
 service-account.json
 .gcloudignore
 
