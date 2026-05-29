@@ -4,6 +4,7 @@
   --ink: #12314a;
   --muted: #5f7891;
   --line: rgba(34, 92, 136, 0.12);
+  --line-strong: rgba(34, 92, 136, 0.2);
   --sky: #51b7ea;
   --sky-deep: #2589c8;
   --gold: #f5c32c;
@@ -335,13 +336,13 @@ h3 {
   margin: 0;
   font-family: "Sora", sans-serif;
   font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: -0.05em;
+  line-height: 1.08;
+  letter-spacing: 0;
 }
 
 h1 {
   font-size: clamp(2.4rem, 3.4vw, 4.2rem);
-  max-width: 13ch;
+  max-width: 16ch;
 }
 
 .panel-label {
@@ -795,12 +796,23 @@ button:disabled {
 
 
 .secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
   background: rgba(255, 255, 255, 0.9);
   color: var(--sky-deep);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
+  font-weight: 700;
 }
 
 .primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
   background: linear-gradient(135deg, #2589c8, #1d8a5a);
   color: #ffffff;
   border: 1px solid rgba(37, 137, 200, 0.28);
@@ -838,6 +850,7 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 18px;
 }
 
 .filters-bar {
@@ -858,7 +871,7 @@ button:disabled {
 .filter-control {
   width: 100%;
   border-radius: 16px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   background: var(--panel-strong);
   color: var(--ink);
   padding: 14px 16px;
@@ -901,6 +914,11 @@ button:disabled {
   gap: 18px;
   margin-bottom: 18px;
   align-items: start;
+}
+
+.card-head > div,
+.top-bar > div {
+  min-width: 0;
 }
 
 .chart-head-actions {
@@ -2272,6 +2290,10 @@ th {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  h1 {
+    max-width: 22ch;
+  }
+
   .dashboard {
     gap: 16px;
   }
@@ -2304,6 +2326,8 @@ th {
 
   h1 {
     font-size: 1.9rem;
+    max-width: none;
+    line-height: 1.12;
   }
 
   h2 {
@@ -2333,6 +2357,11 @@ th {
   .progress-meta,
   .status-meta {
     display: grid;
+  }
+
+  .top-bar,
+  .top-bar-actions {
+    justify-items: stretch;
   }
 
   .card-head {
@@ -2437,31 +2466,29 @@ th {
   }
 }
 
-/* ── GMCS Summit temporary event styling ── */
-a[href="/gmcs-summit.html"]::after {
-  content: 'TEMPORAIRE';
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  background: linear-gradient(135deg, #f5c700 0%, #f5d84a 100%);
-  color: #1a3a47;
-  opacity: 0.95;
-  box-shadow: 0 2px 8px rgba(245, 199, 0, 0.3);
+/* ── GMCS Summit event styling ── */
+.sidebar-nav a[href="/gmcs-summit.html"] {
+  border: 1px solid rgba(245, 195, 44, 0.24);
+  background: linear-gradient(135deg, rgba(245, 195, 44, 0.12), rgba(81, 183, 234, 0.07));
 }
 
-/* Highlight GMCS Summit link in navigation */
-.sidebar-nav a[href="/gmcs-summit.html"] {
-  background: linear-gradient(135deg, rgba(245, 199, 0, 0.15), rgba(245, 199, 0, 0.08));
-  border: 1px solid rgba(245, 199, 0, 0.3);
-  border-left: 3px solid #f5c700;
+.sidebar-nav a[href="/gmcs-summit.html"]::after {
+  content: "Temporaire";
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(245, 195, 44, 0.18);
+  color: #735400;
+  border: 1px solid rgba(245, 195, 44, 0.32);
 }
 
 .sidebar-nav a[href="/gmcs-summit.html"]:hover {
-  background: linear-gradient(135deg, rgba(245, 199, 0, 0.25), rgba(245, 199, 0, 0.15));
+  background: linear-gradient(135deg, rgba(245, 195, 44, 0.18), rgba(81, 183, 234, 0.1));
 }
 
 /* ── Pastor Pipeline Dashboard ── */
