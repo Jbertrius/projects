@@ -40,7 +40,7 @@ steps:
       - --region=${_REGION}
       - --platform=managed
       - --allow-unauthenticated
-      - --set-secrets=GOOGLE_SERVICE_ACCOUNT_JSON=service-account-key:latest,GEMINI_API_KEY=gemini-api-key:latest,APP_INITIAL_ADMIN_PASSWORD=app-initial-admin-password:latest,APP_SESSION_SECRET=app-session-secret:latest,BOT_API_KEY_ATTENDANCE=bot-api-key-attendance:latest,BOT_API_KEY_MANNAM=bot-api-key-mannam:latest
+      - --set-secrets=GEMINI_API_KEY=gemini-api-key:latest,APP_INITIAL_ADMIN_PASSWORD=app-initial-admin-password:latest,APP_SESSION_SECRET=app-session-secret:latest,BOT_API_KEY_ATTENDANCE=bot-api-key-attendance:latest,BOT_API_KEY_MANNAM=bot-api-key-mannam:latest
       - --set-env-vars=FIRESTORE_PROJECT_ID=$PROJECT_ID,FIRESTORE_DATABASE_ID=${_FIRESTORE_DATABASE_ID},GOOGLE_SPREADSHEET_ID=${_GOOGLE_SPREADSHEET_ID},GOOGLE_CALENDAR_ID=${_GOOGLE_CALENDAR_ID},GOOGLE_SHEET_MEMBERS_RANGE=${_GOOGLE_SHEET_MEMBERS_RANGE},GOOGLE_SHEET_MEETINGS_RANGE=${_GOOGLE_SHEET_MEETINGS_RANGE},GOOGLE_SHEET_TRAINING_RANGE=${_GOOGLE_SHEET_TRAINING_RANGE},APP_INITIAL_ADMIN_EMAIL=${_APP_INITIAL_ADMIN_EMAIL},APP_INITIAL_ADMIN_NAME=${_APP_INITIAL_ADMIN_NAME}
 
 images:
