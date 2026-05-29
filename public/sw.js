@@ -1,4 +1,4 @@
-const CACHE_NAME = "dmd-v3";
+const CACHE_NAME = "dmd-v4";
 const STATIC_ASSETS = [
   "/",
   "/styles.css",
@@ -28,8 +28,13 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip API requests and non-GET
-  if (request.method !== "GET" || url.pathname.startsWith("/api/")) {
+  // Skip API requests, non-GET requests, and third-party assets. External
+  // resources are already governed by the page CSP and browser cache.
+  if (
+    request.method !== "GET" ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api/")
+  ) {
     return;
   }
 
@@ -42,11 +47,14 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
+          if (!response || !response.ok) {
+            return response;
+          }
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(() => caches.match(request).then((cached) => cached || Response.error()))
     );
   } else {
     event.respondWith(
