@@ -2586,8 +2586,9 @@ th {
     --panel: rgba(20, 30, 45, 0.9);
     --panel-strong: rgba(25, 35, 50, 0.96);
     --ink: #e8edf2;
-    --muted: #8fa4b8;
+    --muted: #b4c7d8;
     --line: rgba(140, 180, 220, 0.15);
+    --line-strong: rgba(140, 180, 220, 0.28);
     --sky: #51b7ea;
     --sky-deep: #6ec8f5;
     --gold: #f5c32c;
@@ -2604,8 +2605,76 @@ th {
   }
 
   .sidebar {
-    background: rgba(15, 25, 40, 0.95);
-    border-right-color: var(--line);
+    background:
+      linear-gradient(180deg, rgba(17, 29, 45, 0.98), rgba(13, 24, 38, 0.96)),
+      var(--panel);
+    border-color: var(--line-strong);
+  }
+
+  .hero-copy,
+  .top-bar,
+  .filters-bar,
+  .loading-state,
+  .sidebar-card,
+  .module-link,
+  .evangelisation-module-link,
+  .summit-preview-stat,
+  .pipeline-item,
+  .table-wrap,
+  .academy-entry-option,
+  .academy-lesson-item,
+  .app-feedback {
+    background:
+      linear-gradient(180deg, rgba(28, 43, 62, 0.94), rgba(18, 31, 48, 0.9)),
+      var(--panel);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+
+  .hero-panel {
+    border-color: rgba(110, 200, 245, 0.45);
+  }
+
+  .hero-metric,
+  .hero-panel-stat {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .brand-tag,
+  .status-chip {
+    color: #bdeaff;
+    background: rgba(81, 183, 234, 0.16);
+    border-color: rgba(81, 183, 234, 0.28);
+  }
+
+  .sync-pill {
+    color: #8cf2b6;
+    background: rgba(46, 204, 113, 0.14);
+  }
+
+  .secondary-action,
+  .filter-control,
+  .segmented-control,
+  .pp-country-label {
+    background: rgba(22, 36, 54, 0.96);
+    color: #bdeaff;
+    border-color: var(--line-strong);
+  }
+
+  .nav-item {
+    color: var(--ink);
+  }
+
+  .sidebar-nav a[href="/gmcs-summit.html"] {
+    background: linear-gradient(135deg, rgba(245, 195, 44, 0.16), rgba(81, 183, 234, 0.08));
+    border-color: rgba(245, 195, 44, 0.34);
+  }
+
+  .sidebar-nav a[href="/gmcs-summit.html"]::after {
+    color: #ffe58a;
+    background: rgba(245, 195, 44, 0.14);
+    border-color: rgba(245, 195, 44, 0.36);
   }
 
   input, select, textarea {
