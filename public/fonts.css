@@ -1,0 +1,71 @@
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/vendor/fonts/instrument-sans-400.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/vendor/fonts/instrument-sans-500.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/vendor/fonts/instrument-sans-600.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/vendor/fonts/instrument-sans-700.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: "Sora";
+  src: url("/vendor/fonts/sora-500.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "Sora";
+  src: url("/vendor/fonts/sora-600.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: "Sora";
+  src: url("/vendor/fonts/sora-700.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: "Sora";
+  src: url("/vendor/fonts/sora-800.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 800;
+}
+
+@font-face {
+  font-family: "Material Symbols Rounded";
+  src: url("/vendor/fonts/material-symbols-rounded.ttf") format("truetype");
+  font-display: block;
+  font-style: normal;
+  font-weight: 400;
+}

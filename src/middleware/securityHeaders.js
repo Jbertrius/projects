@@ -16,15 +16,14 @@
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
-// CSP that allows our own inline scripts/styles (needed for vanilla JS dashboard)
-// and the CDN sources used by the frontend (ApexCharts, Material Symbols).
+// CSP that allows our own inline scripts/styles (needed for vanilla JS dashboard).
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net",  // ApexCharts from CDN
-  "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
-  "font-src 'self' fonts.gstatic.com",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "img-src 'self' data:",
-  "connect-src 'self' fonts.googleapis.com fonts.gstatic.com cdn.jsdelivr.net",
+  "connect-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'"

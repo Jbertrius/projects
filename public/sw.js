@@ -1,10 +1,21 @@
-const CACHE_NAME = "dmd-v4";
+const CACHE_NAME = "dmd-v5";
 const STATIC_ASSETS = [
   "/",
+  "/fonts.css",
   "/styles.css",
   "/app.js",
   "/shell.js",
   "/auth-client.js",
+  "/vendor/apexcharts.min.js",
+  "/vendor/fonts/instrument-sans-400.ttf",
+  "/vendor/fonts/instrument-sans-500.ttf",
+  "/vendor/fonts/instrument-sans-600.ttf",
+  "/vendor/fonts/instrument-sans-700.ttf",
+  "/vendor/fonts/material-symbols-rounded.ttf",
+  "/vendor/fonts/sora-500.ttf",
+  "/vendor/fonts/sora-600.ttf",
+  "/vendor/fonts/sora-700.ttf",
+  "/vendor/fonts/sora-800.ttf",
   "/assets/department-logo.png"
 ];
 
