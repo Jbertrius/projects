@@ -330,14 +330,14 @@ def parse_event_details(message: str):
         r"Heure\s*:\s*(.*?)" + line_break +
         r"Lieu\s*:\s*(.*?)" + line_break +
         r"Description\s*:\s*(.*?)" + line_break +
-        r"Mannamjas\s*:\s*(.*?)(?:" + line_break + r"Section\s*:\s*(.*))?"
+        r"Mannamjas\s*:\s*([^\r\n]*)(?:" + line_break + r"Section\s*:\s*(.*))?"
     )
     match = re.search(pattern, message, re.DOTALL)
     if match:
         return {
             'summary':     match.group(1).strip(),
-            'date':        _ensure_year_in_date(match.group(2).strip()),
-            'time':        match.group(3).strip(),
+            'date':        _normalize_french_date(_ensure_year_in_date(match.group(2).strip())),
+            'time':        _normalize_french_time(match.group(3).strip()),
             'location':    match.group(4).strip(),
             'description': match.group(5).strip(),
             'mannamjas':   match.group(6).strip(),
@@ -669,6 +669,16 @@ async def handle_add_event(update: Update, _):
 
     event_details = normalize_event_with_gemini(message)
     parser_used = "gemini" if event_details is not None else "none"
+
+    if not event_details:
+        event_details = parse_event_details(message)
+        if event_details is not None:
+            parser_used = "structured"
+
+    if not event_details:
+        event_details = parse_event_details_freeform(message)
+        if event_details is not None:
+            parser_used = "freeform"
 
     logging.info(f"add_event parser utilisé: {parser_used}")
 

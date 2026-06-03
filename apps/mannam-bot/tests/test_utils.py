@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 # Permet d'importer main.py sans que main() se déclenche
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from main import (
+from bot_core import (
     parse_event_details,
     sanitize_string,
     extract_mannamjas_and_clean_description,
