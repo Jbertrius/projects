@@ -261,8 +261,16 @@ def _delete_mannam_from_api(event_id: str):
 
 
 def sync_calendar_to_api(cal_service):
-    """Synchronise les evenements du calendrier vers l'API centrale."""
+    """Synchronise les evenements du calendrier vers l'API centrale.
+
+    Idempotent au niveau de l'événement : une fois traité avec succès, un
+    événement est marqué via extendedProperties (mannam_synced) pour ne
+    plus jamais être retraité (donc plus d'appel Gemini répété) — y compris
+    entre deux redémarrages du bot, puisque le marqueur vit sur l'événement
+    Calendar lui-même et pas seulement dans le cache mémoire du process.
+    """
     synced = 0
+    skipped = 0
     page_token = None
     time_min = datetime.utcnow().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
     while True:
@@ -277,6 +285,9 @@ def sync_calendar_to_api(cal_service):
             params['pageToken'] = page_token
         result = cal_service.events().list(**params).execute()
         for event in result.get('items', []):
+            if (event.get('extendedProperties', {}) or {}).get('private', {}).get('mannam_synced'):
+                skipped += 1
+                continue
             start_raw = event.get('start', {}).get('dateTime', event.get('start', {}).get('date', ''))
             if 'T' in start_raw:
                 dt = datetime.fromisoformat(start_raw)
@@ -299,12 +310,19 @@ def sync_calendar_to_api(cal_service):
                     'figure_name': _extract_figure_name(event.get('summary', '')),
                 })
                 synced += 1
+                try:
+                    cal_service.events().patch(
+                        calendarId=CALENDAR_ID, eventId=event['id'],
+                        body={'extendedProperties': {'private': {'mannam_synced': '1'}}},
+                    ).execute()
+                except Exception as mark_err:
+                    logging.warning(f"Impossible de marquer l'événement {event['id']} comme synchronisé: {mark_err}")
             except Exception as fs_err:
                 logging.warning(f"Erreur sync API mannam (startup sync): {fs_err}")
         page_token = result.get('nextPageToken')
         if not page_token:
             break
-    logging.info(f"Sync calendrier vers API: {synced} evenement(s) traites.")
+    logging.info(f"Sync calendrier vers API: {synced} evenement(s) traites, {skipped} deja synchronises (ignores).")
 
 
 # -- Utilitaires ────────────────────────────────────────────────────────────────
