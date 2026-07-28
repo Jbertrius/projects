@@ -15,7 +15,12 @@
 #    _SERVICE     – Cloud Run service  (default: google-calendar-bot)
 #    _REGISTRY    – Artifact Registry  (e.g. europe-west1-docker.pkg.dev/PROJECT/my-repo)
 #    _DOMAIN      – Webhook domain for the bot
-#    _API_BASE_URL – Central web app URL
+#    _API_BASE_URL – Central web app URL (mannam-api). CHAQUE valeur ci-dessous
+#      est réappliquée intégralement à chaque déploiement, écrasant tout
+#      changement fait à la main sur Cloud Run (ex: gcloud run services
+#      update) — modifier ICI, jamais seulement en prod, sous peine de
+#      régression silencieuse au prochain push (vécu deux fois : min-instances
+#      et API_BASE_URL redevenaient les valeurs par défaut ci-dessous).
 # ─────────────────────────────────────────────────────────────────────────────
 
 substitutions:
@@ -23,7 +28,7 @@ substitutions:
   _SERVICE: "google-calendar-bot"
   _REGISTRY: "europe-west1-docker.pkg.dev/cedar-freedom-138023/my-repo"
   _DOMAIN: "https://google-calendar-bot-649794681789.europe-west1.run.app"
-  _API_BASE_URL: "https://member-evolution-dashboard-vq3zefjqia-od.a.run.app"
+  _API_BASE_URL: "https://mannam-api-vq3zefjqia-ew.a.run.app"
   _RUNTIME_SA: "mannam-collect-bot@cedar-freedom-138023.iam.gserviceaccount.com"
 
 options:
