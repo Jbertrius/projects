@@ -265,3 +265,26 @@ def delete_meeting(event_id: str) -> dict:
     """Delete a meeting record via DELETE /api/bot/meetings/{id}."""
     logger.info("Deleting meeting from API: event_id=%s", event_id)
     return _request("DELETE", f"/api/bot/meetings/{_encode(event_id)}")
+
+
+# ── Reports (mannam-bot) ───────────────────────────────────────────────────────
+
+def match_report(figure_name: str, date: str = "") -> dict:
+    """Rattache un rapport (#AMR ou /rapport) à un pasteur/mannam existant.
+
+    POST /api/bot/reports/match — lecture seule, ne crée jamais de pasteur.
+    Retourne {"matched": True, "mannamId", "pastorId", "pastorName", ...}
+    ou {"matched": False, "reason": "pastor_not_found" | "no_pending_mannam", ...}.
+    """
+    return _request("POST", "/api/bot/reports/match",
+                     {"figureName": figure_name, "date": date})
+
+
+def submit_report(mannam_id: str, report: dict, reporter: str = "") -> dict:
+    """Applique un rapport à un mannam. POST /api/bot/meetings/{id}/report.
+
+    `report` attend les clés resume/impression/sujets/difficultes/
+    prochaines_etapes/prochaine_date/resultat (resultat obligatoire).
+    """
+    payload = {**report, "reporter": reporter}
+    return _request("POST", f"/api/bot/meetings/{_encode(mannam_id)}/report", payload)

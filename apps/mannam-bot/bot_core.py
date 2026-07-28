@@ -15,7 +15,7 @@ from google.auth import default as google_auth_default
 from google.oauth2.service_account import Credentials
 import re
 from datetime import datetime, timedelta
-from telegram import Update, BotCommand
+from telegram import Update, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     filters, ConversationHandler, CallbackQueryHandler,
@@ -217,6 +217,67 @@ def normalize_edit_with_gemini(message: str) -> dict | None:
         return result if result else None
     except Exception as e:
         logging.error(f"Erreur Gemini edit: {e}")
+        return None
+
+
+_AMR_PROMPT = """
+Tu es un assistant d'extraction pour des rapports de mannam (rencontre avec un
+pasteur), postés selon un gabarit fixe commençant par "After mannam report" et
+se terminant par le marqueur "#AMR". Extrais les informations suivantes et
+retourne-les UNIQUEMENT sous forme d'objet JSON valide, sans texte autour.
+
+Champs :
+- "pastor_name"       : nom de la figure religieuse (champ "Name"). Ex: "Prophetesse Nadige"
+- "eglise"            : nom de l'église (champ "Name of Church").
+- "responsable"       : personne en charge (champ "Class / POD in charge").
+- "location"          : lieu (champ "Location").
+- "section"           : section (champ "section").
+- "resume"            : tout le contenu narratif de la partie "Résultat" (intérêt,
+                        observations, tout ce qui suit "Résultat" jusqu'à "Demande de FB"
+                        inclus), regroupé en un seul texte.
+- "demande_fb"        : contenu du champ "Demande de FB".
+- "prochaines_etapes" : contenu de la partie "Next meeting" (texte libre — ne transforme
+                        jamais une plage de dates comme "entre 23 et 29 Août" en date unique).
+
+Règles :
+- Si un champ est absent du message, retourne une chaîne vide "".
+- Ne jamais inventer de valeurs.
+- Retourne EXCLUSIVEMENT le JSON, rien d'autre.
+
+Message :
+{{message}}
+"""
+
+
+def normalize_report_with_gemini(message: str) -> dict | None:
+    """Extrait les champs d'un rapport #AMR depuis le texte du message Telegram."""
+    if not _gemini_client:
+        logging.warning("GEMINI_API_KEY absent — extraction de rapport impossible.")
+        return None
+    try:
+        response = _gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=_AMR_PROMPT.replace("{{message}}", message),
+            config=genai_types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+        raw_text = getattr(response, "text", "") or ""
+        raw_json = _extract_json_object(raw_text)
+        if not raw_json:
+            logging.warning("Gemini rapport: réponse vide ou non exploitable.")
+            return None
+
+        data = json.loads(raw_json)
+        if not data.get("pastor_name"):
+            logging.warning(f"Gemini rapport: pastor_name manquant: {data}")
+            return None
+
+        fields = ("pastor_name", "eglise", "responsable", "location", "section",
+                  "resume", "demande_fb", "prochaines_etapes")
+        return {k: (data.get(k) or "") for k in fields}
+    except Exception as e:
+        logging.error(f"Erreur Gemini rapport: {e}")
         return None
 
 
@@ -951,14 +1012,152 @@ async def delete_event(update: Update, context):
         await update.message.reply_text("❌ Une erreur est survenue lors de la suppression de l'événement.")
 
 
+# ── Rapports de mannam (#AMR) ──────────────────────────────────────────────────
+# Détection passive : les membres postent déjà leurs comptes-rendus sous un
+# gabarit fixe se terminant par "#AMR" — pas besoin de commande dédiée. Seul le
+# résultat (succès/échec/en cours/annulé) est confirmé d'un tap, car ce champ
+# pilote un vrai changement d'état et ne doit jamais être deviné par une IA.
+
+# token ("chat_id:message_id") → rapport en attente de confirmation du résultat
+_pending_reports: dict[str, dict] = {}
+
+_RESULTAT_LABELS = {
+    "succes": "✅ Succès",
+    "processus_en_cours": "⟳ En cours",
+    "echec": "✕ Échec",
+    "annule": "⊘ Annulé",
+}
+
+
+def _resultat_keyboard(token: str) -> InlineKeyboardMarkup:
+    buttons = [
+        InlineKeyboardButton(label, callback_data=f"rr|{token}|{code}")
+        for code, label in _RESULTAT_LABELS.items()
+    ]
+    rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+    return InlineKeyboardMarkup(rows)
+
+
+async def on_amr_report(update: Update, _):
+    """Détection passive d'un message #AMR : extraction Gemini + rattachement
+    pasteur/mannam (lecture seule), puis un tap suffit pour confirmer le résultat."""
+    message = update.message.text or ""
+    fields = normalize_report_with_gemini(message)
+    if not fields or not fields.get("pastor_name"):
+        await update.message.reply_text(
+            "⚠️ Rapport #AMR détecté mais le nom du pasteur n'a pas pu être identifié.\n"
+            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement.",
+            reply_to_message_id=update.message.message_id,
+        )
+        return
+
+    try:
+        match = api_client.match_report(fields["pastor_name"])
+    except Exception as e:
+        logging.error(f"Erreur match_report: {e}")
+        await update.message.reply_text(
+            "⚠️ Rapport #AMR détecté mais une erreur est survenue lors du rattachement.\n"
+            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement.",
+            reply_to_message_id=update.message.message_id,
+        )
+        return
+
+    if not match.get("matched"):
+        await update.message.reply_text(
+            f"⚠️ Rapport #AMR détecté pour « {fields['pastor_name']} » mais aucun mannam en attente "
+            "n'a été retrouvé.\nUtilisez /rapport <numéro> (après /list) pour le relier manuellement.",
+            reply_to_message_id=update.message.message_id,
+        )
+        return
+
+    token = f"{update.effective_chat.id}:{update.message.message_id}"
+    _pending_reports[token] = {
+        "mannam_id": match["mannamId"],
+        "report": {
+            "resume": fields.get("resume", ""),
+            "sujets": fields.get("eglise", ""),
+            "prochaines_etapes": fields.get("prochaines_etapes", ""),
+        },
+        "reporter": fields.get("responsable", ""),
+    }
+
+    await update.message.reply_text(
+        f"📋 Rapport détecté pour {match['pastorName']} ({match['mannamDate']}) — quel résultat ?",
+        reply_to_message_id=update.message.message_id,
+        reply_markup=_resultat_keyboard(token),
+    )
+
+
+async def on_report_result_callback(update: Update, _):
+    """Applique le rapport en attente dès qu'un bouton de résultat est tapé."""
+    query = update.callback_query
+    await query.answer()
+    try:
+        _, token, resultat = query.data.split("|", 2)
+    except ValueError:
+        return
+
+    pending = _pending_reports.pop(token, None)
+    if not pending:
+        await query.edit_message_text(
+            "⌛ Cette demande a expiré. Relancez le rapport ou utilisez /rapport <numéro>."
+        )
+        return
+
+    try:
+        api_client.submit_report(
+            pending["mannam_id"],
+            {**pending["report"], "resultat": resultat},
+            reporter=pending.get("reporter", ""),
+        )
+        await query.edit_message_text(f"✅ Rapport enregistré ({_RESULTAT_LABELS.get(resultat, resultat)}).")
+    except Exception as e:
+        logging.error(f"Erreur submit_report: {e}")
+        await query.edit_message_text("❌ Une erreur est survenue lors de l'enregistrement du rapport.")
+
+
+async def rapport_command(update: Update, context):
+    """Usage : /rapport <numéro> — filet de secours manuel si la détection
+    automatique #AMR échoue ou est ambiguë. Réutilise _list_cache (comme
+    /edit et /delete) puisque l'id du mannam est celui de l'événement Calendar."""
+    args = context.args
+    if not args or not args[0].isdigit():
+        await update.message.reply_text(
+            "Usage : /rapport <numéro>\nUtilisez /list pour voir les numéros des événements."
+        )
+        return
+
+    idx = int(args[0])
+    chat_id = update.effective_chat.id
+    event_ids = _list_cache.get(chat_id, [])
+    if not event_ids:
+        await update.message.reply_text(
+            "❌ Aucune liste en mémoire. Faites d'abord /list pour afficher les événements."
+        )
+        return
+    if idx < 1 or idx > len(event_ids):
+        await update.message.reply_text(f"❌ Numéro invalide. Choisissez entre 1 et {len(event_ids)}.")
+        return
+
+    mannam_id = event_ids[idx - 1]
+    token = f"{chat_id}:{update.message.message_id}"
+    _pending_reports[token] = {"mannam_id": mannam_id, "report": {}, "reporter": ""}
+
+    await update.message.reply_text(
+        f"📋 Rapport pour l'événement [{idx}] — quel résultat ?",
+        reply_markup=_resultat_keyboard(token),
+    )
+
+
 # -- Construction de l'application Telegram ────────────────────────────────────
 
 BOT_COMMANDS = [
-    BotCommand("start",  "Message de bienvenue"),
-    BotCommand("add",    "Ajouter un événement au calendrier"),
-    BotCommand("list",   "Voir les événements de la semaine"),
-    BotCommand("edit",   "Modifier un événement (/edit <numéro>)"),
-    BotCommand("delete", "Supprimer un événement (/delete <numéro>)"),
+    BotCommand("start",   "Message de bienvenue"),
+    BotCommand("add",     "Ajouter un événement au calendrier"),
+    BotCommand("list",    "Voir les événements de la semaine"),
+    BotCommand("edit",    "Modifier un événement (/edit <numéro>)"),
+    BotCommand("delete",  "Supprimer un événement (/delete <numéro>)"),
+    BotCommand("rapport", "Rattacher un rapport manuellement (/rapport <numéro>)"),
 ]
 
 
@@ -1008,5 +1207,8 @@ def build_app(bot_token: str) -> Application:
     app.add_handler(CommandHandler("start",      start))
     app.add_handler(CommandHandler("list",       list_events))
     app.add_handler(CommandHandler("delete", delete_event))
+    app.add_handler(CommandHandler("rapport", rapport_command))
+    app.add_handler(MessageHandler(filters.Regex(r'#AMR') & filters.TEXT, on_amr_report))
+    app.add_handler(CallbackQueryHandler(on_report_result_callback, pattern=r'^rr\|'))
 
     return app
