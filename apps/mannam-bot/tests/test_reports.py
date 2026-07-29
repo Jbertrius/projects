@@ -21,7 +21,8 @@ from bot_core import (
     on_amr_report,
     on_report_result_callback,
     on_pastor_pick_callback,
-    rapport_command,
+    nouveau_rapport_command,
+    voir_rapport_command,
 )
 
 AMR_MESSAGE = """🔰After mannam report AMR
@@ -159,7 +160,7 @@ class TestOnAmrReport:
             asyncio.run(on_amr_report(update, None))
         assert not _pending_reports
         text = update.message.reply_text.call_args[0][0]
-        assert "/rapport" in text
+        assert "/nouveau_rapport" in text
 
     def test_no_pastor_match_replies_with_manual_fallback_hint(self):
         fake_fields = {"pastor_name": "Pasteur Inconnu", "eglise": "", "responsable": "",
@@ -172,7 +173,7 @@ class TestOnAmrReport:
             asyncio.run(on_amr_report(update, None))
         assert not _pending_reports
         text = update.message.reply_text.call_args[0][0]
-        assert "/rapport" in text
+        assert "/nouveau_rapport" in text
 
     def test_match_report_exception_replies_with_manual_fallback_hint(self):
         fake_fields = {"pastor_name": "Prophetesse Nadige", "eglise": "", "responsable": "",
@@ -184,7 +185,7 @@ class TestOnAmrReport:
             asyncio.run(on_amr_report(update, None))
         assert not _pending_reports
         text = update.message.reply_text.call_args[0][0]
-        assert "/rapport" in text
+        assert "/nouveau_rapport" in text
 
     def test_ambiguous_match_proposes_candidates(self):
         # Le nom du rapport n'est pas exact (typo/surnom) — un match_report
@@ -253,7 +254,7 @@ class TestOnPastorPickCallback:
         asyncio.run(on_pastor_pick_callback(update, None))
         assert "1:99" not in _pending_matches
         text = update.callback_query.edit_message_text.call_args[0][0]
-        assert "/rapport" in text
+        assert "/nouveau_rapport" in text
 
     def test_expired_token_shows_expiry_message(self):
         update = _make_callback_update("rp|unknown:1|pastor_x")
@@ -268,7 +269,7 @@ class TestOnPastorPickCallback:
                           return_value={"matched": False, "reason": "no_pending_mannam"}):
             asyncio.run(on_pastor_pick_callback(update, None))
         text = update.callback_query.edit_message_text.call_args[0][0]
-        assert "/rapport" in text
+        assert "/nouveau_rapport" in text
 
     def test_match_report_by_pastor_exception_shows_error(self):
         _pending_matches["1:99"] = {"report": {}, "reporter": ""}
@@ -327,7 +328,7 @@ class TestOnReportResultCallback:
         assert "erreur" in text.lower()
 
 
-# ── rapport_command (filet de secours manuel) ──────────────────────────────────
+# ── nouveau_rapport_command (filet de secours manuel) ───────────────────────────
 
 def _make_command_update(chat_id: int, message_id: int, args: list[str]):
     update = MagicMock()
@@ -339,31 +340,31 @@ def _make_command_update(chat_id: int, message_id: int, args: list[str]):
     return update, context
 
 
-class TestRapportCommand:
+class TestNouveauRapportCommand:
     def setup_method(self):
         _pending_reports.clear()
         bot_core._list_cache.clear()
 
     def test_no_args_shows_usage(self):
         update, context = _make_command_update(1, 1, [])
-        asyncio.run(rapport_command(update, context))
+        asyncio.run(nouveau_rapport_command(update, context))
         assert "Usage" in update.message.reply_text.call_args[0][0]
 
     def test_no_cached_list_shows_error(self):
         update, context = _make_command_update(1, 1, ["1"])
-        asyncio.run(rapport_command(update, context))
+        asyncio.run(nouveau_rapport_command(update, context))
         assert "Aucune liste" in update.message.reply_text.call_args[0][0]
 
     def test_out_of_range_index_shows_error(self):
         bot_core._list_cache[1] = ["evt_a", "evt_b"]
         update, context = _make_command_update(1, 1, ["5"])
-        asyncio.run(rapport_command(update, context))
+        asyncio.run(nouveau_rapport_command(update, context))
         assert "invalide" in update.message.reply_text.call_args[0][0].lower()
 
     def test_valid_index_stores_pending_report_with_correct_mannam_id(self):
         bot_core._list_cache[1] = ["evt_a", "evt_b"]
         update, context = _make_command_update(1, 42, ["2"])
-        asyncio.run(rapport_command(update, context))
+        asyncio.run(nouveau_rapport_command(update, context))
         token = "1:42"
         assert _pending_reports[token]["mannam_id"] == "evt_b"
         update.message.reply_text.assert_awaited_once()
@@ -371,7 +372,7 @@ class TestRapportCommand:
 
     def test_pastor_name_arg_bypasses_list_cache_and_matches(self):
         # Cas d'usage réel : mannam plus ancien, absent de /list (semaine en
-        # cours seulement) — /rapport <nom> doit fonctionner sans _list_cache.
+        # cours seulement) — /nouveau_rapport <nom> doit fonctionner sans _list_cache.
         match = {
             "matched": True, "pastorId": "p1", "pastorName": "Prophetesse Nadige",
             "matchType": "exact", "mannamId": "m_old", "mannamDate": "2026-06-01",
@@ -379,7 +380,7 @@ class TestRapportCommand:
         }
         update, context = _make_command_update(1, 7, ["Prophetesse", "Nadige"])
         with patch.object(bot_core.api_client, "match_report", return_value=match) as mock_match:
-            asyncio.run(rapport_command(update, context))
+            asyncio.run(nouveau_rapport_command(update, context))
         mock_match.assert_called_once_with("Prophetesse Nadige")
         token = "1:7"
         assert _pending_reports[token]["mannam_id"] == "m_old"
@@ -389,7 +390,73 @@ class TestRapportCommand:
         update, context = _make_command_update(1, 7, ["Pasteur", "Inconnu"])
         with patch.object(bot_core.api_client, "match_report",
                           return_value={"matched": False, "reason": "pastor_not_found"}):
-            asyncio.run(rapport_command(update, context))
+            asyncio.run(nouveau_rapport_command(update, context))
         assert "1:7" not in _pending_reports
         text = update.message.reply_text.call_args[0][0]
         assert "Pasteur Inconnu" in text
+
+
+# ── voir_rapport_command (consultation en lecture seule) ────────────────────────
+
+class TestVoirRapportCommand:
+    def test_no_args_shows_usage(self):
+        update, context = _make_command_update(1, 1, [])
+        asyncio.run(voir_rapport_command(update, context))
+        assert "Usage" in update.message.reply_text.call_args[0][0]
+
+    def test_found_report_shows_details(self):
+        update, context = _make_command_update(1, 1, ["Evangelist", "Jean"])
+        result = {
+            "found": True, "pastorId": "p1", "pastorName": "Evangelist Jean",
+            "mannamId": "m1", "mannamDate": "2026-07-20", "mannamSummary": "Mannam Jean",
+            "resultat": "succes",
+            "report": {"resume": "Bonne rencontre", "sujets": "Formation", "prochaines_etapes": "Relancer en aout"},
+            "reportBy": "Beomhee",
+        }
+        with patch.object(bot_core.api_client, "view_report", return_value=result) as mock_view:
+            asyncio.run(voir_rapport_command(update, context))
+        mock_view.assert_called_once_with("Evangelist Jean")
+        text = update.message.reply_text.call_args[0][0]
+        assert "Evangelist Jean" in text
+        assert "Succès" in text
+        assert "Bonne rencontre" in text
+        assert "Beomhee" in text
+
+    def test_no_report_yet_shows_hint(self):
+        update, context = _make_command_update(1, 1, ["Evangelist", "Jean"])
+        result = {"found": False, "reason": "no_report", "pastorId": "p1", "pastorName": "Evangelist Jean"}
+        with patch.object(bot_core.api_client, "view_report", return_value=result):
+            asyncio.run(voir_rapport_command(update, context))
+        text = update.message.reply_text.call_args[0][0]
+        assert "Evangelist Jean" in text
+        assert "pas encore" in text.lower()
+
+    def test_pastor_not_found_shows_hint(self):
+        update, context = _make_command_update(1, 1, ["Pasteur", "Inconnu"])
+        result = {"found": False, "reason": "pastor_not_found", "candidates": []}
+        with patch.object(bot_core.api_client, "view_report", return_value=result):
+            asyncio.run(voir_rapport_command(update, context))
+        text = update.message.reply_text.call_args[0][0]
+        assert "Pasteur Inconnu" in text
+
+    def test_ambiguous_lists_candidates(self):
+        update, context = _make_command_update(1, 1, ["Nadge"])
+        result = {
+            "found": False, "reason": "ambiguous",
+            "candidates": [
+                {"pastorId": "pastor_nadige", "pastorName": "Prophetesse Nadige"},
+                {"pastorId": "pastor_nadeille", "pastorName": "Nadeille"},
+            ],
+        }
+        with patch.object(bot_core.api_client, "view_report", return_value=result):
+            asyncio.run(voir_rapport_command(update, context))
+        text = update.message.reply_text.call_args[0][0]
+        assert "Prophetesse Nadige" in text
+        assert "Nadeille" in text
+
+    def test_view_report_exception_shows_error(self):
+        update, context = _make_command_update(1, 1, ["Evangelist", "Jean"])
+        with patch.object(bot_core.api_client, "view_report", side_effect=ValueError("HTTP 500")):
+            asyncio.run(voir_rapport_command(update, context))
+        text = update.message.reply_text.call_args[0][0]
+        assert "erreur" in text.lower()

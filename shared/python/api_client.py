@@ -299,3 +299,15 @@ def submit_report(mannam_id: str, report: dict, reporter: str = "") -> dict:
     """
     payload = {**report, "reporter": reporter}
     return _request("POST", f"/api/bot/meetings/{_encode(mannam_id)}/report", payload)
+
+
+def view_report(figure_name: str) -> dict:
+    """Consulte le dernier rapport déjà enregistré pour un pasteur (lecture
+    seule, n'écrit rien) — utilisé par /voir_rapport.
+
+    POST /api/bot/reports/view.
+    Retourne {"found": True, "pastorName", "mannamDate", "resultat", "report",
+    "reportBy", ...} ou {"found": False, "reason": "pastor_not_found" |
+    "no_report" | "ambiguous", "candidates": [...]}.
+    """
+    return _request("POST", "/api/bot/reports/view", {"figureName": figure_name})

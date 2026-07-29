@@ -79,6 +79,8 @@ python main_dev.py
 | `/list` | Événements de la semaine courante |
 | `/edit <n>` | Modifier l'événement n° n (après `/list`) |
 | `/delete <n>` | Supprimer l'événement n° n (après `/list`) |
+| `/nouveau_rapport <n\|nom>` | Attacher un nouveau rapport à un mannam (ou détection passive `#AMR`) |
+| `/voir_rapport <nom>` | Consulter le dernier rapport déjà enregistré pour un pasteur |
 | `/check_data` | Rapport pastoral par groupe (PC / DMD / Bénin) |
 | `/stats` | Générer le dashboard de suivi des mannams → GSheet `dashboard` |
 

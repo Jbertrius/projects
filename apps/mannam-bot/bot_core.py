@@ -1046,8 +1046,8 @@ async def _match_and_prompt(
 ) -> None:
     """Rattache pastor_name via /api/bot/reports/match puis propose le clavier
     de résultat, ou renvoie un message d'échec avec le filet de secours.
-    Partagé entre la détection passive #AMR et /rapport <nom du pasteur> —
-    ce dernier existe précisément parce que /list (donc /rapport <numéro>)
+    Partagé entre la détection passive #AMR et /nouveau_rapport <nom du pasteur> —
+    ce dernier existe précisément parce que /list (donc /nouveau_rapport <numéro>)
     ne montre que les mannams de la semaine en cours."""
     try:
         match = api_client.match_report(pastor_name)
@@ -1055,7 +1055,7 @@ async def _match_and_prompt(
         logging.error(f"Erreur match_report: {e}")
         await update.message.reply_text(
             "⚠️ Une erreur est survenue lors du rattachement.\n"
-            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement.",
+            "Utilisez /nouveau_rapport <numéro> (après /list) pour le relier manuellement.",
             reply_to_message_id=reply_to,
         )
         return
@@ -1084,7 +1084,7 @@ async def _match_and_prompt(
         else:
             detail = f"aucun pasteur trouvé pour « {pastor_name} »"
         await update.message.reply_text(
-            f"⚠️ {detail}.\nVérifiez l'orthographe, ou utilisez /rapport <numéro> (après /list).",
+            f"⚠️ {detail}.\nVérifiez l'orthographe, ou utilisez /nouveau_rapport <numéro> (après /list).",
             reply_to_message_id=reply_to,
         )
         return
@@ -1107,7 +1107,7 @@ async def on_amr_report(update: Update, _):
     if not fields or not fields.get("pastor_name"):
         await update.message.reply_text(
             "⚠️ Rapport #AMR détecté mais le nom du pasteur n'a pas pu être identifié.\n"
-            "Utilisez /rapport <nom du pasteur> ou /rapport <numéro> (après /list) pour le relier manuellement.",
+            "Utilisez /nouveau_rapport <nom du pasteur> ou /nouveau_rapport <numéro> (après /list) pour le relier manuellement.",
             reply_to_message_id=update.message.message_id,
         )
         return
@@ -1136,7 +1136,7 @@ async def on_report_result_callback(update: Update, _):
     pending = _pending_reports.pop(token, None)
     if not pending:
         await query.edit_message_text(
-            "⌛ Cette demande a expiré. Relancez le rapport ou utilisez /rapport <numéro>."
+            "⌛ Cette demande a expiré. Relancez le rapport ou utilisez /nouveau_rapport <numéro>."
         )
         return
 
@@ -1167,13 +1167,13 @@ async def on_pastor_pick_callback(update: Update, _):
     pending = _pending_matches.pop(token, None)
     if not pending:
         await query.edit_message_text(
-            "⌛ Cette demande a expiré. Utilisez /rapport <numéro> ou /rapport <nom du pasteur>."
+            "⌛ Cette demande a expiré. Utilisez /nouveau_rapport <numéro> ou /nouveau_rapport <nom du pasteur>."
         )
         return
 
     if pastor_id == "none":
         await query.edit_message_text(
-            "D'accord — utilisez /rapport <numéro> (après /list) ou /rapport <nom du pasteur> pour préciser."
+            "D'accord — utilisez /nouveau_rapport <numéro> (après /list) ou /nouveau_rapport <nom du pasteur> pour préciser."
         )
         return
 
@@ -1187,7 +1187,7 @@ async def on_pastor_pick_callback(update: Update, _):
     if not match.get("matched"):
         await query.edit_message_text(
             "⚠️ Ce pasteur n'a aucun mannam en attente de rapport.\n"
-            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement."
+            "Utilisez /nouveau_rapport <numéro> (après /list) pour le relier manuellement."
         )
         return
 
@@ -1201,17 +1201,19 @@ async def on_pastor_pick_callback(update: Update, _):
     )
 
 
-async def rapport_command(update: Update, context):
-    """Usage : /rapport <numéro> (après /list) ou /rapport <nom du pasteur>.
-    Filet de secours manuel si la détection automatique #AMR échoue ou est
-    ambiguë. Le numéro réutilise _list_cache (comme /edit et /delete), mais
-    /list ne montre que les mannams de la semaine en cours — d'où l'option
-    par nom, qui rattache via /api/bot/reports/match comme la détection
-    passive, et fonctionne donc quelle que soit la date du mannam."""
+async def nouveau_rapport_command(update: Update, context):
+    """Usage : /nouveau_rapport <numéro> (après /list) ou /nouveau_rapport <nom du pasteur>.
+    Attache un NOUVEAU rapport à un mannam qui n'en a pas encore — filet de
+    secours manuel si la détection automatique #AMR échoue ou est ambiguë.
+    Le numéro réutilise _list_cache (comme /edit et /delete), mais /list ne
+    montre que les mannams de la semaine en cours — d'où l'option par nom,
+    qui rattache via /api/bot/reports/match comme la détection passive, et
+    fonctionne donc quelle que soit la date du mannam.
+    Pour relire un rapport déjà enregistré, voir /voir_rapport."""
     args = context.args
     if not args:
         await update.message.reply_text(
-            "Usage : /rapport <numéro> (après /list) ou /rapport <nom du pasteur>."
+            "Usage : /nouveau_rapport <numéro> (après /list) ou /nouveau_rapport <nom du pasteur>."
         )
         return
 
@@ -1221,7 +1223,7 @@ async def rapport_command(update: Update, context):
         event_ids = _list_cache.get(chat_id, [])
         if not event_ids:
             await update.message.reply_text(
-                "❌ Aucune liste en mémoire. Faites d'abord /list, ou utilisez /rapport <nom du pasteur>."
+                "❌ Aucune liste en mémoire. Faites d'abord /list, ou utilisez /nouveau_rapport <nom du pasteur>."
             )
             return
         if idx < 1 or idx > len(event_ids):
@@ -1241,6 +1243,60 @@ async def rapport_command(update: Update, context):
     await _match_and_prompt(update, pastor_name, report={})
 
 
+async def voir_rapport_command(update: Update, context):
+    """Usage : /voir_rapport <nom du pasteur>. Consultation en LECTURE SEULE
+    du dernier rapport déjà enregistré pour ce pasteur — n'attache ni ne
+    modifie rien, contrairement à /nouveau_rapport (qui échoue volontairement
+    si un rapport existe déjà, faute de mannam "en attente")."""
+    args = context.args
+    if not args:
+        await update.message.reply_text("Usage : /voir_rapport <nom du pasteur>.")
+        return
+
+    pastor_name = " ".join(args)
+    try:
+        result = api_client.view_report(pastor_name)
+    except Exception as e:
+        logging.error(f"Erreur view_report: {e}")
+        await update.message.reply_text("⚠️ Une erreur est survenue lors de la consultation.")
+        return
+
+    if not result.get("found"):
+        reason = result.get("reason")
+        if reason == "ambiguous":
+            names = ", ".join(c["pastorName"] for c in result.get("candidates") or [])
+            await update.message.reply_text(
+                f"🔎 « {pastor_name} » ne correspond exactement à aucun pasteur. Vouliez-vous dire : {names} ?\n"
+                "Relancez /voir_rapport avec le nom exact."
+            )
+        elif reason == "no_report":
+            await update.message.reply_text(
+                f"ℹ️ « {result.get('pastorName') or pastor_name} » n'a pas encore de rapport enregistré."
+            )
+        else:
+            await update.message.reply_text(f"⚠️ Aucun pasteur trouvé pour « {pastor_name} ».")
+        return
+
+    report = result.get("report") or {}
+    lines = [
+        f"📄 Rapport de {result['pastorName']} — {result.get('mannamDate', '')}",
+        f"Résultat : {_RESULTAT_LABELS.get(result.get('resultat', ''), result.get('resultat', '-'))}",
+    ]
+    if report.get("resume"):
+        lines.append(f"Résumé : {report['resume']}")
+    if report.get("sujets"):
+        lines.append(f"Sujets : {report['sujets']}")
+    if report.get("difficultes"):
+        lines.append(f"Difficultés : {report['difficultes']}")
+    if report.get("prochaines_etapes"):
+        lines.append(f"Prochaines étapes : {report['prochaines_etapes']}")
+    if report.get("prochaine_date"):
+        lines.append(f"Prochaine date : {report['prochaine_date']}")
+    if result.get("reportBy"):
+        lines.append(f"Rapporté par : {result['reportBy']}")
+    await update.message.reply_text("\n".join(lines))
+
+
 # -- Construction de l'application Telegram ────────────────────────────────────
 
 BOT_COMMANDS = [
@@ -1249,7 +1305,8 @@ BOT_COMMANDS = [
     BotCommand("list",    "Voir les événements de la semaine"),
     BotCommand("edit",    "Modifier un événement (/edit <numéro>)"),
     BotCommand("delete",  "Supprimer un événement (/delete <numéro>)"),
-    BotCommand("rapport", "Rattacher un rapport manuellement (/rapport <numéro> ou <nom du pasteur>)"),
+    BotCommand("nouveau_rapport", "Attacher un nouveau rapport (/nouveau_rapport <numéro> ou <nom du pasteur>)"),
+    BotCommand("voir_rapport", "Consulter un rapport déjà enregistré (/voir_rapport <nom du pasteur>)"),
 ]
 
 
@@ -1299,7 +1356,8 @@ def build_app(bot_token: str) -> Application:
     app.add_handler(CommandHandler("start",      start))
     app.add_handler(CommandHandler("list",       list_events))
     app.add_handler(CommandHandler("delete", delete_event))
-    app.add_handler(CommandHandler("rapport", rapport_command))
+    app.add_handler(CommandHandler("nouveau_rapport", nouveau_rapport_command))
+    app.add_handler(CommandHandler("voir_rapport", voir_rapport_command))
     app.add_handler(MessageHandler(filters.Regex(r'#AMR') & filters.TEXT, on_amr_report))
     app.add_handler(CallbackQueryHandler(on_pastor_pick_callback, pattern=r'^rp\|'))
     app.add_handler(CallbackQueryHandler(on_report_result_callback, pattern=r'^rr\|'))
