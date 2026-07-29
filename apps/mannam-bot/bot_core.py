@@ -1038,6 +1038,46 @@ def _resultat_keyboard(token: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+async def _match_and_prompt(
+    update: Update, pastor_name: str, report: dict, reporter: str = "", reply_to: int | None = None,
+) -> None:
+    """Rattache pastor_name via /api/bot/reports/match puis propose le clavier
+    de résultat, ou renvoie un message d'échec avec le filet de secours.
+    Partagé entre la détection passive #AMR et /rapport <nom du pasteur> —
+    ce dernier existe précisément parce que /list (donc /rapport <numéro>)
+    ne montre que les mannams de la semaine en cours."""
+    try:
+        match = api_client.match_report(pastor_name)
+    except Exception as e:
+        logging.error(f"Erreur match_report: {e}")
+        await update.message.reply_text(
+            "⚠️ Une erreur est survenue lors du rattachement.\n"
+            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement.",
+            reply_to_message_id=reply_to,
+        )
+        return
+
+    if not match.get("matched"):
+        if match.get("reason") == "no_pending_mannam":
+            detail = f"« {pastor_name} » trouvé mais aucun mannam en attente de rapport pour ce pasteur"
+        else:
+            detail = f"aucun pasteur trouvé pour « {pastor_name} »"
+        await update.message.reply_text(
+            f"⚠️ {detail}.\nVérifiez l'orthographe, ou utilisez /rapport <numéro> (après /list).",
+            reply_to_message_id=reply_to,
+        )
+        return
+
+    token = f"{update.effective_chat.id}:{update.message.message_id}"
+    _pending_reports[token] = {"mannam_id": match["mannamId"], "report": report, "reporter": reporter}
+
+    await update.message.reply_text(
+        f"📋 Rapport détecté pour {match['pastorName']} ({match['mannamDate']}) — quel résultat ?",
+        reply_to_message_id=reply_to,
+        reply_markup=_resultat_keyboard(token),
+    )
+
+
 async def on_amr_report(update: Update, _):
     """Détection passive d'un message #AMR : extraction Gemini + rattachement
     pasteur/mannam (lecture seule), puis un tap suffit pour confirmer le résultat."""
@@ -1046,45 +1086,20 @@ async def on_amr_report(update: Update, _):
     if not fields or not fields.get("pastor_name"):
         await update.message.reply_text(
             "⚠️ Rapport #AMR détecté mais le nom du pasteur n'a pas pu être identifié.\n"
-            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement.",
+            "Utilisez /rapport <nom du pasteur> ou /rapport <numéro> (après /list) pour le relier manuellement.",
             reply_to_message_id=update.message.message_id,
         )
         return
 
-    try:
-        match = api_client.match_report(fields["pastor_name"])
-    except Exception as e:
-        logging.error(f"Erreur match_report: {e}")
-        await update.message.reply_text(
-            "⚠️ Rapport #AMR détecté mais une erreur est survenue lors du rattachement.\n"
-            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement.",
-            reply_to_message_id=update.message.message_id,
-        )
-        return
-
-    if not match.get("matched"):
-        await update.message.reply_text(
-            f"⚠️ Rapport #AMR détecté pour « {fields['pastor_name']} » mais aucun mannam en attente "
-            "n'a été retrouvé.\nUtilisez /rapport <numéro> (après /list) pour le relier manuellement.",
-            reply_to_message_id=update.message.message_id,
-        )
-        return
-
-    token = f"{update.effective_chat.id}:{update.message.message_id}"
-    _pending_reports[token] = {
-        "mannam_id": match["mannamId"],
-        "report": {
+    await _match_and_prompt(
+        update, fields["pastor_name"],
+        report={
             "resume": fields.get("resume", ""),
             "sujets": fields.get("eglise", ""),
             "prochaines_etapes": fields.get("prochaines_etapes", ""),
         },
-        "reporter": fields.get("responsable", ""),
-    }
-
-    await update.message.reply_text(
-        f"📋 Rapport détecté pour {match['pastorName']} ({match['mannamDate']}) — quel résultat ?",
-        reply_to_message_id=update.message.message_id,
-        reply_markup=_resultat_keyboard(token),
+        reporter=fields.get("responsable", ""),
+        reply_to=update.message.message_id,
     )
 
 
@@ -1117,36 +1132,43 @@ async def on_report_result_callback(update: Update, _):
 
 
 async def rapport_command(update: Update, context):
-    """Usage : /rapport <numéro> — filet de secours manuel si la détection
-    automatique #AMR échoue ou est ambiguë. Réutilise _list_cache (comme
-    /edit et /delete) puisque l'id du mannam est celui de l'événement Calendar."""
+    """Usage : /rapport <numéro> (après /list) ou /rapport <nom du pasteur>.
+    Filet de secours manuel si la détection automatique #AMR échoue ou est
+    ambiguë. Le numéro réutilise _list_cache (comme /edit et /delete), mais
+    /list ne montre que les mannams de la semaine en cours — d'où l'option
+    par nom, qui rattache via /api/bot/reports/match comme la détection
+    passive, et fonctionne donc quelle que soit la date du mannam."""
     args = context.args
-    if not args or not args[0].isdigit():
+    if not args:
         await update.message.reply_text(
-            "Usage : /rapport <numéro>\nUtilisez /list pour voir les numéros des événements."
+            "Usage : /rapport <numéro> (après /list) ou /rapport <nom du pasteur>."
         )
         return
 
-    idx = int(args[0])
-    chat_id = update.effective_chat.id
-    event_ids = _list_cache.get(chat_id, [])
-    if not event_ids:
+    if len(args) == 1 and args[0].isdigit():
+        idx = int(args[0])
+        chat_id = update.effective_chat.id
+        event_ids = _list_cache.get(chat_id, [])
+        if not event_ids:
+            await update.message.reply_text(
+                "❌ Aucune liste en mémoire. Faites d'abord /list, ou utilisez /rapport <nom du pasteur>."
+            )
+            return
+        if idx < 1 or idx > len(event_ids):
+            await update.message.reply_text(f"❌ Numéro invalide. Choisissez entre 1 et {len(event_ids)}.")
+            return
+
+        mannam_id = event_ids[idx - 1]
+        token = f"{chat_id}:{update.message.message_id}"
+        _pending_reports[token] = {"mannam_id": mannam_id, "report": {}, "reporter": ""}
         await update.message.reply_text(
-            "❌ Aucune liste en mémoire. Faites d'abord /list pour afficher les événements."
+            f"📋 Rapport pour l'événement [{idx}] — quel résultat ?",
+            reply_markup=_resultat_keyboard(token),
         )
         return
-    if idx < 1 or idx > len(event_ids):
-        await update.message.reply_text(f"❌ Numéro invalide. Choisissez entre 1 et {len(event_ids)}.")
-        return
 
-    mannam_id = event_ids[idx - 1]
-    token = f"{chat_id}:{update.message.message_id}"
-    _pending_reports[token] = {"mannam_id": mannam_id, "report": {}, "reporter": ""}
-
-    await update.message.reply_text(
-        f"📋 Rapport pour l'événement [{idx}] — quel résultat ?",
-        reply_markup=_resultat_keyboard(token),
-    )
+    pastor_name = " ".join(args)
+    await _match_and_prompt(update, pastor_name, report={})
 
 
 # -- Construction de l'application Telegram ────────────────────────────────────
@@ -1157,7 +1179,7 @@ BOT_COMMANDS = [
     BotCommand("list",    "Voir les événements de la semaine"),
     BotCommand("edit",    "Modifier un événement (/edit <numéro>)"),
     BotCommand("delete",  "Supprimer un événement (/delete <numéro>)"),
-    BotCommand("rapport", "Rattacher un rapport manuellement (/rapport <numéro>)"),
+    BotCommand("rapport", "Rattacher un rapport manuellement (/rapport <numéro> ou <nom du pasteur>)"),
 ]
 
 

@@ -273,3 +273,28 @@ class TestRapportCommand:
         assert _pending_reports[token]["mannam_id"] == "evt_b"
         update.message.reply_text.assert_awaited_once()
         assert "reply_markup" in update.message.reply_text.call_args[1]
+
+    def test_pastor_name_arg_bypasses_list_cache_and_matches(self):
+        # Cas d'usage réel : mannam plus ancien, absent de /list (semaine en
+        # cours seulement) — /rapport <nom> doit fonctionner sans _list_cache.
+        match = {
+            "matched": True, "pastorId": "p1", "pastorName": "Prophetesse Nadige",
+            "matchType": "exact", "mannamId": "m_old", "mannamDate": "2026-06-01",
+            "mannamSummary": "Mannam Nadige",
+        }
+        update, context = _make_command_update(1, 7, ["Prophetesse", "Nadige"])
+        with patch.object(bot_core.api_client, "match_report", return_value=match) as mock_match:
+            asyncio.run(rapport_command(update, context))
+        mock_match.assert_called_once_with("Prophetesse Nadige")
+        token = "1:7"
+        assert _pending_reports[token]["mannam_id"] == "m_old"
+        assert "reply_markup" in update.message.reply_text.call_args[1]
+
+    def test_pastor_name_arg_not_found_shows_hint(self):
+        update, context = _make_command_update(1, 7, ["Pasteur", "Inconnu"])
+        with patch.object(bot_core.api_client, "match_report",
+                          return_value={"matched": False, "reason": "pastor_not_found"}):
+            asyncio.run(rapport_command(update, context))
+        assert "1:7" not in _pending_reports
+        text = update.message.reply_text.call_args[0][0]
+        assert "Pasteur Inconnu" in text
