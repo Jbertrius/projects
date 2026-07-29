@@ -1020,6 +1020,9 @@ async def delete_event(update: Update, context):
 
 # token ("chat_id:message_id") → rapport en attente de confirmation du résultat
 _pending_reports: dict[str, dict] = {}
+# token ("chat_id:message_id") → rapport en attente du choix du bon pasteur
+# (le nom dans le rapport ne matche exactement aucun dossier)
+_pending_matches: dict[str, dict] = {}
 
 _RESULTAT_LABELS = {
     "succes": "✅ Succès",
@@ -1058,6 +1061,24 @@ async def _match_and_prompt(
         return
 
     if not match.get("matched"):
+        candidates = match.get("candidates") or []
+        if candidates:
+            # Le nom du rapport n'est pas toujours exact (typo, surnom...) —
+            # on propose un choix plutôt que d'abandonner ou de deviner seul.
+            token = f"{update.effective_chat.id}:{update.message.message_id}"
+            _pending_matches[token] = {"report": report, "reporter": reporter}
+            rows = [
+                [InlineKeyboardButton(c["pastorName"], callback_data=f"rp|{token}|{c['pastorId']}")]
+                for c in candidates
+            ]
+            rows.append([InlineKeyboardButton("Aucun de ceux-là", callback_data=f"rp|{token}|none")])
+            await update.message.reply_text(
+                f"🔎 « {pastor_name} » ne correspond exactement à aucun pasteur. Vouliez-vous dire :",
+                reply_to_message_id=reply_to,
+                reply_markup=InlineKeyboardMarkup(rows),
+            )
+            return
+
         if match.get("reason") == "no_pending_mannam":
             detail = f"« {pastor_name} » trouvé mais aucun mannam en attente de rapport pour ce pasteur"
         else:
@@ -1129,6 +1150,55 @@ async def on_report_result_callback(update: Update, _):
     except Exception as e:
         logging.error(f"Erreur submit_report: {e}")
         await query.edit_message_text("❌ Une erreur est survenue lors de l'enregistrement du rapport.")
+
+
+async def on_pastor_pick_callback(update: Update, _):
+    """Le membre choisit le bon pasteur parmi les candidats proposés quand le
+    nom du rapport ne matche exactement aucun dossier. Cherche ensuite son
+    mannam en attente et propose le clavier de résultat, comme pour un
+    rattachement automatique clair."""
+    query = update.callback_query
+    await query.answer()
+    try:
+        _, token, pastor_id = query.data.split("|", 2)
+    except ValueError:
+        return
+
+    pending = _pending_matches.pop(token, None)
+    if not pending:
+        await query.edit_message_text(
+            "⌛ Cette demande a expiré. Utilisez /rapport <numéro> ou /rapport <nom du pasteur>."
+        )
+        return
+
+    if pastor_id == "none":
+        await query.edit_message_text(
+            "D'accord — utilisez /rapport <numéro> (après /list) ou /rapport <nom du pasteur> pour préciser."
+        )
+        return
+
+    try:
+        match = api_client.match_report_by_pastor(pastor_id)
+    except Exception as e:
+        logging.error(f"Erreur match_report_by_pastor: {e}")
+        await query.edit_message_text("❌ Une erreur est survenue lors du rattachement.")
+        return
+
+    if not match.get("matched"):
+        await query.edit_message_text(
+            "⚠️ Ce pasteur n'a aucun mannam en attente de rapport.\n"
+            "Utilisez /rapport <numéro> (après /list) pour le relier manuellement."
+        )
+        return
+
+    result_token = f"pick:{token}"
+    _pending_reports[result_token] = {
+        "mannam_id": match["mannamId"], "report": pending["report"], "reporter": pending["reporter"],
+    }
+    await query.edit_message_text(
+        f"📋 Rapport détecté pour {match['pastorName']} ({match['mannamDate']}) — quel résultat ?",
+        reply_markup=_resultat_keyboard(result_token),
+    )
 
 
 async def rapport_command(update: Update, context):
@@ -1231,6 +1301,7 @@ def build_app(bot_token: str) -> Application:
     app.add_handler(CommandHandler("delete", delete_event))
     app.add_handler(CommandHandler("rapport", rapport_command))
     app.add_handler(MessageHandler(filters.Regex(r'#AMR') & filters.TEXT, on_amr_report))
+    app.add_handler(CallbackQueryHandler(on_pastor_pick_callback, pattern=r'^rp\|'))
     app.add_handler(CallbackQueryHandler(on_report_result_callback, pattern=r'^rr\|'))
 
     return app

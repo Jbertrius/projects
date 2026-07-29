@@ -17,8 +17,10 @@ from bot_core import (
     normalize_report_with_gemini,
     _resultat_keyboard,
     _pending_reports,
+    _pending_matches,
     on_amr_report,
     on_report_result_callback,
+    on_pastor_pick_callback,
     rapport_command,
 )
 
@@ -124,6 +126,7 @@ def _make_update(text: str, chat_id: int = 1, message_id: int = 100):
 class TestOnAmrReport:
     def setup_method(self):
         _pending_reports.clear()
+        _pending_matches.clear()
 
     def test_matched_report_stores_pending_and_sends_keyboard(self):
         fake_fields = {
@@ -182,6 +185,98 @@ class TestOnAmrReport:
         assert not _pending_reports
         text = update.message.reply_text.call_args[0][0]
         assert "/rapport" in text
+
+    def test_ambiguous_match_proposes_candidates(self):
+        # Le nom du rapport n'est pas exact (typo/surnom) — un match_report
+        # sans "matched" mais avec des candidats doit proposer un choix,
+        # pas abandonner sur le filet de secours manuel.
+        fake_fields = {"pastor_name": "Nadge", "eglise": "Shekinah", "responsable": "Beomhee",
+                       "location": "", "section": "", "resume": "resume texte",
+                       "demande_fb": "", "prochaines_etapes": ""}
+        match = {
+            "matched": False, "reason": "ambiguous",
+            "candidates": [
+                {"pastorId": "pastor_nadige", "pastorName": "Prophetesse Nadige"},
+                {"pastorId": "pastor_nadeille", "pastorName": "Nadeille"},
+            ],
+        }
+        update = _make_update(AMR_MESSAGE, chat_id=1, message_id=99)
+        with patch.object(bot_core, "normalize_report_with_gemini", return_value=fake_fields), \
+             patch.object(bot_core.api_client, "match_report", return_value=match):
+            asyncio.run(on_amr_report(update, None))
+
+        assert not _pending_reports
+        token = "1:99"
+        assert token in _pending_matches
+        assert _pending_matches[token]["reporter"] == "Beomhee"
+        assert _pending_matches[token]["report"]["resume"] == "resume texte"
+
+        _, kwargs = update.message.reply_text.call_args
+        markup = kwargs["reply_markup"]
+        buttons = [b for row in markup.inline_keyboard for b in row]
+        labels = [b.text for b in buttons]
+        assert "Prophetesse Nadige" in labels
+        assert "Nadeille" in labels
+        assert "Aucun de ceux-là" in labels
+        assert all(b.callback_data.startswith(f"rp|{token}|") for b in buttons)
+
+
+# ── on_pastor_pick_callback ──────────────────────────────────────────────────────
+
+class TestOnPastorPickCallback:
+    def setup_method(self):
+        _pending_reports.clear()
+        _pending_matches.clear()
+
+    def test_valid_pick_resolves_mannam_and_shows_resultat_keyboard(self):
+        _pending_matches["1:99"] = {"report": {"resume": "resume texte"}, "reporter": "Beomhee"}
+        update = _make_callback_update("rp|1:99|pastor_nadige")
+        match = {
+            "matched": True, "pastorId": "pastor_nadige", "pastorName": "Prophetesse Nadige",
+            "matchType": "manual", "mannamId": "m1", "mannamDate": "2026-07-23", "mannamSummary": "Mannam Nadige",
+        }
+        with patch.object(bot_core.api_client, "match_report_by_pastor", return_value=match) as mock_match:
+            asyncio.run(on_pastor_pick_callback(update, None))
+
+        mock_match.assert_called_once_with("pastor_nadige")
+        assert "1:99" not in _pending_matches
+        result_token = "pick:1:99"
+        assert _pending_reports[result_token]["mannam_id"] == "m1"
+        assert _pending_reports[result_token]["reporter"] == "Beomhee"
+        assert _pending_reports[result_token]["report"]["resume"] == "resume texte"
+        update.callback_query.edit_message_text.assert_awaited_once()
+        assert "reply_markup" in update.callback_query.edit_message_text.call_args[1]
+
+    def test_none_of_those_shows_manual_fallback_hint(self):
+        _pending_matches["1:99"] = {"report": {}, "reporter": ""}
+        update = _make_callback_update("rp|1:99|none")
+        asyncio.run(on_pastor_pick_callback(update, None))
+        assert "1:99" not in _pending_matches
+        text = update.callback_query.edit_message_text.call_args[0][0]
+        assert "/rapport" in text
+
+    def test_expired_token_shows_expiry_message(self):
+        update = _make_callback_update("rp|unknown:1|pastor_x")
+        asyncio.run(on_pastor_pick_callback(update, None))
+        text = update.callback_query.edit_message_text.call_args[0][0]
+        assert "expiré" in text.lower()
+
+    def test_chosen_pastor_has_no_pending_mannam(self):
+        _pending_matches["1:99"] = {"report": {}, "reporter": ""}
+        update = _make_callback_update("rp|1:99|pastor_x")
+        with patch.object(bot_core.api_client, "match_report_by_pastor",
+                          return_value={"matched": False, "reason": "no_pending_mannam"}):
+            asyncio.run(on_pastor_pick_callback(update, None))
+        text = update.callback_query.edit_message_text.call_args[0][0]
+        assert "/rapport" in text
+
+    def test_match_report_by_pastor_exception_shows_error(self):
+        _pending_matches["1:99"] = {"report": {}, "reporter": ""}
+        update = _make_callback_update("rp|1:99|pastor_x")
+        with patch.object(bot_core.api_client, "match_report_by_pastor", side_effect=ValueError("HTTP 500")):
+            asyncio.run(on_pastor_pick_callback(update, None))
+        text = update.callback_query.edit_message_text.call_args[0][0]
+        assert "erreur" in text.lower()
 
 
 # ── on_report_result_callback ───────────────────────────────────────────────────

@@ -280,6 +280,17 @@ def match_report(figure_name: str, date: str = "") -> dict:
                      {"figureName": figure_name, "date": date})
 
 
+def match_report_by_pastor(pastor_id: str, date: str = "") -> dict:
+    """Rattache directement un pastorId choisi manuellement (l'utilisateur a
+    tranché parmi une liste de candidats proposée après un match_report
+    ambigu) au mannam en attente le plus proche.
+
+    POST /api/bot/reports/match-by-pastor — lecture seule.
+    """
+    return _request("POST", "/api/bot/reports/match-by-pastor",
+                     {"pastorId": pastor_id, "date": date})
+
+
 def submit_report(mannam_id: str, report: dict, reporter: str = "") -> dict:
     """Applique un rapport à un mannam. POST /api/bot/meetings/{id}/report.
 
