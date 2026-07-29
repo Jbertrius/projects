@@ -3,11 +3,10 @@ Tests unitaires pour les fonctions utilitaires de main.py.
 Aucune connexion externe requise (Telegram, Google Calendar).
 Lancer : python -m pytest tests/ -v
 """
-import pytest
 import sys
 import os
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Permet d'importer main.py sans que main() se déclenche
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))

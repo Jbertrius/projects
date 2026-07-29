@@ -107,11 +107,6 @@ def _looks_like_placeholder(value: str) -> bool:
     return any(tok in s for tok in placeholder_tokens)
 
 
-def _event_contains_placeholder_defaults(event_details: dict) -> bool:
-    check_fields = ("summary", "date", "time", "location", "description", "mannamjas")
-    return any(_looks_like_placeholder(str(event_details.get(k, ""))) for k in check_fields)
-
-
 def normalize_event_with_gemini(message: str) -> dict | None:
     """Utilise Gemini pour extraire les champs d'un événement depuis un message libre."""
     if not _gemini_client:
@@ -585,11 +580,6 @@ def parse_event_details_freeform(message: str) -> dict | None:
     return None
 
 
-def _looks_like_structured_event_message(message: str) -> bool:
-    required_labels = ["Titre", "Date", "Heure", "Lieu", "Description", "Mannamjas"]
-    return all(re.search(rf"(?im)^\s*{label}\s*:", message or "") for label in required_labels)
-
-
 def sanitize_string(s: str) -> str:
     return re.sub(r'<[^>]*>', '', s)
 
@@ -606,21 +596,6 @@ def _normalize_mannamjas(raw: str) -> str:
 def _norm_name(name: str) -> str:
     """Normalise un nom pour comparaison floue : minuscule, sans tiret ni espace."""
     return re.sub(r'[-\s]', '', name.strip().lower())
-
-
-def _norm_name_no_tag(name: str) -> str:
-    """Normalisation + suppression du tag suffixe (case-insensitive).
-    Gère :
-      - initiale 1-3 lettres séparée par espace : 'Sunhee J'→'sunhee', 'Sunhee j'→'sunhee', 'Aera JJ'→'aera'
-      - surname/suffixe capitalisé séparé : 'Seojun Khan'→'seojun', 'SeokJin J'→'seokjin'
-      - suffixe CamelCase collé après minuscule : 'SeojunJk'→'seojun', 'SeojunJK'→'seojun'
-    """
-    s = name.strip()
-    # Cas 1 : dernier mot séparé par espace = initial/tag (1-3 lettres, any case) ou mot capitalisé
-    s = re.sub(r'\s+(?:[A-Za-z]{1,3}|[A-Z][a-z]+)$', '', s)
-    # Cas 2 : suffixe CamelCase collé après une minuscule
-    s = re.sub(r'(?<=[a-z])[A-Z][a-zA-Z]{0,2}$', '', s)
-    return _norm_name(s)
 
 
 def extract_mannamjas_and_clean_description(description: str):
