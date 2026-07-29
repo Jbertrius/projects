@@ -6,6 +6,7 @@ import logging
 import os
 import json
 import asyncio
+import html
 from collections import defaultdict
 import api_client
 
@@ -1243,6 +1244,51 @@ async def nouveau_rapport_command(update: Update, context):
     await _match_and_prompt(update, pastor_name, report={})
 
 
+def _escape_html(s: str) -> str:
+    return html.escape(str(s or ""), quote=False)
+
+
+def _format_reporter(report_by: str) -> str:
+    """report_by est soit 'mannam_bot:<prénom>' (rapport #AMR/Telegram), soit
+    'mannam_bot' (sans nom précisé), soit un uid Firebase (rapport web) —
+    jamais affiché tel quel, pas lisible pour un humain."""
+    if report_by.startswith("mannam_bot:"):
+        return report_by.removeprefix("mannam_bot:") or "Telegram"
+    if report_by == "mannam_bot":
+        return "Telegram"
+    return "le site" if report_by else ""
+
+
+def _format_report_message(result: dict) -> str:
+    """Met en forme (HTML Telegram) le rapport renvoyé par /reports/view."""
+    report = result.get("report") or {}
+    resultat_label = _RESULTAT_LABELS.get(result.get("resultat", ""), result.get("resultat", "-"))
+    pastor_name = _escape_html(result.get("pastorName", ""))
+    mannam_date = _escape_html(result.get("mannamDate", ""))
+
+    header = f"📄 <b>Rapport — {pastor_name}</b>"
+    if mannam_date:
+        header += f"\n🗓 {mannam_date}"
+    blocks = [header, f"<b>Résultat :</b> {resultat_label}"]
+
+    sections = [
+        ("resume", "📝", "Résumé"),
+        ("sujets", "📌", "Sujets abordés"),
+        ("difficultes", "⚠️", "Difficultés"),
+        ("prochaines_etapes", "🔜", "Prochaines étapes"),
+        ("prochaine_date", "📅", "Prochain rendez-vous"),
+    ]
+    for key, emoji, label in sections:
+        if report.get(key):
+            blocks.append(f"{emoji} <b>{label}</b>\n{_escape_html(report[key])}")
+
+    reporter = _format_reporter(result.get("reportBy", ""))
+    if reporter:
+        blocks.append(f"👤 <i>Rapporté par {_escape_html(reporter)}</i>")
+
+    return "\n\n".join(blocks)
+
+
 async def voir_rapport_command(update: Update, context):
     """Usage : /voir_rapport <nom du pasteur>. Consultation en LECTURE SEULE
     du dernier rapport déjà enregistré pour ce pasteur — n'attache ni ne
@@ -1277,24 +1323,7 @@ async def voir_rapport_command(update: Update, context):
             await update.message.reply_text(f"⚠️ Aucun pasteur trouvé pour « {pastor_name} ».")
         return
 
-    report = result.get("report") or {}
-    lines = [
-        f"📄 Rapport de {result['pastorName']} — {result.get('mannamDate', '')}",
-        f"Résultat : {_RESULTAT_LABELS.get(result.get('resultat', ''), result.get('resultat', '-'))}",
-    ]
-    if report.get("resume"):
-        lines.append(f"Résumé : {report['resume']}")
-    if report.get("sujets"):
-        lines.append(f"Sujets : {report['sujets']}")
-    if report.get("difficultes"):
-        lines.append(f"Difficultés : {report['difficultes']}")
-    if report.get("prochaines_etapes"):
-        lines.append(f"Prochaines étapes : {report['prochaines_etapes']}")
-    if report.get("prochaine_date"):
-        lines.append(f"Prochaine date : {report['prochaine_date']}")
-    if result.get("reportBy"):
-        lines.append(f"Rapporté par : {result['reportBy']}")
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text(_format_report_message(result), parse_mode="HTML")
 
 
 # -- Construction de l'application Telegram ────────────────────────────────────

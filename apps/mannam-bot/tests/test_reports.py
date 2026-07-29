@@ -411,7 +411,7 @@ class TestVoirRapportCommand:
             "mannamId": "m1", "mannamDate": "2026-07-20", "mannamSummary": "Mannam Jean",
             "resultat": "succes",
             "report": {"resume": "Bonne rencontre", "sujets": "Formation", "prochaines_etapes": "Relancer en aout"},
-            "reportBy": "Beomhee",
+            "reportBy": "mannam_bot:Beomhee",
         }
         with patch.object(bot_core.api_client, "view_report", return_value=result) as mock_view:
             asyncio.run(voir_rapport_command(update, context))
@@ -421,6 +421,7 @@ class TestVoirRapportCommand:
         assert "Succès" in text
         assert "Bonne rencontre" in text
         assert "Beomhee" in text
+        assert update.message.reply_text.call_args[1].get("parse_mode") == "HTML"
 
     def test_no_report_yet_shows_hint(self):
         update, context = _make_command_update(1, 1, ["Evangelist", "Jean"])
@@ -460,3 +461,50 @@ class TestVoirRapportCommand:
             asyncio.run(voir_rapport_command(update, context))
         text = update.message.reply_text.call_args[0][0]
         assert "erreur" in text.lower()
+
+
+# ── _format_reporter / _format_report_message ───────────────────────────────────
+
+class TestFormatReporter:
+    def test_bot_prefixed_name_strips_prefix(self):
+        assert bot_core._format_reporter("mannam_bot:Haena") == "Haena"
+
+    def test_bare_bot_label_shows_telegram(self):
+        assert bot_core._format_reporter("mannam_bot") == "Telegram"
+
+    def test_firebase_uid_shows_generic_site_label(self):
+        assert bot_core._format_reporter("Us1mFYqiBSOtaUykOU91fYafg7A3") == "le site"
+
+    def test_empty_shows_nothing(self):
+        assert bot_core._format_reporter("") == ""
+
+
+class TestFormatReportMessage:
+    def test_includes_html_bold_labels_and_emoji(self):
+        result = {
+            "pastorName": "Évangéliste Jean", "mannamDate": "2026-07-18", "resultat": "succes",
+            "report": {"resume": "Bonne rencontre", "sujets": "Formation",
+                       "prochaines_etapes": "Relancer en aout"},
+            "reportBy": "mannam_bot:Haena",
+        }
+        text = bot_core._format_report_message(result)
+        assert "<b>Rapport — Évangéliste Jean</b>" in text
+        assert "<b>Résultat :</b> ✅ Succès" in text
+        assert "📝 <b>Résumé</b>\nBonne rencontre" in text
+        assert "👤 <i>Rapporté par Haena</i>" in text
+
+    def test_omits_empty_sections(self):
+        result = {"pastorName": "Jean", "mannamDate": "", "resultat": "echec", "report": {}, "reportBy": ""}
+        text = bot_core._format_report_message(result)
+        assert "Résumé" not in text
+        assert "Rapporté par" not in text
+
+    def test_escapes_html_special_characters_in_free_text(self):
+        result = {
+            "pastorName": "Jean", "mannamDate": "2026-07-18", "resultat": "succes",
+            "report": {"resume": "Il a dit <b>arrête</b> & repars"},
+            "reportBy": "",
+        }
+        text = bot_core._format_report_message(result)
+        assert "&lt;b&gt;arrête&lt;/b&gt;" in text
+        assert "&amp; repars" in text
