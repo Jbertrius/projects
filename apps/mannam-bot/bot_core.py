@@ -304,14 +304,20 @@ def get_calendar_service():
 
 # ── Mannam sync ──────────────────────────────────────────────────────────────
 
-def _sync_mannam_to_api(event_id: str, event_details: dict):
+def _sync_mannam_to_api(event_id: str, event_details: dict) -> dict | None:
+    """Retourne la réponse de l'API ({id, pastorId, match, pastorName}) pour
+    permettre à l'appelant (ex: handle_add_event) de proposer une
+    confirmation si le rattachement pasteur est approximatif ; None en cas
+    d'erreur — les appels en tâche de fond (sync_calendar_to_api) ignorent
+    simplement la valeur de retour."""
     try:
-        api_client.upsert_meeting(event_id, {
+        return api_client.upsert_meeting(event_id, {
             **event_details,
             'figure_name': _extract_figure_name(event_details.get('summary', '')),
         })
     except Exception as fs_err:
         logging.warning(f"Erreur sync API mannam: {fs_err}")
+        return None
 
 
 def _delete_mannam_from_api(event_id: str):
@@ -780,12 +786,73 @@ async def handle_add_event(update: Update, _):
     try:
         event = create_event(service, event_details)
         await update.message.reply_text(f"🎉 Événement créé : {event.get('htmlLink')}")
-        _sync_mannam_to_api(event['id'], event_details)
+        result = _sync_mannam_to_api(event['id'], event_details)
+        if result and result.get('match') == 'fuzzy':
+            await _prompt_pastor_confirm(update, result, event_details)
     except Exception as e:
         logging.error(f"Error creating event: {e}")
         await update.message.reply_text("❌ Une erreur est survenue lors de la création de l'événement.")
 
     return ConversationHandler.END
+
+
+async def _prompt_pastor_confirm(update: Update, sync_result: dict, event_details: dict) -> None:
+    """Le rattachement pasteur n'est qu'approximatif (nom proche d'un dossier
+    existant, pas identique) : demande confirmation plutôt que d'accumuler
+    silencieusement l'historique sur un dossier qui n'est peut-être pas le
+    bon — la cause la plus fréquente de doublons non détectés."""
+    figure_name = _extract_figure_name(event_details.get('summary', ''))
+    token = f"{update.effective_chat.id}:{update.message.message_id}"
+    _pending_pastor_confirms[token] = {
+        'mannam_id': sync_result['id'],
+        'figure_name': figure_name,
+        'section': event_details.get('section', ''),
+        'pays': event_details.get('pays', ''),
+    }
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Oui, c'est lui", callback_data=f"cp|{token}|yes"),
+        InlineKeyboardButton("❌ Non, nouveau pasteur", callback_data=f"cp|{token}|no"),
+    ]])
+    pastor_label = sync_result.get('pastorName') or figure_name
+    await update.message.reply_text(
+        f"🔎 J'ai rattaché ce mannam à {pastor_label} (dossier déjà existant, "
+        "nom proche mais pas identique) — c'est bien la même personne ?",
+        reply_markup=keyboard,
+    )
+
+
+async def on_pastor_confirm_callback(update: Update, _):
+    """Confirme ou infirme un rattachement pasteur approximatif proposé après
+    la création d'un mannam. Sur "Non" : crée un nouveau dossier pour ce nom
+    et y réaffecte le mannam, plutôt que de le laisser sur le mauvais
+    dossier — évite d'alimenter un doublon sans que personne ne le remarque."""
+    query = update.callback_query
+    await query.answer()
+    try:
+        _, token, choice = query.data.split("|", 2)
+    except ValueError:
+        return
+
+    pending = _pending_pastor_confirms.pop(token, None)
+    if not pending:
+        await query.edit_message_text("⌛ Cette demande a expiré.")
+        return
+
+    if choice == "yes":
+        await query.edit_message_text("✅ Rattachement confirmé.")
+        return
+
+    try:
+        api_client.reject_pastor_match(
+            pending["mannam_id"], pending["figure_name"],
+            section=pending.get("section", ""), pays=pending.get("pays", ""),
+        )
+        await query.edit_message_text(
+            f"🆕 Nouveau dossier créé pour « {pending['figure_name']} » et mannam réaffecté."
+        )
+    except Exception as e:
+        logging.error(f"Erreur reject_pastor_match: {e}")
+        await query.edit_message_text("❌ Une erreur est survenue lors de la réaffectation.")
 
 
 async def list_events(update, _):
@@ -1010,6 +1077,10 @@ _pending_reports: dict[str, dict] = {}
 # token ("chat_id:message_id") → rapport en attente du choix du bon pasteur
 # (le nom dans le rapport ne matche exactement aucun dossier)
 _pending_matches: dict[str, dict] = {}
+# token ("chat_id:message_id") → mannam en attente de confirmation du
+# rattachement pasteur (match approximatif "fuzzy" — nom trouvé proche d'un
+# dossier existant, mais pas assez exact pour l'attacher sans demander)
+_pending_pastor_confirms: dict[str, dict] = {}
 
 _RESULTAT_LABELS = {
     "succes": "✅ Succès",
@@ -1376,5 +1447,6 @@ def build_app(bot_token: str) -> Application:
     app.add_handler(MessageHandler(filters.Regex(r'#AMR') & filters.TEXT, on_amr_report))
     app.add_handler(CallbackQueryHandler(on_pastor_pick_callback, pattern=r'^rp\|'))
     app.add_handler(CallbackQueryHandler(on_report_result_callback, pattern=r'^rr\|'))
+    app.add_handler(CallbackQueryHandler(on_pastor_confirm_callback, pattern=r'^cp\|'))
 
     return app

@@ -268,6 +268,17 @@ def delete_meeting(event_id: str) -> dict:
     return _request("DELETE", f"/api/bot/meetings/{_encode(event_id)}")
 
 
+def reject_pastor_match(mannam_id: str, figure_name: str, section: str = "", pays: str = "") -> dict:
+    """L'utilisateur infirme un rattachement approximatif (fuzzy) proposé
+    après la création d'un mannam : crée un nouveau dossier pasteur pour
+    figure_name (sans repasser par le matching) et y réaffecte ce mannam.
+
+    POST /api/bot/meetings/{id}/reject-pastor-match. Retourne {"pastorId"}.
+    """
+    payload = {"figureName": figure_name, "section": section, "pays": pays}
+    return _request("POST", f"/api/bot/meetings/{_encode(mannam_id)}/reject-pastor-match", payload)
+
+
 # ── Reports (mannam-bot) ───────────────────────────────────────────────────────
 
 def match_report(figure_name: str, date: str = "") -> dict:
