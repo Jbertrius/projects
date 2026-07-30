@@ -249,6 +249,7 @@ def upsert_meeting(event_id: str, event_details: dict) -> dict:
         "location": event_details.get("location", ""),
         "description": event_details.get("description", ""),
         "section": event_details.get("section", ""),
+        "pays": event_details.get("pays", ""),
         "figureName": event_details.get("figure_name", ""),
         "participants": participants,
         "calendarEventId": event_id,

@@ -64,6 +64,9 @@ Champs attendus (TOUS OBLIGATOIRES - ne jamais retourner null) :
 - "description" : objet / but de la visite. Ex: "Présentation du GMCS"
 - "mannamjas" : liste des participants séparés par des virgules. Ex: "Alice, Bob"
 - "section"   : section des participants parmi "New", "Old", "Talak", "Fideles", "Centre". Si non mentionné, utilise ""
+- "pays"      : pays où se trouve le pasteur/l'église, uniquement si explicitement mentionné
+                (ex: "pasteur au Bénin" → "Bénin"). Si non mentionné, utilise "" (France sera
+                utilisé par défaut, ne jamais l'inventer toi-même).
 
 Règles importantes :
 - NE JAMAIS inventer de valeurs ni utiliser des placeholders.
@@ -133,6 +136,7 @@ def normalize_event_with_gemini(message: str) -> dict | None:
             return None
         result = {k: (v or "") for k, v in data.items()}
         result.setdefault("section", "")
+        result.setdefault("pays", "")
 
         # Rejette les réponses trop génériques pour laisser le fallback regex agir.
         critical_fields = ("summary", "date", "time", "location")
@@ -405,7 +409,9 @@ def parse_event_details(message: str):
         r"Heure\s*:\s*(.*?)" + line_break +
         r"Lieu\s*:\s*(.*?)" + line_break +
         r"Description\s*:\s*(.*?)" + line_break +
-        r"Mannamjas\s*:\s*([^\r\n]*)(?:" + line_break + r"Section\s*:\s*(.*))?"
+        r"Mannamjas\s*:\s*([^\r\n]*)" +
+        r"(?:" + line_break + r"Section\s*:\s*([^\r\n]*))?" +
+        r"(?:" + line_break + r"Pays\s*:\s*(.*))?"
     )
     match = re.search(pattern, message, re.DOTALL)
     if match:
@@ -417,6 +423,7 @@ def parse_event_details(message: str):
             'description': match.group(5).strip(),
             'mannamjas':   match.group(6).strip(),
             'section':     (match.group(7) or "").strip(),
+            'pays':        (match.group(8) or "").strip(),
         }
     return None
 
@@ -711,7 +718,8 @@ async def add_event(update: Update, _):
         "Lieu : [lieu]\n"
         "Description : [purpose of visit]\n"
         "Mannamjas : [nom1, nom2]\n"
-        "Section : [New, Old, Talak, Fideles, Centre]\n\n"
+        "Section : [New, Old, Talak, Fideles, Centre]\n"
+        "Pays : [optionnel — France par défaut si non précisé]\n\n"
         "💡 Vous pouvez aussi écrire naturellement, ex :\n"
         "\"Visite Pastor Kim le 15 mars à 14h30 à Paris, section Talak, mannamjas Alice et Bob\"\n"
         "(si l'année n'est pas précisée, l'année en cours est utilisée)"
@@ -754,6 +762,7 @@ async def handle_add_event(update: Update, _):
         return ConversationHandler.END
 
     section = event_details.get('section', '') or ''
+    pays = event_details.get('pays', '') or ''
     await update.message.reply_text(
         f"✅ Événement détecté :\n"
         f"📌 Titre : {event_details['summary']}\n"
@@ -762,7 +771,9 @@ async def handle_add_event(update: Update, _):
         f"📍 Lieu : {event_details['location']}\n"
         f"📝 Description : {event_details.get('description', '-')}\n"
         f"🚶 Mannamjas : {event_details.get('mannamjas', '-')}\n"
-        f"🏷 Section : {section or '-'}\n\nCréation en cours..."
+        f"🏷 Section : {section or '-'}\n"
+        + (f"🌍 Pays : {pays}\n" if pays else "")
+        + "\nCréation en cours..."
     )
 
     service = get_calendar_service()
