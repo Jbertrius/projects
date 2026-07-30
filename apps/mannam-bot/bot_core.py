@@ -63,7 +63,7 @@ Champs attendus (TOUS OBLIGATOIRES - ne jamais retourner null) :
 - "location"  : lieu de l'événement. Ex: "Châtelet"
 - "description" : objet / but de la visite. Ex: "Présentation du GMCS"
 - "mannamjas" : liste des participants séparés par des virgules. Ex: "Alice, Bob"
-- "section"   : section des participants parmi "New/Old", "Talak", "Fideles", "Centre". Si non mentionné, utilise ""
+- "section"   : section des participants parmi "New", "Old", "Talak", "Fideles", "Centre". Si non mentionné, utilise ""
 
 Règles importantes :
 - NE JAMAIS inventer de valeurs ni utiliser des placeholders.
@@ -159,7 +159,7 @@ Champs possibles (retourne SEULEMENT ceux explicitement mentionnés dans le mess
 - "location"  : nouveau lieu. Ex: "Lyon"
 - "description" : nouvelle description.
 - "mannamjas" : nouveaux participants séparés par des virgules.
-- "section"   : nouvelle section parmi "New/Old", "Talak", "Fideles", "Centre".
+- "section"   : nouvelle section parmi "New", "Old", "Talak", "Fideles", "Centre".
 
 Règles :
 - NE retourne QUE les champs dont la valeur est clairement mentionnée dans le message.
@@ -559,7 +559,7 @@ def parse_event_details_freeform(message: str) -> dict | None:
     
     # Extraction de la section (mots-clés connus à la fin ou après "section")
     section = ""
-    section_keywords = ['New/Old', 'Talak', 'Fideles', 'Centre']
+    section_keywords = ['New', 'Old', 'Talak', 'Fideles', 'Centre']
     for keyword in section_keywords:
         if re.search(rf'\b{keyword}\b', msg, re.IGNORECASE):
             section = keyword
@@ -711,7 +711,7 @@ async def add_event(update: Update, _):
         "Lieu : [lieu]\n"
         "Description : [purpose of visit]\n"
         "Mannamjas : [nom1, nom2]\n"
-        "Section : [New/Old, Talak, Fideles, Centre]\n\n"
+        "Section : [New, Old, Talak, Fideles, Centre]\n\n"
         "💡 Vous pouvez aussi écrire naturellement, ex :\n"
         "\"Visite Pastor Kim le 15 mars à 14h30 à Paris, section Talak, mannamjas Alice et Bob\"\n"
         "(si l'année n'est pas précisée, l'année en cours est utilisée)"

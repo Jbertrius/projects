@@ -157,7 +157,7 @@ def parse_event_details_freeform(message: str) -> dict | None:
     
     # Extraction de la section (mots-clés connus à la fin ou après "section")
     section = ""
-    section_keywords = ['New/Old', 'Talak', 'Fideles', 'Centre']
+    section_keywords = ['New', 'Old', 'Talak', 'Fideles', 'Centre']
     for keyword in section_keywords:
         if re.search(rf'\b{keyword}\b', msg, re.IGNORECASE):
             section = keyword

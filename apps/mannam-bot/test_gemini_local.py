@@ -17,7 +17,7 @@ Champs attendus (TOUS OBLIGATOIRES - ne jamais retourner null) :
 - "location"  : lieu de l'événement. Ex: "Châtelet"
 - "description" : objet / but de la visite. Ex: "Présentation du GMCS"
 - "mannamjas" : liste des participants séparés par des virgules. Ex: "Alice, Bob"
-- "section"   : section des participants parmi "New/Old", "Talak", "Fideles", "Centre". Si non mentionné, utilise ""
+- "section"   : section des participants parmi "New", "Old", "Talak", "Fideles", "Centre". Si non mentionné, utilise ""
 
 Règles importantes :
 - NE JAMAIS inventer de valeurs ni utiliser des placeholders.
