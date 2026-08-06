@@ -1130,7 +1130,13 @@ async def list_events(update, _):
             date = m.get('date') or ''
             if not date:
                 continue
-            start_time = datetime.fromisoformat(f"{date}T{m.get('time') or '00:00'}:00")
+            try:
+                start_time = datetime.fromisoformat(f"{date}T{m.get('time') or '00:00'}:00")
+            except ValueError:
+                # Heure mal formée (texte libre non normalisé côté source) —
+                # ne doit jamais faire échouer /list pour tout le monde.
+                logging.warning(f"Heure invalide pour le mannam {m.get('id')}: {m.get('time')!r}")
+                start_time = datetime.fromisoformat(f"{date}T00:00:00")
             events_by_date[date].append((m, start_time, "firestore"))
 
         ordered_event_ids: list[str] = []
@@ -1737,7 +1743,7 @@ async def on_chatgi_report(update: Update, _):
                 "summary": _EVENT_TYPE_SUMMARY.get(event_type, _EVENT_TYPE_SUMMARY["mannam"])
                     .format(name=m["figure_name"]),
                 "date": mannam_date,
-                "time": m.get("time", ""),
+                "time": _normalize_french_time(m.get("time", "")),
                 "location": m.get("location", ""),
                 "figure_name": m["figure_name"],
                 "groupe": fields["groupe"],
@@ -1772,9 +1778,20 @@ BOT_COMMANDS = [
     BotCommand("list",    "Voir les événements de la semaine"),
     BotCommand("edit",    "Modifier un événement (/edit <numéro>)"),
     BotCommand("delete",  "Supprimer un événement (/delete <numéro>)"),
+    BotCommand("cancel",  "Annuler un /add ou /edit en cours"),
     BotCommand("nouveau_rapport", "Attacher un nouveau rapport (/nouveau_rapport <numéro> ou <nom du pasteur>)"),
     BotCommand("voir_rapport", "Consulter un rapport déjà enregistré (/voir_rapport <nom du pasteur>)"),
 ]
+
+
+async def cancel_conversation(update: Update, _):
+    """Sort explicitement d'un /add ou /edit en cours. Existe surtout pour
+    la conversation_timeout ci-dessous : tant qu'une conversation /add ou
+    /edit reste ouverte (oubliée, abandonnée…), TOUS les messages texte
+    suivants dans ce chat — y compris les #AMR et #chatgui passifs — sont
+    absorbés par son handler au lieu d'être détectés normalement."""
+    await update.message.reply_text("❌ Annulé.")
+    return ConversationHandler.END
 
 
 def build_app(bot_token: str) -> Application:
@@ -1816,7 +1833,13 @@ def build_app(bot_token: str) -> Application:
             ADD_EVENT:  [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_event)],
             EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_event)],
         },
-        fallbacks=[]
+        # Tant que cette conversation reste ouverte (/add ou /edit oublié,
+        # sans /cancel), TOUT message texte suivant dans ce chat — y compris
+        # les #AMR et #chatgui passifs — est absorbé par son handler au lieu
+        # d'être détecté normalement. /cancel est le seul filet de secours
+        # (pas de conversation_timeout : nécessiterait l'extra job-queue,
+        # non installé ici).
+        fallbacks=[CommandHandler('cancel', cancel_conversation)],
     )
 
     app.add_handler(conv_handler)

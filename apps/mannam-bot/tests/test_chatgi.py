@@ -283,6 +283,25 @@ class TestOnChatgiReport:
         assert "1 mannam(s)" in text
         assert "Centre + KYK" in text
 
+    def test_time_is_normalized_before_being_stored(self):
+        # Le texte brut extrait par Gemini ("19H30") doit être normalisé en
+        # "HH:MM" avant d'être envoyé à l'API — sinon /list plante plus
+        # tard en essayant de le reparser comme une heure ISO.
+        fields = {
+            **FAKE_FIELDS,
+            "mannams": [
+                {"figure_name": "Pasteur Stéphane", "event_type": "mannam",
+                 "date": "430808", "time": "19H30", "location": "Sarcelles"},
+            ],
+        }
+        update = _make_update(SUBAE_MESSAGE)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+        _event_id, details = mock_upsert.call_args[0]
+        assert details["time"] == "19:30"
+
     def test_ls_line_gets_lecon_speciale_summary_and_is_reported_separately(self):
         fields = {
             **FAKE_FIELDS,

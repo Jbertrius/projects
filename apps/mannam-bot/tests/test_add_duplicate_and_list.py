@@ -15,6 +15,7 @@ import bot_core
 from bot_core import (
     handle_add_event,
     on_duplicate_confirm_callback,
+    cancel_conversation,
     list_events,
     delete_event,
     edit_event,
@@ -224,6 +225,34 @@ class TestListEventsMergesFirestoreMannams:
             asyncio.run(list_events(update, None))
 
         update.message.reply_text.assert_called_once_with("No events scheduled for this week.")
+
+    def test_malformed_time_does_not_crash_the_whole_command(self):
+        # Un mannam chatgi avec une heure mal formée (texte libre non
+        # normalisé côté source) ne doit jamais faire planter /list pour
+        # tout le monde — repli sur minuit plutôt qu'une exception.
+        calendar_service = MagicMock()
+        calendar_service.events.return_value.list.return_value.execute.return_value = {"items": []}
+        firestore_mannams = [{
+            "id": "fs_1", "summary": "Mannam Chatgi Bad Time", "date": "2026-08-07",
+            "time": "19H30", "location": "",
+        }]
+        update = _make_list_update()
+        with patch.object(bot_core, "get_calendar_service", return_value=calendar_service), \
+             patch.object(bot_core.api_client, "get_mannams_without_calendar_event",
+                          return_value=firestore_mannams):
+            asyncio.run(list_events(update, None))
+
+        assert _list_cache[1] == ["fs_1"]
+        text = update.message.reply_text.call_args[0][0]
+        assert "Mannam Chatgi Bad Time" in text
+
+
+class TestCancelConversation:
+    def test_replies_and_ends_conversation(self):
+        update = _make_list_update()
+        result = asyncio.run(cancel_conversation(update, None))
+        assert result == ConversationHandler.END
+        update.message.reply_text.assert_called_once_with("❌ Annulé.")
 
 
 # ── /delete et /edit : branchement Firestore-only ───────────────────────────
