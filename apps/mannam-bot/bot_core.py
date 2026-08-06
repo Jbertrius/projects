@@ -1703,7 +1703,6 @@ async def voir_rapport_command(update: Update, context):
 # est enregistré directement dès l'extraction.
 
 _GROUPE_LABELS = {"centre": "Centre + KYK", "team": "Team + Fidèle"}
-_EVENT_TYPE_SUMMARY = {"mannam": "Mannam {name}", "ls": "Leçon Spéciale — {name}"}
 
 
 async def on_chatgi_report(update: Update, _):
@@ -1772,11 +1771,15 @@ async def on_chatgi_report(update: Update, _):
 
         try:
             api_client.upsert_meeting(event_id, {
-                "summary": _EVENT_TYPE_SUMMARY.get(event_type, _EVENT_TYPE_SUMMARY["mannam"])
-                    .format(name=m["figure_name"]),
+                # Pas de préfixe "Leçon Spéciale" dans le titre — la
+                # distinction se voit via le badge event_type sur le site,
+                # pas dans le nom du mannam.
+                "summary": f"Mannam {m['figure_name']}",
                 "date": mannam_date,
                 "time": _normalize_french_time(m.get("time", "")),
-                "location": m.get("location", ""),
+                # Les Leçons Spéciales se tiennent toujours sur Zoom, peu
+                # importe ce qui est écrit (ou pas) dans le message d'origine.
+                "location": "Zoom" if event_type == "ls" else m.get("location", ""),
                 "figure_name": m["figure_name"],
                 "groupe": fields["groupe"],
                 "event_type": event_type,

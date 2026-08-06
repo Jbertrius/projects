@@ -304,12 +304,15 @@ class TestOnChatgiReport:
         _event_id, details = mock_upsert.call_args[0]
         assert details["time"] == "19:30"
 
-    def test_ls_line_gets_lecon_speciale_summary_and_is_reported_separately(self):
+    def test_ls_line_gets_plain_summary_zoom_location_and_is_reported_separately(self):
+        # Pas de préfixe "Leçon Spéciale" dans le nom (la distinction se
+        # fait via le badge event_type côté site) ; lieu toujours "Zoom"
+        # peu importe ce qui était écrit dans le message d'origine.
         fields = {
             **FAKE_FIELDS,
             "mannams": [
                 {"figure_name": "Pasteur Samuel Kalaki", "event_type": "ls",
-                 "date": "430807", "time": "19H30", "location": ""},
+                 "date": "430807", "time": "19H30", "location": "Chez lui"},
             ],
         }
         update = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=43)
@@ -320,7 +323,8 @@ class TestOnChatgiReport:
             asyncio.run(on_chatgi_report(update, None))
 
         _event_id, details = mock_upsert.call_args[0]
-        assert details["summary"] == "Leçon Spéciale — Pasteur Samuel Kalaki"
+        assert details["summary"] == "Mannam Pasteur Samuel Kalaki"
+        assert details["location"] == "Zoom"
         assert details["event_type"] == "ls"
 
         text = update.message.reply_text.call_args[0][0]
@@ -346,7 +350,10 @@ class TestOnChatgiReport:
 
         assert mock_upsert.call_count == 2
         summaries = {c.args[1]["summary"] for c in mock_upsert.call_args_list}
-        assert summaries == {"Mannam Pasteur Stéphane", "Leçon Spéciale — Pasteur Samuel Kalaki"}
+        assert summaries == {"Mannam Pasteur Stéphane", "Mannam Pasteur Samuel Kalaki"}
+        locations = {c.args[1]["summary"]: c.args[1]["location"] for c in mock_upsert.call_args_list}
+        assert locations["Mannam Pasteur Samuel Kalaki"] == "Zoom"
+        assert locations["Mannam Pasteur Stéphane"] == "Sarcelles"
 
         text = update.message.reply_text.call_args[0][0]
         assert "1 mannam(s)" in text
