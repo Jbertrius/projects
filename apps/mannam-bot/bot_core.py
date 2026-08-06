@@ -1125,6 +1125,12 @@ async def list_events(update, _):
             start = event.get('start', {}).get('dateTime', event.get('start', {}).get('date'))
             start_time = (datetime.fromisoformat(start) if 'T' in start
                           else datetime.fromisoformat(start + "T00:00:00"))
+            if start_time.tzinfo is not None:
+                # Google Calendar renvoie un datetime avec offset ; les
+                # mannams chatgi (Firestore) sont naïfs. Comparer les deux
+                # (tri par heure) lève TypeError si on ne les uniformise
+                # pas — l'offset ne change pas l'heure murale affichée.
+                start_time = start_time.replace(tzinfo=None)
             events_by_date[start_time.strftime('%Y-%m-%d')].append((event, start_time, "calendar"))
         for m in firestore_mannams:
             date = m.get('date') or ''
@@ -1139,10 +1145,20 @@ async def list_events(update, _):
                 start_time = datetime.fromisoformat(f"{date}T00:00:00")
             events_by_date[date].append((m, start_time, "firestore"))
 
+        # Un seul tri chronologique par date, réutilisé pour construire à la
+        # fois _list_cache (les numéros [N]) et le texte affiché — sinon les
+        # deux peuvent diverger (numéro affiché ≠ index réel) dès que
+        # Calendar et Firestore partagent une date, puisque l'ordre
+        # d'insertion (Calendar toujours avant Firestore) ne correspond pas
+        # forcément à l'ordre chronologique.
+        sorted_by_date = {
+            date: sorted(items, key=lambda t: t[1]) for date, items in events_by_date.items()
+        }
+
         ordered_event_ids: list[str] = []
         firestore_ids: set[str] = set()
-        for date in sorted(events_by_date.keys()):
-            for item, _start_time, source in events_by_date[date]:
+        for date in sorted(sorted_by_date.keys()):
+            for item, _start_time, source in sorted_by_date[date]:
                 item_id = item['id']
                 ordered_event_ids.append(item_id)
                 if source == "firestore":
@@ -1153,9 +1169,9 @@ async def list_events(update, _):
 
         results = ["🔰 Weekly Offline Mannam\n"]
         idx = 1
-        for date in sorted(events_by_date.keys()):
+        for date in sorted(sorted_by_date.keys()):
             results.append(f"📆 Date: {datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d (%A)')}")
-            for item, start_time, source in sorted(events_by_date[date], key=lambda t: t[1]):
+            for item, start_time, source in sorted_by_date[date]:
                 if source == "calendar":
                     mannamjas, desc = extract_mannamjas_and_clean_description(item.get('description', ''))
                     section = extract_section_from_description(item.get('description', ''))

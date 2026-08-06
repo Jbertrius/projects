@@ -181,6 +181,35 @@ class TestListEventsMergesFirestoreMannams:
         assert "[2]" in text and "Mannam Chatgi X" in text
         assert "🧡" in text
 
+    def test_calendar_and_firestore_items_on_same_date_do_not_crash(self):
+        # Google Calendar renvoie un dateTime avec offset (tz-aware) ; les
+        # mannams chatgi (Firestore) sont naïfs. Les deux sur la même date
+        # doivent être triables ensemble sans TypeError (bug réel observé
+        # en prod : "can't compare offset-naive and offset-aware datetimes").
+        calendar_service = MagicMock()
+        calendar_service.events.return_value.list.return_value.execute.return_value = {
+            "items": [{
+                "id": "cal_1", "summary": "Visite Calendar",
+                "start": {"dateTime": "2026-08-07T10:00:00+02:00"},
+                "description": "", "location": "Paris",
+            }],
+        }
+        firestore_mannams = [{
+            "id": "fs_1", "summary": "Mannam Chatgi Same Day", "date": "2026-08-07",
+            "time": "09:00", "location": "Lyon",
+        }]
+        update = _make_list_update(chat_id=1)
+        with patch.object(bot_core, "get_calendar_service", return_value=calendar_service), \
+             patch.object(bot_core.api_client, "get_mannams_without_calendar_event",
+                          return_value=firestore_mannams):
+            asyncio.run(list_events(update, None))
+
+        # 09:00 (firestore) doit passer avant 10:00 (calendar) dans le tri.
+        assert _list_cache[1] == ["fs_1", "cal_1"]
+        text = update.message.reply_text.call_args[0][0]
+        assert "Mannam Chatgi Same Day" in text
+        assert "Visite Calendar" in text
+
     def test_no_calendar_events_but_firestore_mannams_still_shown(self):
         calendar_service = MagicMock()
         calendar_service.events.return_value.list.return_value.execute.return_value = {"items": []}
