@@ -281,6 +281,124 @@ def normalize_report_with_gemini(message: str) -> dict | None:
         return None
 
 
+_CHATGI_PROMPT = """
+Tu es un assistant d'extraction pour des rapports quotidiens de prospection
+("SUBAE FORM"), postés dans un gabarit fixe se terminant par "#chatgui".
+Extrais les informations suivantes et retourne-les UNIQUEMENT sous forme
+d'objet JSON valide, sans texte autour.
+
+Structure typique du message (l'ordre et les espacements varient) :
+- Une ligne d'en-tête "SUBAE FORM - AA.MM.JJ" — date au format année(2
+  chiffres)-mois-jour, ex: "43.08.05".
+- Une ligne "Groupe : Centre" ou "Groupe : Team" (peut être absente ou mal
+  orthographiée — dans le doute laisse "groupe" vide).
+- Des lignes individuelles avec trois compteurs marqués par emoji : 🌾
+  (recherche de nouveaux contacts), ☎️ (appel simple, sans mannam), 👤
+  (chatgi = nouvelle personne contactée). Ex: "🐴Kyung-Mi 🌾:0 ☎️:1 👤:2" ou
+  "📍OTW :  🌾:0  ☎️:1 👤:2". Ces lignes peuvent apparaître dans la section
+  principale, ou sous des sous-titres "TM" (télémarketing) ou "FU"
+  (follow-up) — dans tous les cas, inclus-les toutes dans "entries".
+  IGNORE la ligne "🔥Totaux" (souvent vide ou fausse, ne jamais l'utiliser) —
+  n'extrais que les lignes individuelles par personne.
+- Des lignes commençant par "🧡" annonçant un mannam obtenu, au format libre
+  "🧡<nom du pasteur> mannam <jour de semaine> <date AAMMJJ> <heure> <lieu>"
+  (jour de semaine, heure et lieu parfois absents ou dans un ordre différent).
+
+Champs attendus :
+- "date"    : date du rapport telle qu'écrite sur la ligne d'en-tête (ex:
+              "43.08.05") — NE PAS convertir toi-même, laisse le texte brut.
+- "groupe"  : "centre" ou "team" selon la ligne "Groupe :" ; chaîne vide ""
+              si absente ou illisible. Ne jamais deviner à partir d'autre
+              chose que cette ligne explicite.
+- "entries" : liste de {"person": str, "recherche": int, "appels": int,
+              "chatgi": int} — une entrée par ligne individuelle repérée (0
+              pour un compteur non précisé sur la ligne).
+- "mannams" : liste de {"figure_name": str, "date": str (brut, ex:
+              "430808"), "time": str, "location": str} — une par ligne "🧡".
+              Chaîne vide "" pour un sous-champ absent.
+
+Règles :
+- Ne jamais inventer de valeurs.
+- Retourne EXCLUSIVEMENT le JSON, rien d'autre.
+
+Message :
+{{message}}
+"""
+
+
+def normalize_chatgi_with_gemini(message: str) -> dict | None:
+    """Extrait les champs d'un rapport #chatgui (SUBAE FORM) depuis le texte
+    du message Telegram. Les totaux ne sont PAS extraits ici : voir
+    _chatgi_totals, qui les recalcule à partir de "entries"."""
+    if not _gemini_client:
+        logging.warning("GEMINI_API_KEY absent — extraction chatgi impossible.")
+        return None
+    try:
+        response = _gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=_CHATGI_PROMPT.replace("{{message}}", message),
+            config=genai_types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+        raw_text = getattr(response, "text", "") or ""
+        raw_json = _extract_json_object(raw_text)
+        if not raw_json:
+            logging.warning("Gemini chatgi: réponse vide ou non exploitable.")
+            return None
+
+        data = json.loads(raw_json)
+
+        def _as_int(v) -> int:
+            try:
+                return int(v or 0)
+            except (TypeError, ValueError):
+                return 0
+
+        entries = [
+            {
+                "person": str(e.get("person", "")).strip(),
+                "recherche": _as_int(e.get("recherche")),
+                "appels": _as_int(e.get("appels")),
+                "chatgi": _as_int(e.get("chatgi")),
+            }
+            for e in (data.get("entries") or [])
+        ]
+        mannams = [
+            {
+                "figure_name": str(m.get("figure_name", "")).strip(),
+                "date": str(m.get("date", "")).strip(),
+                "time": str(m.get("time", "")).strip(),
+                "location": str(m.get("location", "")).strip(),
+            }
+            for m in (data.get("mannams") or [])
+            if str(m.get("figure_name", "")).strip()
+        ]
+        groupe = str(data.get("groupe", "")).strip().lower()
+        if groupe not in ("centre", "team"):
+            groupe = ""
+
+        return {
+            "date": str(data.get("date", "")).strip(),
+            "groupe": groupe,
+            "entries": entries,
+            "mannams": mannams,
+        }
+    except Exception as e:
+        logging.error(f"Erreur Gemini chatgi: {e}")
+        return None
+
+
+def _chatgi_totals(entries: list[dict]) -> dict:
+    """Somme les compteurs par ligne individuelle — jamais la ligne "Totaux"
+    du message d'origine, souvent laissée vide ou fausse par erreur humaine."""
+    return {
+        "recherche": sum(e.get("recherche", 0) for e in entries),
+        "appels": sum(e.get("appels", 0) for e in entries),
+        "chatgi": sum(e.get("chatgi", 0) for e in entries),
+    }
+
+
 # ── Google API services ────────────────────────────────────────────────────────
 
 def _creds_from_env(scopes: list[str]):
@@ -403,6 +521,26 @@ def _ensure_year_in_date(date_str: str) -> str:
     current_year = datetime.utcnow().year
     if re.match(r'^\d{2}-\d{2}$', s):
         return f"{current_year}-{s}"
+    return s
+
+
+_SCK_YEAR_OFFSET = 1983  # année SCK "43" = 1983 + 43 = 2026
+
+
+def _convert_sck_date(date_str: str) -> str:
+    """Convertit une date au format SCK 'AA.MM.JJ' / 'AA-MM-JJ' / 'AA/MM/JJ'
+    ou compact 'AAMMJJ' (ex: "43.08.05" ou "430805") vers AAAA-MM-JJ, en
+    utilisant l'année = 1983 + AA (ex: 43 → 2026). Retourne la chaîne
+    d'origine si le format n'est pas reconnu (déjà AAAA-MM-JJ, ou texte libre)."""
+    s = (date_str or "").strip()
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', s):
+        return s
+    m = re.match(r'^(\d{2})[.\-/](\d{2})[.\-/](\d{2})$', s)
+    if not m:
+        m = re.match(r'^(\d{2})(\d{2})(\d{2})$', s)
+    if m:
+        yy, mm, dd = m.groups()
+        return f"{_SCK_YEAR_OFFSET + int(yy)}-{mm}-{dd}"
     return s
 
 
@@ -1383,6 +1521,82 @@ async def voir_rapport_command(update: Update, context):
     await update.message.reply_text(_format_report_message(result), parse_mode="HTML")
 
 
+# ── Rapports chatgi (SUBAE FORM, #chatgui) ──────────────────────────────────
+# Détection passive, même principe que #AMR : les groupes postent déjà leur
+# compte-rendu quotidien de prospection sous un gabarit fixe se terminant
+# par "#chatgui". Contrairement à #AMR, aucune confirmation humaine n'est
+# nécessaire (pas de champ à trancher comme le résultat d'un mannam) — tout
+# est enregistré directement dès l'extraction.
+
+_GROUPE_LABELS = {"centre": "Centre + KYK", "team": "Team + Fidèle"}
+
+
+async def on_chatgi_report(update: Update, _):
+    """Détection passive d'un message #chatgui (SUBAE FORM) : extrait les
+    compteurs de prospection (recherche/appels/chatgi) par personne et les
+    mannams obtenus, puis enregistre le tout via l'API centrale."""
+    message = update.message.text or ""
+    fields = normalize_chatgi_with_gemini(message)
+    if not fields:
+        await update.message.reply_text(
+            "⚠️ SUBAE FORM détecté mais l'extraction a échoué. Réessayez, ou contactez un administrateur.",
+            reply_to_message_id=update.message.message_id,
+        )
+        return
+
+    if fields["groupe"] not in ("centre", "team"):
+        await update.message.reply_text(
+            "⚠️ SUBAE FORM détecté mais la ligne « 👥Groupe : Centre » ou « 👥Groupe : Team » "
+            "est absente ou illisible — ajoutez-la pour que ce rapport soit comptabilisé.",
+            reply_to_message_id=update.message.message_id,
+        )
+        return
+
+    totals = _chatgi_totals(fields["entries"])
+    date_iso = _convert_sck_date(fields["date"])
+    telegram_message_id = f"{update.effective_chat.id}:{update.message.message_id}"
+
+    try:
+        api_client.submit_chatgi_report({
+            "telegramMessageId": telegram_message_id,
+            "date": date_iso,
+            "groupe": fields["groupe"],
+            "entries": fields["entries"],
+        })
+    except Exception as e:
+        logging.error(f"Erreur submit_chatgi_report: {e}")
+        await update.message.reply_text(
+            "❌ Une erreur est survenue lors de l'enregistrement du rapport chatgi.",
+            reply_to_message_id=update.message.message_id,
+        )
+        return
+
+    mannams_created = 0
+    for i, m in enumerate(fields["mannams"]):
+        event_id = f"chatgi:{telegram_message_id}:{i}"
+        try:
+            api_client.upsert_meeting(event_id, {
+                "summary": f"Mannam {m['figure_name']}",
+                "date": _convert_sck_date(m.get("date", "")) or date_iso,
+                "time": m.get("time", ""),
+                "location": m.get("location", ""),
+                "figure_name": m["figure_name"],
+                "groupe": fields["groupe"],
+            })
+            mannams_created += 1
+        except Exception as e:
+            logging.warning(f"Erreur upsert mannam depuis chatgi ({m['figure_name']}): {e}")
+
+    groupe_label = _GROUPE_LABELS.get(fields["groupe"], fields["groupe"])
+    summary = (
+        f"✅ Chatgi enregistrés pour {groupe_label} du {date_iso} : "
+        f"👤 {totals['chatgi']} · ☎️ {totals['appels']} · 🌾 {totals['recherche']}"
+    )
+    if mannams_created:
+        summary += f"\n🧡 {mannams_created} mannam(s) prévu(s) ajouté(s)."
+    await update.message.reply_text(summary, reply_to_message_id=update.message.message_id)
+
+
 # -- Construction de l'application Telegram ────────────────────────────────────
 
 BOT_COMMANDS = [
@@ -1445,6 +1659,7 @@ def build_app(bot_token: str) -> Application:
     app.add_handler(CommandHandler("nouveau_rapport", nouveau_rapport_command))
     app.add_handler(CommandHandler("voir_rapport", voir_rapport_command))
     app.add_handler(MessageHandler(filters.Regex(r'#AMR') & filters.TEXT, on_amr_report))
+    app.add_handler(MessageHandler(filters.Regex(r'(?i)#chatgui') & filters.TEXT, on_chatgi_report))
     app.add_handler(CallbackQueryHandler(on_pastor_pick_callback, pattern=r'^rp\|'))
     app.add_handler(CallbackQueryHandler(on_report_result_callback, pattern=r'^rr\|'))
     app.add_handler(CallbackQueryHandler(on_pastor_confirm_callback, pattern=r'^cp\|'))

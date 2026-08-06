@@ -254,6 +254,9 @@ def upsert_meeting(event_id: str, event_details: dict) -> dict:
         "participants": participants,
         "calendarEventId": event_id,
         "source": "mannam_bot",
+        # "centre" | "team" — présent seulement quand le mannam vient d'un
+        # rapport chatgi (#chatgui) ; absent (donc "") pour tout le reste.
+        "groupe": event_details.get("groupe", ""),
     }
     logger.info(
         "Posting meeting to API: event_id=%s summary=%s date=%s",
@@ -323,3 +326,20 @@ def view_report(figure_name: str) -> dict:
     "no_report" | "ambiguous", "candidates": [...]}.
     """
     return _request("POST", "/api/bot/reports/view", {"figureName": figure_name})
+
+
+# ── Rapports chatgi (mannam-bot) ────────────────────────────────────────────
+
+def submit_chatgi_report(payload: dict) -> dict:
+    """Envoie un rapport chatgi (SUBAE FORM, #chatgui) à
+    POST /api/bot/chatgi-reports — upsert idempotent par telegramMessageId.
+
+    payload attend : telegramMessageId, date, groupe ("centre"|"team"),
+    entries (liste de {person, recherche, appels, chatgi}).
+    Retourne {"id", "totals": {"recherche", "appels", "chatgi"}}.
+    """
+    logger.info(
+        "Posting chatgi report to API: groupe=%s date=%s entries=%d",
+        payload.get("groupe"), payload.get("date"), len(payload.get("entries", [])),
+    )
+    return _request("POST", "/api/bot/chatgi-reports", payload)
