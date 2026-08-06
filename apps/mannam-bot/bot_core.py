@@ -1747,6 +1747,7 @@ async def on_chatgi_report(update: Update, _):
         return
 
     created_types: list[str] = []
+    skipped_count = 0
     for m in fields["mannams"]:
         event_type = m.get("event_type", "mannam")
         mannam_date = _convert_sck_date(m.get("date", "")) or date_iso
@@ -1754,6 +1755,21 @@ async def on_chatgi_report(update: Update, _):
         # message Telegram : un même 🧡 reposté/mis à jour dans la journée
         # doit mettre à jour le MÊME mannam plutôt que d'en créer un double.
         event_id = f"chatgi:{fields['groupe']}:{_normalize_key(m['figure_name'])}:{event_type}:{mannam_date}"
+
+        # Un mannam pour ce pasteur à cette date peut déjà exister via une
+        # AUTRE voie (/add, sync calendrier…) — si c'est le cas ET que ce
+        # n'est pas déjà NOTRE propre entrée (repost du même 🧡, identifié
+        # par le même event_id synthétique, qu'on doit continuer à mettre
+        # à jour normalement), ne pas en créer un second.
+        try:
+            dup = api_client.check_duplicate_mannam(m["figure_name"], mannam_date)
+        except Exception as e:
+            logging.warning(f"Erreur check_duplicate_mannam (chatgi): {e}")
+            dup = {"duplicate": False}
+        if dup.get("duplicate") and dup.get("mannamId") != event_id:
+            skipped_count += 1
+            continue
+
         try:
             api_client.upsert_meeting(event_id, {
                 "summary": _EVENT_TYPE_SUMMARY.get(event_type, _EVENT_TYPE_SUMMARY["mannam"])
@@ -1783,6 +1799,8 @@ async def on_chatgi_report(update: Update, _):
         if ls_count:
             parts.append(f"{ls_count} leçon(s) spéciale(s)")
         summary += f"\n🧡 " + " · ".join(parts) + " prévu(s) ajouté(s)."
+    if skipped_count:
+        summary += f"\nℹ️ {skipped_count} déjà existant(s) (créé ailleurs), non recréé(s)."
     await update.message.reply_text(summary, reply_to_message_id=update.message.message_id)
 
 

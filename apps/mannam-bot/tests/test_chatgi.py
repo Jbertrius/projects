@@ -258,6 +258,7 @@ class TestOnChatgiReport:
         update = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=42)
         with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=FAKE_FIELDS), \
              patch.object(bot_core.api_client, "submit_chatgi_report") as mock_submit, \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
              patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
             asyncio.run(on_chatgi_report(update, None))
 
@@ -297,6 +298,7 @@ class TestOnChatgiReport:
         update = _make_update(SUBAE_MESSAGE)
         with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
              patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
              patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
             asyncio.run(on_chatgi_report(update, None))
         _event_id, details = mock_upsert.call_args[0]
@@ -313,6 +315,7 @@ class TestOnChatgiReport:
         update = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=43)
         with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
              patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
              patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
             asyncio.run(on_chatgi_report(update, None))
 
@@ -337,6 +340,7 @@ class TestOnChatgiReport:
         update = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=44)
         with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
              patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
              patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
             asyncio.run(on_chatgi_report(update, None))
 
@@ -357,6 +361,7 @@ class TestOnChatgiReport:
         update2 = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=51)
         with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=FAKE_FIELDS), \
              patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
              patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
             asyncio.run(on_chatgi_report(update1, None))
             asyncio.run(on_chatgi_report(update2, None))
@@ -416,9 +421,56 @@ class TestOnChatgiReport:
         update = _make_update(SUBAE_MESSAGE)
         with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
              patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
              patch.object(bot_core.api_client, "upsert_meeting",
                           side_effect=[ValueError("boom"), {"id": "ok"}]) as mock_upsert:
             asyncio.run(on_chatgi_report(update, None))
         assert mock_upsert.call_count == 2
         text = update.message.reply_text.call_args[0][0]
         assert "1 mannam(s)" in text  # un seul des deux a réussi
+
+    def test_skips_creation_when_duplicate_exists_from_another_source(self):
+        # Un mannam existe déjà pour ce pasteur à cette date, créé par une
+        # AUTRE voie (/add, sync calendrier…) — mannamId différent de notre
+        # event_id synthétique : ne pas en créer un second.
+        update = _make_update(SUBAE_MESSAGE)
+        dup = {"duplicate": True, "mannamId": "some_other_doc_id", "pastorName": "Pasteur Stéphane"}
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=FAKE_FIELDS), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value=dup), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+        mock_upsert.assert_not_called()
+        text = update.message.reply_text.call_args[0][0]
+        assert "1 déjà existant(s) (créé ailleurs), non recréé(s)" in text
+        assert "prévu(s) ajouté(s)" not in text
+
+    def test_still_upserts_when_duplicate_is_own_synthetic_entry(self):
+        # check_duplicate_mannam retrouve NOTRE PROPRE entrée (repost du
+        # même 🧡, même event_id synthétique) — doit quand même mettre à
+        # jour, pas la sauter (sinon une correction dans un repost ne
+        # serait jamais appliquée).
+        own_event_id = "chatgi:centre:pasteur-stephane:mannam:2026-08-08"
+        update = _make_update(SUBAE_MESSAGE)
+        dup = {"duplicate": True, "mannamId": own_event_id, "pastorName": "Pasteur Stéphane"}
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=FAKE_FIELDS), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value=dup), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+        mock_upsert.assert_called_once()
+        event_id, _details = mock_upsert.call_args[0]
+        assert event_id == own_event_id
+        text = update.message.reply_text.call_args[0][0]
+        assert "1 mannam(s)" in text
+
+    def test_check_duplicate_exception_falls_back_to_creating(self):
+        # Un souci réseau sur la vérification ne doit jamais bloquer
+        # l'enregistrement normal du mannam.
+        update = _make_update(SUBAE_MESSAGE)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=FAKE_FIELDS), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", side_effect=ValueError("HTTP 500")), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+        mock_upsert.assert_called_once()
