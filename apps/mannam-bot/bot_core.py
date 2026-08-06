@@ -73,6 +73,9 @@ Champs attendus (TOUS OBLIGATOIRES - ne jamais retourner null) :
 - "pays"      : pays où se trouve le pasteur/l'église, uniquement si explicitement mentionné
                 (ex: "pasteur au Bénin" → "Bénin"). Si non mentionné, utilise "" (France sera
                 utilisé par défaut, ne jamais l'inventer toi-même).
+- "groupe"    : "centre" ou "team" selon une mention explicite "Groupe : Centre" ou
+                "Groupe : Team" (Centre+KYK ou Team+Fidèle). Si non mentionné, utilise ""
+                — ne jamais deviner à partir du lieu ou d'autre chose.
 
 Règles importantes :
 - NE JAMAIS inventer de valeurs ni utiliser des placeholders.
@@ -143,6 +146,7 @@ def normalize_event_with_gemini(message: str) -> dict | None:
         result = {k: (v or "") for k, v in data.items()}
         result.setdefault("section", "")
         result.setdefault("pays", "")
+        result["groupe"] = _normalize_groupe(result.get("groupe", ""))
 
         # Rejette les réponses trop génériques pour laisser le fallback regex agir.
         critical_fields = ("summary", "date", "time", "location")
@@ -592,7 +596,8 @@ def parse_event_details(message: str):
         r"Description\s*:\s*(.*?)" + line_break +
         r"Mannamjas\s*:\s*([^\r\n]*)" +
         r"(?:" + line_break + r"Section\s*:\s*([^\r\n]*))?" +
-        r"(?:" + line_break + r"Pays\s*:\s*(.*))?"
+        r"(?:" + line_break + r"Pays\s*:\s*([^\r\n]*))?" +
+        r"(?:" + line_break + r"Groupe\s*:\s*([^\r\n]*))?"
     )
     match = re.search(pattern, message, re.DOTALL)
     if match:
@@ -605,6 +610,7 @@ def parse_event_details(message: str):
             'mannamjas':   match.group(6).strip(),
             'section':     (match.group(7) or "").strip(),
             'pays':        (match.group(8) or "").strip(),
+            'groupe':      _normalize_groupe(match.group(9)),
         }
     return None
 
@@ -752,7 +758,16 @@ def parse_event_details_freeform(message: str) -> dict | None:
         if re.search(rf'\b{keyword}\b', msg, re.IGNORECASE):
             section = keyword
             break
-    
+
+    # Extraction du groupe — seulement sur mention explicite "groupe : ..."
+    # ("Centre" seul est déjà pris par la section ci-dessus, donc pas de
+    # détection par mot-clé nu ici, contrairement à la section).
+    groupe = ""
+    groupe_match = re.search(r'groupe\s*[:=]?\s*(centre\+?\s*kyk?|team\+?\s*fid[eè]les?|centre|team)',
+                              msg, re.IGNORECASE)
+    if groupe_match:
+        groupe = _normalize_groupe(groupe_match.group(1))
+
     # Valider que les champs critiques sont remplis
     if summary and date_str and time_str and location:
         return {
@@ -763,6 +778,7 @@ def parse_event_details_freeform(message: str) -> dict | None:
             'description': description,
             'mannamjas': mannamjas,
             'section': section,
+            'groupe': groupe,
         }
     
     return None
@@ -779,6 +795,20 @@ def _normalize_mannamjas(raw: str) -> str:
         tokens = re.findall(r"[\"']?([^\"',\[\]]+)[\"']?", raw)
         return ', '.join(t.strip() for t in tokens if t.strip())
     return raw
+
+
+def _normalize_groupe(raw: str) -> str:
+    """Normalise une valeur de groupe libre ("Centre", "Centre+KYK", "team",
+    "Team + Fidèle"...) vers "centre" ou "team" — mêmes clés que le champ
+    "Groupe :" des rapports chatgi (cf. _CHATGI_PROMPT). Chaîne vide "" si
+    non reconnu, jamais deviné à partir d'autre chose qu'une mention
+    explicite du groupe."""
+    s = (raw or "").strip().lower()
+    if s.startswith("centre"):
+        return "centre"
+    if s.startswith("team"):
+        return "team"
+    return ""
 
 
 def _norm_name(name: str) -> str:
@@ -900,7 +930,8 @@ async def add_event(update: Update, _):
         "Description : [purpose of visit]\n"
         "Mannamjas : [nom1, nom2]\n"
         "Section : [New, Old, Talak, Fideles, Centre]\n"
-        "Pays : [optionnel — France par défaut si non précisé]\n\n"
+        "Pays : [optionnel — France par défaut si non précisé]\n"
+        "Groupe : [optionnel — Centre ou Team, pour l'objectif hebdo]\n\n"
         "💡 Vous pouvez aussi écrire naturellement, ex :\n"
         "\"Visite Pastor Kim le 15 mars à 14h30 à Paris, section Talak, mannamjas Alice et Bob\"\n"
         "(si l'année n'est pas précisée, l'année en cours est utilisée)"
@@ -944,6 +975,7 @@ async def handle_add_event(update: Update, _):
 
     section = event_details.get('section', '') or ''
     pays = event_details.get('pays', '') or ''
+    groupe = event_details.get('groupe', '') or ''
     await update.message.reply_text(
         f"✅ Événement détecté :\n"
         f"📌 Titre : {event_details['summary']}\n"
@@ -954,6 +986,9 @@ async def handle_add_event(update: Update, _):
         f"🚶 Mannamjas : {event_details.get('mannamjas', '-')}\n"
         f"🏷 Section : {section or '-'}\n"
         + (f"🌍 Pays : {pays}\n" if pays else "")
+        + (f"👥 Groupe : {_GROUPE_LABELS.get(groupe, groupe)}\n" if groupe else
+           "⚠️ Groupe non précisé — ce mannam ne comptera pas dans les objectifs "
+           "hebdo tant qu'il n'est pas complété sur le site.\n")
     )
 
     figure_name = _extract_figure_name(event_details.get('summary', ''))

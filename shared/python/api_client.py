@@ -254,8 +254,9 @@ def upsert_meeting(event_id: str, event_details: dict) -> dict:
         "participants": participants,
         "calendarEventId": event_id,
         "source": "mannam_bot",
-        # "centre" | "team" — présent seulement quand le mannam vient d'un
-        # rapport chatgi (#chatgui) ; absent (donc "") pour tout le reste.
+        # "centre" | "team" — rattache le mannam au bon objectif hebdo ;
+        # vient d'un rapport chatgi (#chatgui) ou d'une mention explicite
+        # "Groupe :" dans /add. "" si non précisé.
         "groupe": event_details.get("groupe", ""),
         # "mannam" | "ls" (Leçon Spéciale) — idem, seulement pour les mannams
         # issus d'un rapport chatgi ; sert à exclure les LS du calcul
