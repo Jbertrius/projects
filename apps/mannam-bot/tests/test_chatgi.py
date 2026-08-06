@@ -59,8 +59,10 @@ GEMINI_CHATGI_JSON = json.dumps({
         {"person": "Kyung-Mi", "recherche": 0, "appels": 1, "chatgi": 2},
     ],
     "mannams": [
-        {"figure_name": "Pasteur Stéphane", "date": "430808", "time": "13:30", "location": "Sarcelles"},
-        {"figure_name": "Pasteur Samuel Kalaki LS", "date": "430807", "time": "19H30", "location": ""},
+        {"figure_name": "Pasteur Stéphane", "event_type": "mannam",
+         "date": "430808", "time": "13:30", "location": "Sarcelles"},
+        {"figure_name": "Pasteur Samuel Kalaki", "event_type": "ls",
+         "date": "430807", "time": "19H30", "location": ""},
     ],
 })
 
@@ -122,7 +124,11 @@ class TestNormalizeChatgiWithGemini:
         assert result["entries"][0] == {"person": "OTW", "recherche": 0, "appels": 1, "chatgi": 2}
         assert len(result["mannams"]) == 2
         assert result["mannams"][0]["figure_name"] == "Pasteur Stéphane"
+        assert result["mannams"][0]["event_type"] == "mannam"
         assert result["mannams"][0]["date"] == "430808"
+        # "LS" est un mot-clé de type d'événement, pas une partie du nom
+        assert result["mannams"][1]["figure_name"] == "Pasteur Samuel Kalaki"
+        assert result["mannams"][1]["event_type"] == "ls"
 
     def test_invalid_groupe_normalized_to_empty(self):
         payload = json.loads(GEMINI_CHATGI_JSON)
@@ -159,6 +165,33 @@ class TestNormalizeChatgiWithGemini:
         with patch.object(bot_core, "_gemini_client", fake_client):
             result = normalize_chatgi_with_gemini(SUBAE_MESSAGE)
         assert len(result["mannams"]) == 2  # le 3e (vide) est ignoré
+
+    def test_missing_event_type_defaults_to_mannam(self):
+        payload = json.loads(GEMINI_CHATGI_JSON)
+        del payload["mannams"][0]["event_type"]
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE)
+        assert result["mannams"][0]["event_type"] == "mannam"
+
+    def test_unrecognized_event_type_defaults_to_mannam(self):
+        payload = json.loads(GEMINI_CHATGI_JSON)
+        payload["mannams"][0]["event_type"] = "autre"
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE)
+        assert result["mannams"][0]["event_type"] == "mannam"
+
+    def test_event_type_case_and_whitespace_normalized(self):
+        payload = json.loads(GEMINI_CHATGI_JSON)
+        payload["mannams"][1]["event_type"] = " LS "
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE)
+        assert result["mannams"][1]["event_type"] == "ls"
 
     def test_non_numeric_counters_default_to_zero(self):
         payload = json.loads(GEMINI_CHATGI_JSON)
@@ -199,7 +232,8 @@ FAKE_FIELDS = {
         {"person": "Kyung-Mi", "recherche": 0, "appels": 1, "chatgi": 2},
     ],
     "mannams": [
-        {"figure_name": "Pasteur Stéphane", "date": "430808", "time": "13:30", "location": "Sarcelles"},
+        {"figure_name": "Pasteur Stéphane", "event_type": "mannam",
+         "date": "430808", "time": "13:30", "location": "Sarcelles"},
     ],
 }
 
@@ -222,6 +256,8 @@ class TestOnChatgiReport:
         event_id, details = mock_upsert.call_args[0]
         assert event_id == "chatgi:1:42:0"
         assert details["figure_name"] == "Pasteur Stéphane"
+        assert details["summary"] == "Mannam Pasteur Stéphane"
+        assert details["event_type"] == "mannam"
         assert details["date"] == "2026-08-08"
         assert details["groupe"] == "centre"
 
@@ -231,6 +267,52 @@ class TestOnChatgiReport:
         assert "🌾 0" in text
         assert "1 mannam(s)" in text
         assert "Centre + KYK" in text
+
+    def test_ls_line_gets_lecon_speciale_summary_and_is_reported_separately(self):
+        fields = {
+            **FAKE_FIELDS,
+            "mannams": [
+                {"figure_name": "Pasteur Samuel Kalaki", "event_type": "ls",
+                 "date": "430807", "time": "19H30", "location": ""},
+            ],
+        }
+        update = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=43)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+
+        _event_id, details = mock_upsert.call_args[0]
+        assert details["summary"] == "Leçon Spéciale — Pasteur Samuel Kalaki"
+        assert details["event_type"] == "ls"
+
+        text = update.message.reply_text.call_args[0][0]
+        assert "1 leçon(s) spéciale(s)" in text
+        assert "mannam(s)" not in text  # aucun vrai mannam dans ce lot
+
+    def test_mixed_mannam_and_ls_lines_both_created_with_correct_breakdown(self):
+        fields = {
+            **FAKE_FIELDS,
+            "mannams": [
+                {"figure_name": "Pasteur Stéphane", "event_type": "mannam",
+                 "date": "430808", "time": "13:30", "location": "Sarcelles"},
+                {"figure_name": "Pasteur Samuel Kalaki", "event_type": "ls",
+                 "date": "430807", "time": "19H30", "location": ""},
+            ],
+        }
+        update = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=44)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+
+        assert mock_upsert.call_count == 2
+        summaries = {c.args[1]["summary"] for c in mock_upsert.call_args_list}
+        assert summaries == {"Mannam Pasteur Stéphane", "Leçon Spéciale — Pasteur Samuel Kalaki"}
+
+        text = update.message.reply_text.call_args[0][0]
+        assert "1 mannam(s)" in text
+        assert "1 leçon(s) spéciale(s)" in text
 
     def test_extraction_failure_replies_with_hint_and_makes_no_api_calls(self):
         update = _make_update(SUBAE_MESSAGE)

@@ -300,9 +300,15 @@ Structure typique du message (l'ordre et les espacements varient) :
   (follow-up) — dans tous les cas, inclus-les toutes dans "entries".
   IGNORE la ligne "🔥Totaux" (souvent vide ou fausse, ne jamais l'utiliser) —
   n'extrais que les lignes individuelles par personne.
-- Des lignes commençant par "🧡" annonçant un mannam obtenu, au format libre
-  "🧡<nom du pasteur> mannam <jour de semaine> <date AAMMJJ> <heure> <lieu>"
-  (jour de semaine, heure et lieu parfois absents ou dans un ordre différent).
+- Des lignes commençant par "🧡" annonçant un événement obtenu avec un
+  pasteur, au format libre "🧡<nom du pasteur> <type> <jour de semaine>
+  <date AAMMJJ> <heure> <lieu>" (jour de semaine, heure et lieu parfois
+  absents ou dans un ordre différent). <type> est un MOT-CLÉ qui n'appartient
+  PAS au nom du pasteur — le nom s'arrête juste avant lui :
+    * "mannam" → une rencontre normale.
+    * "LS" → une invitation à une Leçon Spéciale (PAS un mannam).
+  Si aucun de ces deux mots-clés n'apparaît sur la ligne, mets "mannam" par
+  défaut et n'invente rien d'autre.
 
 Champs attendus :
 - "date"    : date du rapport telle qu'écrite sur la ligne d'en-tête (ex:
@@ -313,9 +319,10 @@ Champs attendus :
 - "entries" : liste de {"person": str, "recherche": int, "appels": int,
               "chatgi": int} — une entrée par ligne individuelle repérée (0
               pour un compteur non précisé sur la ligne).
-- "mannams" : liste de {"figure_name": str, "date": str (brut, ex:
-              "430808"), "time": str, "location": str} — une par ligne "🧡".
-              Chaîne vide "" pour un sous-champ absent.
+- "mannams" : liste de {"figure_name": str, "event_type": "mannam"|"ls",
+              "date": str (brut, ex: "430808"), "time": str, "location": str}
+              — une par ligne "🧡". "figure_name" ne doit JAMAIS contenir
+              "mannam" ni "LS". Chaîne vide "" pour un sous-champ absent.
 
 Règles :
 - Ne jamais inventer de valeurs.
@@ -364,9 +371,14 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
             }
             for e in (data.get("entries") or [])
         ]
+        def _event_type(v) -> str:
+            t = str(v or "").strip().lower()
+            return t if t in ("mannam", "ls") else "mannam"
+
         mannams = [
             {
                 "figure_name": str(m.get("figure_name", "")).strip(),
+                "event_type": _event_type(m.get("event_type")),
                 "date": str(m.get("date", "")).strip(),
                 "time": str(m.get("time", "")).strip(),
                 "location": str(m.get("location", "")).strip(),
@@ -1529,6 +1541,7 @@ async def voir_rapport_command(update: Update, context):
 # est enregistré directement dès l'extraction.
 
 _GROUPE_LABELS = {"centre": "Centre + KYK", "team": "Team + Fidèle"}
+_EVENT_TYPE_SUMMARY = {"mannam": "Mannam {name}", "ls": "Leçon Spéciale — {name}"}
 
 
 async def on_chatgi_report(update: Update, _):
@@ -1571,19 +1584,22 @@ async def on_chatgi_report(update: Update, _):
         )
         return
 
-    mannams_created = 0
+    created_types: list[str] = []
     for i, m in enumerate(fields["mannams"]):
         event_id = f"chatgi:{telegram_message_id}:{i}"
+        event_type = m.get("event_type", "mannam")
         try:
             api_client.upsert_meeting(event_id, {
-                "summary": f"Mannam {m['figure_name']}",
+                "summary": _EVENT_TYPE_SUMMARY.get(event_type, _EVENT_TYPE_SUMMARY["mannam"])
+                    .format(name=m["figure_name"]),
                 "date": _convert_sck_date(m.get("date", "")) or date_iso,
                 "time": m.get("time", ""),
                 "location": m.get("location", ""),
                 "figure_name": m["figure_name"],
                 "groupe": fields["groupe"],
+                "event_type": event_type,
             })
-            mannams_created += 1
+            created_types.append(event_type)
         except Exception as e:
             logging.warning(f"Erreur upsert mannam depuis chatgi ({m['figure_name']}): {e}")
 
@@ -1592,8 +1608,15 @@ async def on_chatgi_report(update: Update, _):
         f"✅ Chatgi enregistrés pour {groupe_label} du {date_iso} : "
         f"👤 {totals['chatgi']} · ☎️ {totals['appels']} · 🌾 {totals['recherche']}"
     )
-    if mannams_created:
-        summary += f"\n🧡 {mannams_created} mannam(s) prévu(s) ajouté(s)."
+    if created_types:
+        mannam_count = created_types.count("mannam")
+        ls_count = created_types.count("ls")
+        parts = []
+        if mannam_count:
+            parts.append(f"{mannam_count} mannam(s)")
+        if ls_count:
+            parts.append(f"{ls_count} leçon(s) spéciale(s)")
+        summary += f"\n🧡 " + " · ".join(parts) + " prévu(s) ajouté(s)."
     await update.message.reply_text(summary, reply_to_message_id=update.message.message_id)
 
 

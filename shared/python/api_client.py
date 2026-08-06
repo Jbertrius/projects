@@ -257,6 +257,10 @@ def upsert_meeting(event_id: str, event_details: dict) -> dict:
         # "centre" | "team" — présent seulement quand le mannam vient d'un
         # rapport chatgi (#chatgui) ; absent (donc "") pour tout le reste.
         "groupe": event_details.get("groupe", ""),
+        # "mannam" | "ls" (Leçon Spéciale) — idem, seulement pour les mannams
+        # issus d'un rapport chatgi ; sert à exclure les LS du calcul
+        # "Mannams faits" côté objectifs hebdomadaires.
+        "event_type": event_details.get("event_type", ""),
     }
     logger.info(
         "Posting meeting to API: event_id=%s summary=%s date=%s",
