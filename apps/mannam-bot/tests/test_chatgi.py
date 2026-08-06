@@ -269,7 +269,7 @@ class TestOnChatgiReport:
         })
         mock_upsert.assert_called_once()
         event_id, details = mock_upsert.call_args[0]
-        assert event_id == "chatgi:1:42:0"
+        assert event_id == "chatgi:centre:pasteur-stephane:mannam:2026-08-08"
         assert details["figure_name"] == "Pasteur Stéphane"
         assert details["summary"] == "Mannam Pasteur Stéphane"
         assert details["event_type"] == "mannam"
@@ -328,6 +328,23 @@ class TestOnChatgiReport:
         text = update.message.reply_text.call_args[0][0]
         assert "1 mannam(s)" in text
         assert "1 leçon(s) spéciale(s)" in text
+
+    def test_reposted_form_reuses_same_mannam_event_id_across_different_messages(self):
+        # Le même gabarit peut être reposté/mis à jour plusieurs fois dans la
+        # journée (nouveau message Telegram, message_id différent) — le
+        # même pasteur/type/date doit donner le MÊME event_id pour que
+        # upsert_meeting mette à jour au lieu de dupliquer.
+        update1 = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=50)
+        update2 = _make_update(SUBAE_MESSAGE, chat_id=1, message_id=51)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=FAKE_FIELDS), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update1, None))
+            asyncio.run(on_chatgi_report(update2, None))
+
+        event_id_1 = mock_upsert.call_args_list[0].args[0]
+        event_id_2 = mock_upsert.call_args_list[1].args[0]
+        assert event_id_1 == event_id_2
 
     def test_extraction_failure_replies_with_hint_and_makes_no_api_calls(self):
         update = _make_update(SUBAE_MESSAGE)

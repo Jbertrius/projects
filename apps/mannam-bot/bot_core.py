@@ -15,6 +15,7 @@ from google.genai import types as genai_types
 from google.auth import default as google_auth_default
 from google.oauth2.service_account import Credentials
 import re
+import unicodedata
 from datetime import datetime, timedelta
 from telegram import Update, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -418,6 +419,16 @@ def _chatgi_totals(entries: list[dict]) -> dict:
         "appels": sum(e.get("appels", 0) for e in entries),
         "chatgi": sum(e.get("chatgi", 0) for e in entries),
     }
+
+
+def _normalize_key(s: str) -> str:
+    """Normalise un texte libre (minuscules, sans accents ni espaces) pour
+    construire un identifiant déterministe, indépendant du message Telegram
+    d'origine — sert à dédoublonner les mannams issus d'un rapport chatgi
+    quand le même gabarit SUBAE FORM est reposté ou mis à jour dans la
+    journée (sinon chaque repost créerait un mannam en double)."""
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
 
 # ── Google API services ────────────────────────────────────────────────────────
@@ -1594,14 +1605,18 @@ async def on_chatgi_report(update: Update, _):
         return
 
     created_types: list[str] = []
-    for i, m in enumerate(fields["mannams"]):
-        event_id = f"chatgi:{telegram_message_id}:{i}"
+    for m in fields["mannams"]:
         event_type = m.get("event_type", "mannam")
+        mannam_date = _convert_sck_date(m.get("date", "")) or date_iso
+        # Clé stable (pasteur + type + date de l'événement + groupe), PAS le
+        # message Telegram : un même 🧡 reposté/mis à jour dans la journée
+        # doit mettre à jour le MÊME mannam plutôt que d'en créer un double.
+        event_id = f"chatgi:{fields['groupe']}:{_normalize_key(m['figure_name'])}:{event_type}:{mannam_date}"
         try:
             api_client.upsert_meeting(event_id, {
                 "summary": _EVENT_TYPE_SUMMARY.get(event_type, _EVENT_TYPE_SUMMARY["mannam"])
                     .format(name=m["figure_name"]),
-                "date": _convert_sck_date(m.get("date", "")) or date_iso,
+                "date": mannam_date,
                 "time": m.get("time", ""),
                 "location": m.get("location", ""),
                 "figure_name": m["figure_name"],
