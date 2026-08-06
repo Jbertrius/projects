@@ -44,8 +44,13 @@ CALENDAR_ID   = os.environ.get(
 # States for conversation handler
 ADD_EVENT, EDIT_EVENT = range(2)
 
-# Cache: chat_id → liste ordonnée des Google Calendar event IDs affichés par /list
+# Cache: chat_id → liste ordonnée des ids affichés par /list (event Google
+# Calendar OU mannam Firestore sans événement Calendar réel, cf. ci-dessous)
 _list_cache: dict[int, list[str]] = {}
+# Cache: chat_id → sous-ensemble des ids de _list_cache qui sont des mannams
+# Firestore sans événement Calendar réel (issus d'un rapport chatgi) —
+# /edit et /delete doivent les traiter différemment d'un vrai événement.
+_list_cache_firestore_ids: dict[int, set[str]] = {}
 # Cache: chat_id → event_id en cours d'édition
 _edit_cache: dict[int, str] = {}
 
@@ -949,21 +954,83 @@ async def handle_add_event(update: Update, _):
         f"🚶 Mannamjas : {event_details.get('mannamjas', '-')}\n"
         f"🏷 Section : {section or '-'}\n"
         + (f"🌍 Pays : {pays}\n" if pays else "")
-        + "\nCréation en cours..."
     )
 
+    figure_name = _extract_figure_name(event_details.get('summary', ''))
+    try:
+        dup = api_client.check_duplicate_mannam(figure_name, event_details['date'])
+    except Exception as e:
+        logging.warning(f"Erreur check_duplicate_mannam: {e}")
+        dup = {"duplicate": False}
+
+    if dup.get("duplicate"):
+        token = f"{update.effective_chat.id}:{update.message.message_id}"
+        _pending_duplicate_confirms[token] = {"event_details": event_details}
+        await update.message.reply_text(
+            f"⚠️ Un mannam existe déjà pour {dup.get('pastorName') or figure_name} le "
+            f"{event_details['date']} : « {dup.get('summary', '') or '(sans titre)'} ».\n"
+            "Créer quand même ?",
+            reply_markup=_duplicate_confirm_keyboard(token),
+        )
+        return ConversationHandler.END
+
+    await update.message.reply_text("Création en cours...")
+    result = await _create_mannam_event(update.message.reply_text, event_details)
+    if result and result.get('match') == 'fuzzy':
+        await _prompt_pastor_confirm(update, result, event_details)
+
+    return ConversationHandler.END
+
+
+# token ("chat_id:message_id") → création de mannam en attente de
+# confirmation, un mannam actif existe déjà pour ce pasteur à cette date
+_pending_duplicate_confirms: dict[str, dict] = {}
+
+
+def _duplicate_confirm_keyboard(token: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Créer quand même", callback_data=f"dc|{token}|yes"),
+        InlineKeyboardButton("❌ Annuler", callback_data=f"dc|{token}|no"),
+    ]])
+
+
+async def _create_mannam_event(reply, event_details: dict) -> dict | None:
+    """Crée l'événement Calendar + synchronise l'API — factorisé pour être
+    appelé aussi bien directement depuis /add (pas de doublon détecté) que
+    depuis la confirmation explicite d'un doublon. `reply` : coroutine
+    (str) -> None (update.message.reply_text ou query.message.reply_text)."""
     service = get_calendar_service()
     try:
         event = create_event(service, event_details)
-        await update.message.reply_text(f"🎉 Événement créé : {event.get('htmlLink')}")
-        result = _sync_mannam_to_api(event['id'], event_details)
-        if result and result.get('match') == 'fuzzy':
-            await _prompt_pastor_confirm(update, result, event_details)
+        await reply(f"🎉 Événement créé : {event.get('htmlLink')}")
+        return _sync_mannam_to_api(event['id'], event_details)
     except Exception as e:
         logging.error(f"Error creating event: {e}")
-        await update.message.reply_text("❌ Une erreur est survenue lors de la création de l'événement.")
+        await reply("❌ Une erreur est survenue lors de la création de l'événement.")
+        return None
 
-    return ConversationHandler.END
+
+async def on_duplicate_confirm_callback(update: Update, _):
+    """Le membre confirme (ou annule) la création d'un mannam malgré un
+    doublon détecté (même pasteur, même date, déjà actif)."""
+    query = update.callback_query
+    await query.answer()
+    try:
+        _, token, choice = query.data.split("|", 2)
+    except ValueError:
+        return
+
+    pending = _pending_duplicate_confirms.pop(token, None)
+    if not pending:
+        await query.edit_message_text("⌛ Cette demande a expiré. Relancez /add.")
+        return
+
+    if choice != "yes":
+        await query.edit_message_text("❌ Création annulée.")
+        return
+
+    await query.edit_message_text("Création en cours...")
+    await _create_mannam_event(query.message.reply_text, pending["event_details"])
 
 
 async def _prompt_pastor_confirm(update: Update, sync_result: dict, event_details: dict) -> None:
@@ -1037,7 +1104,19 @@ async def list_events(update, _):
             orderBy='startTime'
         ).execute()
         events = events_result.get('items', [])
-        if not events:
+
+        # Les mannams issus d'un rapport chatgi n'ont jamais d'événement
+        # Google Calendar réel (cf. on_chatgi_report) — sans ça, ils restent
+        # invisibles à /list alors qu'ils existent bien côté site.
+        firestore_mannams: list[dict] = []
+        try:
+            firestore_mannams = api_client.get_mannams_without_calendar_event(
+                start_of_week.strftime('%Y-%m-%d'), end_of_week.strftime('%Y-%m-%d'),
+            )
+        except Exception as e:
+            logging.warning(f"Impossible de récupérer les mannams chatgi pour /list: {e}")
+
+        if not events and not firestore_mannams:
             await update.message.reply_text('No events scheduled for this week.')
             return
 
@@ -1046,30 +1125,51 @@ async def list_events(update, _):
             start = event.get('start', {}).get('dateTime', event.get('start', {}).get('date'))
             start_time = (datetime.fromisoformat(start) if 'T' in start
                           else datetime.fromisoformat(start + "T00:00:00"))
-            events_by_date[start_time.strftime('%Y-%m-%d')].append((event, start_time))
+            events_by_date[start_time.strftime('%Y-%m-%d')].append((event, start_time, "calendar"))
+        for m in firestore_mannams:
+            date = m.get('date') or ''
+            if not date:
+                continue
+            start_time = datetime.fromisoformat(f"{date}T{m.get('time') or '00:00'}:00")
+            events_by_date[date].append((m, start_time, "firestore"))
 
         ordered_event_ids: list[str] = []
+        firestore_ids: set[str] = set()
         for date in sorted(events_by_date.keys()):
-            for event, _ in events_by_date[date]:
-                ordered_event_ids.append(event['id'])
-        _list_cache[update.effective_chat.id] = ordered_event_ids
+            for item, _start_time, source in events_by_date[date]:
+                item_id = item['id']
+                ordered_event_ids.append(item_id)
+                if source == "firestore":
+                    firestore_ids.add(item_id)
+        chat_id = update.effective_chat.id
+        _list_cache[chat_id] = ordered_event_ids
+        _list_cache_firestore_ids[chat_id] = firestore_ids
 
         results = ["🔰 Weekly Offline Mannam\n"]
         idx = 1
-        for date, evts in sorted(events_by_date.items()):
+        for date in sorted(events_by_date.keys()):
             results.append(f"📆 Date: {datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d (%A)')}")
-            for event, start_time in evts:
-                mannamjas, desc = extract_mannamjas_and_clean_description(event.get('description', ''))
-                section = extract_section_from_description(event.get('description', ''))
-                results.append(
-                    f"[{idx}] 🇫🇷☀️ {event.get('summary', 'N/A')} / {desc}\n"
-                    f"    🗝 {event.get('location', 'N/A')} ({start_time.strftime('%H:%M')})\n"
-                    f"    🚶 Mannamjas: {mannamjas.replace('&amp;', ', ')}\n"
-                    f"    🏷 Section: {section or '-'}\n"
-                )
+            for item, start_time, source in sorted(events_by_date[date], key=lambda t: t[1]):
+                if source == "calendar":
+                    mannamjas, desc = extract_mannamjas_and_clean_description(item.get('description', ''))
+                    section = extract_section_from_description(item.get('description', ''))
+                    results.append(
+                        f"[{idx}] 🇫🇷☀️ {item.get('summary', 'N/A')} / {desc}\n"
+                        f"    🗝 {item.get('location', 'N/A')} ({start_time.strftime('%H:%M')})\n"
+                        f"    🚶 Mannamjas: {mannamjas.replace('&amp;', ', ')}\n"
+                        f"    🏷 Section: {section or '-'}\n"
+                    )
+                else:
+                    results.append(
+                        f"[{idx}] 🧡 {item.get('summary', 'N/A')} (chatgi — pas d'événement Calendar)\n"
+                        f"    🗝 {item.get('location') or '-'} ({start_time.strftime('%H:%M')})\n"
+                    )
                 idx += 1
             results.append("")
-        results.append("➡️ Supprimer : /delete <numéro>  |  Modifier : /edit <numéro>")
+        results.append(
+            "➡️ Supprimer : /delete <numéro>  |  Modifier : /edit <numéro>\n"
+            "ℹ️ Les mannams 🧡 (chatgi) ne sont modifiables que depuis le site, pas via /edit."
+        )
         await update.message.reply_text("\n".join(results).strip())
     except Exception as e:
         logging.error(f"Error listing weekly events: {e}")
@@ -1099,6 +1199,13 @@ async def edit_event(update: Update, context):
         return ConversationHandler.END
 
     event_id = event_ids[idx - 1]
+    if event_id in _list_cache_firestore_ids.get(chat_id, set()):
+        await update.message.reply_text(
+            f"⚠️ Cet élément [{idx}] vient d'un rapport chatgi et n'a pas d'événement Google Calendar — "
+            "modifiez-le depuis le site plutôt que via /edit."
+        )
+        return ConversationHandler.END
+
     service  = get_calendar_service()
     try:
         event = service.events().get(calendarId=CALENDAR_ID, eventId=event_id).execute()
@@ -1225,6 +1332,19 @@ async def delete_event(update: Update, context):
         return
 
     event_id = event_ids[idx - 1]
+    if event_id in _list_cache_firestore_ids.get(chat_id, set()):
+        # Mannam issu d'un rapport chatgi : pas d'événement Calendar à
+        # supprimer, juste le document Firestore (archivage).
+        try:
+            api_client.delete_meeting(event_id)
+            _list_cache[chat_id].pop(idx - 1)
+            _list_cache_firestore_ids[chat_id].discard(event_id)
+            await update.message.reply_text(f"✅ Événement [{idx}] supprimé avec succès.")
+        except Exception as e:
+            logging.error(f"Error deleting firestore-only mannam: {e}")
+            await update.message.reply_text("❌ Une erreur est survenue lors de la suppression de l'événement.")
+        return
+
     service  = get_calendar_service()
     try:
         service.events().delete(calendarId=CALENDAR_ID, eventId=event_id).execute()
@@ -1710,5 +1830,6 @@ def build_app(bot_token: str) -> Application:
     app.add_handler(CallbackQueryHandler(on_pastor_pick_callback, pattern=r'^rp\|'))
     app.add_handler(CallbackQueryHandler(on_report_result_callback, pattern=r'^rr\|'))
     app.add_handler(CallbackQueryHandler(on_pastor_confirm_callback, pattern=r'^cp\|'))
+    app.add_handler(CallbackQueryHandler(on_duplicate_confirm_callback, pattern=r'^dc\|'))
 
     return app

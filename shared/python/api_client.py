@@ -275,6 +275,29 @@ def delete_meeting(event_id: str) -> dict:
     return _request("DELETE", f"/api/bot/meetings/{_encode(event_id)}")
 
 
+def check_duplicate_mannam(figure_name: str, date: str) -> dict:
+    """Lecture seule — cherche un mannam déjà actif pour ce pasteur à cette
+    date, pour prévenir /add avant de créer un doublon.
+
+    POST /api/bot/mannams/check-duplicate.
+    Retourne {"duplicate": False} ou {"duplicate": True, "mannamId",
+    "pastorName", "summary"}.
+    """
+    return _request("POST", "/api/bot/mannams/check-duplicate",
+                     {"figureName": figure_name, "date": date})
+
+
+def get_mannams_without_calendar_event(start: str, end: str) -> list[dict]:
+    """Mannams Firestore actifs sans événement Google Calendar réel (issus
+    d'un rapport chatgi) dans une plage de dates AAAA-MM-JJ inclusive —
+    sinon invisibles à /list, qui ne lit que Google Calendar.
+
+    GET /api/bot/mannams/without-calendar-event?start=...&end=...
+    """
+    result = _request("GET", f"/api/bot/mannams/without-calendar-event?start={_encode(start)}&end={_encode(end)}")
+    return result.get("mannams", [])
+
+
 def reject_pastor_match(mannam_id: str, figure_name: str, section: str = "", pays: str = "") -> dict:
     """L'utilisateur infirme un rattachement approximatif (fuzzy) proposé
     après la création d'un mannam : crée un nouveau dossier pasteur pour
