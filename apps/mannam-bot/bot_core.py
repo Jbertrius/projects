@@ -292,14 +292,19 @@ Structure typique du message (l'ordre et les espacements varient) :
   chiffres)-mois-jour, ex: "43.08.05".
 - Une ligne "Groupe : Centre" ou "Groupe : Team" (peut être absente ou mal
   orthographiée — dans le doute laisse "groupe" vide).
-- Des lignes individuelles avec trois compteurs marqués par emoji : 🌾
+- Des lignes NOMMANT UNE PERSONNE avec trois compteurs marqués par emoji : 🌾
   (recherche de nouveaux contacts), ☎️ (appel simple, sans mannam), 👤
-  (chatgi = nouvelle personne contactée). Ex: "🐴Kyung-Mi 🌾:0 ☎️:1 👤:2" ou
-  "📍OTW :  🌾:0  ☎️:1 👤:2". Ces lignes peuvent apparaître dans la section
-  principale, ou sous des sous-titres "TM" (télémarketing) ou "FU"
-  (follow-up) — dans tous les cas, inclus-les toutes dans "entries".
-  IGNORE la ligne "🔥Totaux" (souvent vide ou fausse, ne jamais l'utiliser) —
-  n'extrais que les lignes individuelles par personne.
+  (chatgi = nouvelle personne contactée). Ex: "🐴Kyung-Mi 🌾:0 ☎️:1 👤:2".
+  Ces lignes peuvent apparaître dans la section principale, ou sous des
+  sous-titres "TM" (télémarketing) ou "FU" (follow-up) — dans tous les cas,
+  inclus-les toutes dans "entries".
+  IGNORE la ligne "🔥Totaux" (souvent vide ou fausse, ne jamais l'utiliser).
+  IGNORE AUSSI toute ligne commençant par "📍<lieu>" (ex: "📍OTW :  🌾:0
+  ☎️:1 👤:2") — ce n'est PAS une personne, c'est un EN-TÊTE DE LIEU (ex:
+  "OTW" = "on the way") dont les chiffres sont déjà la somme de la ou des
+  personnes listées juste en dessous. Si tu inclus à la fois la ligne 📍
+  et la ligne de la personne, les totaux seraient comptés deux fois — donc
+  n'extrais QUE les lignes qui nomment explicitement une personne.
 - Des lignes commençant par "🧡" annonçant un événement obtenu avec un
   pasteur, au format libre "🧡<nom du pasteur> <type> <jour de semaine>
   <date AAMMJJ> <heure> <lieu>" (jour de semaine, heure et lieu parfois
@@ -370,6 +375,10 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
                 "chatgi": _as_int(e.get("chatgi")),
             }
             for e in (data.get("entries") or [])
+            # Filet de sécurité si Gemini inclut quand même une ligne d'en-tête
+            # de lieu ("📍OTW…") malgré la consigne — ses chiffres sont déjà
+            # comptés dans la personne listée juste en dessous.
+            if not str(e.get("person", "")).strip().startswith("📍")
         ]
         def _event_type(v) -> str:
             t = str(v or "").strip().lower()

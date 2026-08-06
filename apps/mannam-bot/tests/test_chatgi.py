@@ -54,8 +54,10 @@ SUBAE_MESSAGE = """🌞 SUBAE FORM - 43.08.05
 GEMINI_CHATGI_JSON = json.dumps({
     "date": "43.08.05",
     "groupe": "centre",
+    # "📍OTW" est un en-tête de lieu (ses chiffres sont ceux de Kyung-Mi,
+    # listée juste en dessous dans le message d'origine) — un Gemini qui
+    # suit correctement la consigne ne le retourne pas comme une entrée.
     "entries": [
-        {"person": "OTW", "recherche": 0, "appels": 1, "chatgi": 2},
         {"person": "Kyung-Mi", "recherche": 0, "appels": 1, "chatgi": 2},
     ],
     "mannams": [
@@ -120,8 +122,8 @@ class TestNormalizeChatgiWithGemini:
         assert result is not None
         assert result["date"] == "43.08.05"
         assert result["groupe"] == "centre"
-        assert len(result["entries"]) == 2
-        assert result["entries"][0] == {"person": "OTW", "recherche": 0, "appels": 1, "chatgi": 2}
+        assert len(result["entries"]) == 1
+        assert result["entries"][0] == {"person": "Kyung-Mi", "recherche": 0, "appels": 1, "chatgi": 2}
         assert len(result["mannams"]) == 2
         assert result["mannams"][0]["figure_name"] == "Pasteur Stéphane"
         assert result["mannams"][0]["event_type"] == "mannam"
@@ -202,6 +204,20 @@ class TestNormalizeChatgiWithGemini:
             result = normalize_chatgi_with_gemini(SUBAE_MESSAGE)
         assert result["entries"][0] == {"person": "X", "recherche": 0, "appels": 0, "chatgi": 3}
 
+    def test_location_header_entry_is_dropped_even_if_gemini_includes_it(self):
+        # Filet de sécurité côté code : même si Gemini n'a pas suivi la
+        # consigne et renvoie quand même la ligne "📍<lieu>", elle ne doit
+        # jamais compter en plus de la personne listée sous elle (double
+        # comptage des mêmes chiffres).
+        payload = json.loads(GEMINI_CHATGI_JSON)
+        payload["entries"].insert(0, {"person": "📍OTW", "recherche": 0, "appels": 1, "chatgi": 2})
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE)
+        assert len(result["entries"]) == 1
+        assert result["entries"][0]["person"] == "Kyung-Mi"
+
     def test_no_gemini_client_returns_none(self):
         with patch.object(bot_core, "_gemini_client", None):
             assert normalize_chatgi_with_gemini(SUBAE_MESSAGE) is None
@@ -228,7 +244,6 @@ FAKE_FIELDS = {
     "date": "43.08.05",
     "groupe": "centre",
     "entries": [
-        {"person": "OTW", "recherche": 0, "appels": 1, "chatgi": 2},
         {"person": "Kyung-Mi", "recherche": 0, "appels": 1, "chatgi": 2},
     ],
     "mannams": [
@@ -262,8 +277,8 @@ class TestOnChatgiReport:
         assert details["groupe"] == "centre"
 
         text = update.message.reply_text.call_args[0][0]
-        assert "👤 4" in text
-        assert "☎️ 2" in text
+        assert "👤 2" in text
+        assert "☎️ 1" in text
         assert "🌾 0" in text
         assert "1 mannam(s)" in text
         assert "Centre + KYK" in text
