@@ -300,14 +300,15 @@ d'objet JSON valide, sans texte autour.
 Structure typique du message (l'ordre et les espacements varient) :
 - Une ligne d'en-tête "SUBAE FORM - AA.MM.JJ" — date au format année(2
   chiffres)-mois-jour, ex: "43.08.05".
-- Une ligne "Groupe : Centre" ou "Groupe : Team" (peut être absente ou mal
-  orthographiée — dans le doute laisse "groupe" vide).
+- (Ancien format, peut ne plus apparaître) Une ligne "Groupe : Centre" ou
+  "Groupe : Team" — si présente, sert de repli pour le champ "groupe"
+  ci-dessous ; absente dans le format récent (voir "STANDARD FRUIT" plus bas).
 - Des lignes NOMMANT UNE PERSONNE avec trois compteurs marqués par emoji : 🌾
   (recherche de nouveaux contacts), ☎️ (appel simple, sans mannam), 👤
   (chatgi = nouvelle personne contactée). Ex: "🐴Kyung-Mi 🌾:0 ☎️:1 👤:2".
   Ces lignes peuvent apparaître dans la section principale, ou sous des
-  sous-titres "TM" (télémarketing) ou "FU" (follow-up) — dans tous les cas,
-  inclus-les toutes dans "entries".
+  sous-titres ("ROUND 1", "TM" pour télémarketing, "FU" pour follow-up, etc.)
+  — dans tous les cas, inclus-les toutes dans "entries".
   IGNORE la ligne "🔥Totaux" (souvent vide ou fausse, ne jamais l'utiliser).
   IGNORE AUSSI toute ligne commençant par "📍<lieu>" (ex: "📍OTW :  🌾:0
   ☎️:1 👤:2") — ce n'est PAS une personne, c'est un EN-TÊTE DE LIEU (ex:
@@ -315,29 +316,48 @@ Structure typique du message (l'ordre et les espacements varient) :
   personnes listées juste en dessous. Si tu inclus à la fois la ligne 📍
   et la ligne de la personne, les totaux seraient comptés deux fois — donc
   n'extrais QUE les lignes qui nomment explicitement une personne.
-- Des lignes commençant par "🧡" annonçant un événement obtenu avec un
-  pasteur, au format libre "🧡<nom du pasteur> <type> <jour de semaine>
-  <date AAMMJJ> <heure> <lieu>" (jour de semaine, heure et lieu parfois
-  absents ou dans un ordre différent). <type> est un MOT-CLÉ qui n'appartient
-  PAS au nom du pasteur — le nom s'arrête juste avant lui :
+- Un bloc légende optionnel "STANDARD FRUIT:" suivi de 4 lignes emoji+mot
+  (ex: "💛team", "📚Centre pasteur", "🍓Fidèles", "♻️Talak") — définit à quoi
+  correspond chaque emoji dans CE message. En son absence, utilise la
+  correspondance standard : 💛=team, 📚=Centre pasteur, 🍓=Fidèles, ♻️=Talak.
+- Des lignes annonçant un événement obtenu avec un pasteur, introduites soit
+  par "🧡" (ancien format, pas de catégorie), soit par l'un des emoji du bloc
+  STANDARD FRUIT (💛/📚/🍓/♻️ ou équivalent défini dans la légende — format
+  récent). Format libre, souvent sur une ou deux lignes : "<emoji><nom du
+  pasteur> <type> <jour de semaine> <date AAMMJJ> <heure> <lieu>", parfois
+  avec le nom sur une ligne et "<type> <jour> <heure> <lieu>" sur la
+  suivante. <type> est un MOT-CLÉ qui n'appartient PAS au nom du pasteur —
+  le nom s'arrête juste avant lui :
     * "mannam" → une rencontre normale.
     * "LS" → une invitation à une Leçon Spéciale (PAS un mannam).
   Si aucun de ces deux mots-clés n'apparaît sur la ligne, mets "mannam" par
   défaut et n'invente rien d'autre.
+  IGNORE tout suffixe "/ centre", "/ team" etc. en fin de ligne — il ne veut
+  rien dire ici, ne l'utilise pour rien (ni "groupe" ni "section").
+  L'emoji en tête de ligne donne "groupe" et "section" pour CE mannam
+  (correspondance standard ou celle du bloc STANDARD FRUIT si présent) :
+    * 💛 (team)           → groupe="team",   section=""
+    * 📚 (Centre pasteur) → groupe="centre", section="centre"
+    * 🍓 (Fidèles)        → groupe="team",   section="fideles"
+    * ♻️ (Talak)          → groupe="team",   section="talak"
+    * "🧡" (ancien format, pas de catégorie) → groupe="", section=""
 
 Champs attendus :
 - "date"    : date du rapport telle qu'écrite sur la ligne d'en-tête (ex:
               "43.08.05") — NE PAS convertir toi-même, laisse le texte brut.
-- "groupe"  : "centre" ou "team" selon la ligne "Groupe :" ; chaîne vide ""
-              si absente ou illisible. Ne jamais deviner à partir d'autre
-              chose que cette ligne explicite.
+- "groupe"  : UNIQUEMENT depuis une ligne "Groupe :" explicite (ancien
+              format) ; chaîne vide "" si absente. Ne jamais le déduire des
+              emoji des mannams ici — ça se fait par mannam, voir plus bas.
 - "entries" : liste de {"person": str, "recherche": int, "appels": int,
               "chatgi": int} — une entrée par ligne individuelle repérée (0
               pour un compteur non précisé sur la ligne).
 - "mannams" : liste de {"figure_name": str, "event_type": "mannam"|"ls",
-              "date": str (brut, ex: "430808"), "time": str, "location": str}
-              — une par ligne "🧡". "figure_name" ne doit JAMAIS contenir
-              "mannam" ni "LS". Chaîne vide "" pour un sous-champ absent.
+              "date": str (brut, ex: "430808"), "time": str, "location": str,
+              "groupe": "centre"|"team"|"", "section": "centre"|"fideles"|
+              "talak"|""} — une par ligne d'annonce de mannam ("🧡" ou emoji
+              STANDARD FRUIT). "figure_name" ne doit JAMAIS contenir
+              "mannam", "LS", ni l'emoji/drapeau en tête de ligne. Chaîne
+              vide "" pour un sous-champ absent.
 
 Règles :
 - Ne jamais inventer de valeurs.
@@ -394,6 +414,14 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
             t = str(v or "").strip().lower()
             return t if t in ("mannam", "ls") else "mannam"
 
+        def _mannam_groupe(v) -> str:
+            g = str(v or "").strip().lower()
+            return g if g in ("centre", "team") else ""
+
+        def _mannam_section(v) -> str:
+            s = str(v or "").strip().lower()
+            return s if s in ("centre", "fideles", "talak") else ""
+
         mannams = [
             {
                 "figure_name": str(m.get("figure_name", "")).strip(),
@@ -401,6 +429,12 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
                 "date": str(m.get("date", "")).strip(),
                 "time": str(m.get("time", "")).strip(),
                 "location": str(m.get("location", "")).strip(),
+                # Rattachement à l'objectif hebdo et à la section pasteur,
+                # déduits par emoji (STANDARD FRUIT) au niveau de CHAQUE
+                # mannam — contrairement à "groupe" ci-dessous qui ne vient
+                # (en repli, ancien format) que d'une ligne globale.
+                "groupe": _mannam_groupe(m.get("groupe")),
+                "section": _mannam_section(m.get("section")),
             }
             for m in (data.get("mannams") or [])
             if str(m.get("figure_name", "")).strip()
@@ -418,6 +452,33 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
     except Exception as e:
         logging.error(f"Erreur Gemini chatgi: {e}")
         return None
+
+
+def _derive_report_groupe(explicit_groupe: str, mannams: list[dict]) -> str:
+    """Détermine le groupe du RAPPORT (utilisé pour les totaux chatgi
+    🌾/☎️/👤, cf. objectif "Chatgi") — plus de ligne "Groupe :" globale dans
+    le gabarit récent, remplacée par un emoji par mannam (STANDARD FRUIT).
+
+    Priorité : une ligne "Groupe :" explicite (ancien format, encore
+    supportée) l'emporte toujours. Sinon, vote majoritaire parmi les
+    "groupe" des mannams de CE rapport (égalité → le premier rencontré).
+    Chaîne vide "" si rien de tout ça n'est disponible (aucun mannam,
+    ou mannams sans emoji reconnu) — même comportement de repli
+    qu'avant (rapport non rattaché à un groupe tant qu'il n'est pas corrigé)."""
+    if explicit_groupe in ("centre", "team"):
+        return explicit_groupe
+    counts: dict[str, int] = {}
+    order: list[str] = []
+    for m in mannams:
+        g = m.get("groupe", "")
+        if g not in ("centre", "team"):
+            continue
+        if g not in counts:
+            order.append(g)
+        counts[g] = counts.get(g, 0) + 1
+    if not counts:
+        return ""
+    return max(order, key=lambda g: counts[g])
 
 
 def _chatgi_totals(entries: list[dict]) -> dict:
@@ -1753,10 +1814,12 @@ async def on_chatgi_report(update: Update, _):
         )
         return
 
-    if fields["groupe"] not in ("centre", "team"):
+    report_groupe = _derive_report_groupe(fields["groupe"], fields["mannams"])
+    if report_groupe not in ("centre", "team"):
         await update.message.reply_text(
-            "⚠️ SUBAE FORM détecté mais la ligne « 👥Groupe : Centre » ou « 👥Groupe : Team » "
-            "est absente ou illisible — ajoutez-la pour que ce rapport soit comptabilisé.",
+            "⚠️ SUBAE FORM détecté mais le groupe est introuvable — ni ligne « 👥Groupe : Centre/Team » "
+            "(ancien format), ni emoji STANDARD FRUIT reconnu (💛/📚/🍓/♻️) sur un mannam de ce rapport. "
+            "Ajoutez-en un pour que ce rapport soit comptabilisé.",
             reply_to_message_id=update.message.message_id,
         )
         return
@@ -1769,7 +1832,7 @@ async def on_chatgi_report(update: Update, _):
         api_client.submit_chatgi_report({
             "telegramMessageId": telegram_message_id,
             "date": date_iso,
-            "groupe": fields["groupe"],
+            "groupe": report_groupe,
             "entries": fields["entries"],
         })
     except Exception as e:
@@ -1785,10 +1848,14 @@ async def on_chatgi_report(update: Update, _):
     for m in fields["mannams"]:
         event_type = m.get("event_type", "mannam")
         mannam_date = _convert_sck_date(m.get("date", "")) or date_iso
+        # Groupe propre à CE mannam (emoji STANDARD FRUIT) — repli sur le
+        # groupe du rapport si ce mannam n'a pas d'emoji reconnu (ex: "🧡"
+        # ancien format, sans catégorie).
+        mannam_groupe = m.get("groupe") or report_groupe
         # Clé stable (pasteur + type + date de l'événement + groupe), PAS le
         # message Telegram : un même 🧡 reposté/mis à jour dans la journée
         # doit mettre à jour le MÊME mannam plutôt que d'en créer un double.
-        event_id = f"chatgi:{fields['groupe']}:{_normalize_key(m['figure_name'])}:{event_type}:{mannam_date}"
+        event_id = f"chatgi:{mannam_groupe}:{_normalize_key(m['figure_name'])}:{event_type}:{mannam_date}"
 
         # Un mannam pour ce pasteur à cette date peut déjà exister via une
         # AUTRE voie (/add, sync calendrier…) — si c'est le cas ET que ce
@@ -1816,14 +1883,15 @@ async def on_chatgi_report(update: Update, _):
                 # importe ce qui est écrit (ou pas) dans le message d'origine.
                 "location": "Zoom" if event_type == "ls" else m.get("location", ""),
                 "figure_name": m["figure_name"],
-                "groupe": fields["groupe"],
+                "groupe": mannam_groupe,
+                "section": m.get("section", ""),
                 "event_type": event_type,
             })
             created_types.append(event_type)
         except Exception as e:
             logging.warning(f"Erreur upsert mannam depuis chatgi ({m['figure_name']}): {e}")
 
-    groupe_label = _GROUPE_LABELS.get(fields["groupe"], fields["groupe"])
+    groupe_label = _GROUPE_LABELS.get(report_groupe, report_groupe)
     summary = (
         f"✅ Chatgi enregistrés pour {groupe_label} du {date_iso} : "
         f"👤 {totals['chatgi']} · ☎️ {totals['appels']} · 🌾 {totals['recherche']}"

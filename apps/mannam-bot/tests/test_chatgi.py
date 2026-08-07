@@ -15,6 +15,7 @@ import bot_core
 from bot_core import (
     _convert_sck_date,
     _chatgi_totals,
+    _derive_report_groupe,
     normalize_chatgi_with_gemini,
     on_chatgi_report,
 )
@@ -73,6 +74,81 @@ def _make_gemini_response(text: str):
     resp = MagicMock()
     resp.text = text
     return resp
+
+
+# Gabarit récent : plus de ligne "Groupe :" globale, remplacée par un bloc
+# légende "STANDARD FRUIT" + un emoji par mannam (groupe ET section déduits
+# de cet emoji). Exemple réel fourni, avec des mannams des DEUX groupes dans
+# le même rapport (📚 x2 = centre, 🍓 x1 = team) — sert à vérifier le vote
+# majoritaire de _derive_report_groupe.
+SUBAE_MESSAGE_STANDARD_FRUIT = """🌞 SUBAE FORM - 43.08.07
+
+STANDARD FRUIT:
+💛team
+📚Centre pasteur
+🍓Fidèles
+♻️ Talak
+
+🌱 Today's seed: https://t.me/c/3624527048/155
+
+🌐Lien : https://us06web.zoom.us/j/2591475720?pwd=E5H66Mv0YOaDb1Hw9vvf1jrrab34Pw.1
+
+📍Colombus Chatelet
+
+🎯Weekly goal : https://t.me/c/4472240444/154
+➖➖➖➖➖➖➖➖➖➖➖
+
+👨🏽‍🌾NBJNs : Kyung-mi
+
+🔥Totaux : 🌾:  ☎️:  👤:
+
+
+▪️ROUND 1 (14:10 - 14:45) 🌾:0  ☎️:2👤:1
+ 🐴Kyung-mi 🌾:0  ☎️:1  👤:1
+📚🇫🇷Servante Hubert (Franckly Riodin 160-2P) mannam lundi 430811 18H00 zoom (TM) / centre
+🐴Sunhee 🌾:0  ☎️:1  👤:0
+
+
+
+➖➖➖
+📍OTW :  🌾:  ☎️: 👤:
+
+🐴Haena 🌾:0  ☎️:2 👤:2
+
+🍓🇫🇷 Pasteur Niel (Elise)
+Mannam LUNDI 20h30 zoom / centre
+📚🇫🇷 Pasteur Osmarc (Massoly?)
+Mannam samedi 20h30 zoom / centre
+
+➖➖
+☎️TM
+
+➖➖➖
+📱FU
+
+➖➖➖
+#chatgui
+@saehaneulsaettang SMN
+@Gyeojassi TJN
+ressaie"""
+
+GEMINI_STANDARD_FRUIT_JSON = json.dumps({
+    "date": "43.08.07",
+    "groupe": "",  # pas de ligne "Groupe :" dans ce gabarit
+    "entries": [
+        {"person": "Kyung-mi", "recherche": 0, "appels": 1, "chatgi": 1},
+        {"person": "Sunhee", "recherche": 0, "appels": 1, "chatgi": 0},
+        {"person": "Haena", "recherche": 0, "appels": 2, "chatgi": 2},
+    ],
+    "mannams": [
+        {"figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
+         "time": "18H00", "location": "zoom", "groupe": "centre", "section": "centre"},
+        {"figure_name": "Pasteur Niel", "event_type": "mannam", "date": "",
+         "time": "20h30", "location": "zoom", "groupe": "team", "section": "fideles"},
+        {"figure_name": "Pasteur Osmarc", "event_type": "mannam", "date": "",
+         "time": "20h30", "location": "zoom", "groupe": "centre", "section": "centre"},
+    ],
+})
 
 
 # ── _convert_sck_date ────────────────────────────────────────────────────────
@@ -227,6 +303,71 @@ class TestNormalizeChatgiWithGemini:
         fake_client.models.generate_content.side_effect = RuntimeError("boom")
         with patch.object(bot_core, "_gemini_client", fake_client):
             assert normalize_chatgi_with_gemini(SUBAE_MESSAGE) is None
+
+    def test_standard_fruit_extracts_per_mannam_groupe_and_section(self):
+        # Gabarit récent (STANDARD FRUIT) : plus de "Groupe :" global, mais
+        # chaque mannam porte son propre groupe + section (déduits de son
+        # emoji 📚/🍓/♻️/💛).
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(GEMINI_STANDARD_FRUIT_JSON)
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert result["groupe"] == ""  # pas de ligne globale dans ce gabarit
+        assert len(result["mannams"]) == 3
+        assert result["mannams"][0] == {
+            "figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
+            "time": "18H00", "location": "zoom", "groupe": "centre", "section": "centre",
+        }
+        assert result["mannams"][1]["groupe"] == "team"
+        assert result["mannams"][1]["section"] == "fideles"
+        assert result["mannams"][2]["groupe"] == "centre"
+        assert result["mannams"][2]["section"] == "centre"
+
+    def test_invalid_per_mannam_groupe_and_section_normalized_to_empty(self):
+        payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
+        payload["mannams"][0]["groupe"] = "nord"
+        payload["mannams"][0]["section"] = "autre"
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert result["mannams"][0]["groupe"] == ""
+        assert result["mannams"][0]["section"] == ""
+
+    def test_missing_per_mannam_groupe_and_section_default_to_empty(self):
+        payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
+        del payload["mannams"][0]["groupe"]
+        del payload["mannams"][0]["section"]
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert result["mannams"][0]["groupe"] == ""
+        assert result["mannams"][0]["section"] == ""
+
+
+# ── _derive_report_groupe ────────────────────────────────────────────────────
+
+class TestDeriveReportGroupe:
+    def test_explicit_groupe_always_wins(self):
+        mannams = [{"groupe": "team"}, {"groupe": "team"}]
+        assert _derive_report_groupe("centre", mannams) == "centre"
+
+    def test_majority_vote_among_mannams(self):
+        mannams = [{"groupe": "centre"}, {"groupe": "team"}, {"groupe": "centre"}]
+        assert _derive_report_groupe("", mannams) == "centre"
+
+    def test_tie_breaks_on_first_occurrence(self):
+        mannams = [{"groupe": "team"}, {"groupe": "centre"}]
+        assert _derive_report_groupe("", mannams) == "team"
+
+    def test_mannams_without_recognized_groupe_are_ignored(self):
+        mannams = [{"groupe": ""}, {"groupe": "team"}, {}]
+        assert _derive_report_groupe("", mannams) == "team"
+
+    def test_no_signal_at_all_returns_empty_string(self):
+        assert _derive_report_groupe("", []) == ""
+        assert _derive_report_groupe("", [{"groupe": ""}]) == ""
 
 
 # ── on_chatgi_report ─────────────────────────────────────────────────────────
@@ -395,6 +536,87 @@ class TestOnChatgiReport:
         mock_submit.assert_not_called()
         text = update.message.reply_text.call_args[0][0]
         assert "Groupe" in text
+
+    def test_standard_fruit_no_global_groupe_derives_from_mannam_emoji(self):
+        # Gabarit récent : pas de "Groupe :" global (fields["groupe"] == ""),
+        # mais un seul mannam avec un groupe reconnu → suffit à rattacher le
+        # rapport (totaux 🌾/☎️/👤) à ce groupe.
+        fields = {
+            "date": "43.08.07",
+            "groupe": "",
+            "entries": [{"person": "Kyung-mi", "recherche": 0, "appels": 1, "chatgi": 1}],
+            "mannams": [
+                {"figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
+                 "time": "18:00", "location": "zoom", "groupe": "centre", "section": "centre"},
+            ],
+        }
+        update = _make_update(SUBAE_MESSAGE_STANDARD_FRUIT)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
+             patch.object(bot_core.api_client, "submit_chatgi_report") as mock_submit, \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+
+        mock_submit.assert_called_once()
+        assert mock_submit.call_args[0][0]["groupe"] == "centre"
+        _event_id, details = mock_upsert.call_args[0]
+        assert details["groupe"] == "centre"
+        assert details["section"] == "centre"
+        text = update.message.reply_text.call_args[0][0]
+        assert "Centre + KYK" in text
+
+    def test_no_explicit_groupe_and_no_mannam_groupe_is_rejected(self):
+        # Ni ligne "Groupe :" (ancien format), ni emoji reconnu sur un
+        # mannam (ancien "🧡" générique, ou aucun mannam du tout) : le
+        # rapport reste non rattachable, comme avant.
+        fields = {
+            **FAKE_FIELDS,
+            "groupe": "",
+            "mannams": [
+                {"figure_name": "Pasteur Stéphane", "event_type": "mannam",
+                 "date": "430808", "time": "13:30", "location": "Sarcelles",
+                 "groupe": "", "section": ""},
+            ],
+        }
+        update = _make_update(SUBAE_MESSAGE)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
+             patch.object(bot_core.api_client, "submit_chatgi_report") as mock_submit:
+            asyncio.run(on_chatgi_report(update, None))
+        mock_submit.assert_not_called()
+        text = update.message.reply_text.call_args[0][0]
+        assert "groupe" in text.lower()
+
+    def test_mixed_groupe_mannams_use_majority_for_report_but_own_groupe_each(self):
+        # Reproduit l'exemple réel : 2 mannams "centre" (📚) + 1 "team" (🍓)
+        # dans le même rapport. Le rapport (totaux chatgi) doit être rattaché
+        # au groupe majoritaire ("centre"), mais CHAQUE mannam garde son
+        # propre groupe/section pour sa fiche.
+        fields = {
+            "date": "43.08.07",
+            "groupe": "",
+            "entries": [{"person": "Kyung-mi", "recherche": 0, "appels": 1, "chatgi": 1}],
+            "mannams": [
+                {"figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
+                 "time": "18:00", "location": "zoom", "groupe": "centre", "section": "centre"},
+                {"figure_name": "Pasteur Niel", "event_type": "mannam", "date": "430811",
+                 "time": "20:30", "location": "zoom", "groupe": "team", "section": "fideles"},
+                {"figure_name": "Pasteur Osmarc", "event_type": "mannam", "date": "430811",
+                 "time": "20:30", "location": "zoom", "groupe": "centre", "section": "centre"},
+            ],
+        }
+        update = _make_update(SUBAE_MESSAGE_STANDARD_FRUIT)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
+             patch.object(bot_core.api_client, "submit_chatgi_report") as mock_submit, \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+
+        assert mock_submit.call_args[0][0]["groupe"] == "centre"  # majoritaire
+        by_name = {c.args[1]["figure_name"]: c.args[1] for c in mock_upsert.call_args_list}
+        assert by_name["Servante Hubert"]["groupe"] == "centre"
+        assert by_name["Pasteur Niel"]["groupe"] == "team"
+        assert by_name["Pasteur Niel"]["section"] == "fideles"
+        assert by_name["Pasteur Osmarc"]["groupe"] == "centre"
 
     def test_submit_report_exception_shows_error_and_skips_mannams(self):
         update = _make_update(SUBAE_MESSAGE)
