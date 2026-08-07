@@ -142,11 +142,14 @@ GEMINI_STANDARD_FRUIT_JSON = json.dumps({
     ],
     "mannams": [
         {"figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
-         "time": "18H00", "location": "zoom", "groupe": "centre", "section": "centre"},
+         "time": "18H00", "location": "zoom", "groupe": "centre", "section": "centre",
+         "pays": ""},  # drapeau 🇫🇷 dans le message d'origine → pays vide
         {"figure_name": "Pasteur Niel", "event_type": "mannam", "date": "",
-         "time": "20h30", "location": "zoom", "groupe": "team", "section": "fideles"},
+         "time": "20h30", "location": "zoom", "groupe": "team", "section": "fideles",
+         "pays": "Bénin"},
         {"figure_name": "Pasteur Osmarc", "event_type": "mannam", "date": "",
-         "time": "20h30", "location": "zoom", "groupe": "centre", "section": "centre"},
+         "time": "20h30", "location": "zoom", "groupe": "centre", "section": "centre",
+         "pays": ""},
     ],
 })
 
@@ -317,11 +320,31 @@ class TestNormalizeChatgiWithGemini:
         assert result["mannams"][0] == {
             "figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
             "time": "18H00", "location": "zoom", "groupe": "centre", "section": "centre",
+            "pays": "",
         }
         assert result["mannams"][1]["groupe"] == "team"
         assert result["mannams"][1]["section"] == "fideles"
+        assert result["mannams"][1]["pays"] == "Bénin"
         assert result["mannams"][2]["groupe"] == "centre"
         assert result["mannams"][2]["section"] == "centre"
+
+    def test_france_flag_normalized_to_empty_pays(self):
+        payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
+        payload["mannams"][0]["pays"] = "France"  # Gemini a écrit le défaut malgré la consigne
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert result["mannams"][0]["pays"] == ""
+
+    def test_missing_pays_defaults_to_empty_string(self):
+        payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
+        del payload["mannams"][0]["pays"]
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert result["mannams"][0]["pays"] == ""
 
     def test_invalid_per_mannam_groupe_and_section_normalized_to_empty(self):
         payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
@@ -599,7 +622,8 @@ class TestOnChatgiReport:
                 {"figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
                  "time": "18:00", "location": "zoom", "groupe": "centre", "section": "centre"},
                 {"figure_name": "Pasteur Niel", "event_type": "mannam", "date": "430811",
-                 "time": "20:30", "location": "zoom", "groupe": "team", "section": "fideles"},
+                 "time": "20:30", "location": "zoom", "groupe": "team", "section": "fideles",
+                 "pays": "Bénin"},
                 {"figure_name": "Pasteur Osmarc", "event_type": "mannam", "date": "430811",
                  "time": "20:30", "location": "zoom", "groupe": "centre", "section": "centre"},
             ],
@@ -616,6 +640,8 @@ class TestOnChatgiReport:
         assert by_name["Servante Hubert"]["groupe"] == "centre"
         assert by_name["Pasteur Niel"]["groupe"] == "team"
         assert by_name["Pasteur Niel"]["section"] == "fideles"
+        assert by_name["Pasteur Niel"]["pays"] == "Bénin"
+        assert by_name["Servante Hubert"]["pays"] == ""
         assert by_name["Pasteur Osmarc"]["groupe"] == "centre"
 
     def test_submit_report_exception_shows_error_and_skips_mannams(self):

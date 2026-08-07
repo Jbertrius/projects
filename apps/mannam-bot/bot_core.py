@@ -341,6 +341,13 @@ Structure typique du message (l'ordre et les espacements varient) :
     * 🍓 (Fidèles)        → groupe="team",   section="fideles"
     * ♻️ (Talak)          → groupe="team",   section="talak"
     * "🧡" (ancien format, pas de catégorie) → groupe="", section=""
+  Juste après cet emoji de catégorie, un DRAPEAU de pays peut apparaître
+  (ex: 🇫🇷, 🇧🇯, 🇨🇮…) — indique le pays du pasteur, seulement quand il est
+  HORS FRANCE (le Centre l'utilise pour repérer ses fruits à l'étranger).
+  Identifie le pays à partir du drapeau (ta connaissance des emoji drapeau)
+  et mets son nom en français dans "pays" (ex: 🇧🇯 → "Bénin", 🇨🇮 → "Côte
+  d'Ivoire"). Si le drapeau est 🇫🇷 ou absent, laisse "pays" vide "" (la
+  France est le défaut, ne l'écris jamais explicitement).
 
 Champs attendus :
 - "date"    : date du rapport telle qu'écrite sur la ligne d'en-tête (ex:
@@ -354,10 +361,10 @@ Champs attendus :
 - "mannams" : liste de {"figure_name": str, "event_type": "mannam"|"ls",
               "date": str (brut, ex: "430808"), "time": str, "location": str,
               "groupe": "centre"|"team"|"", "section": "centre"|"fideles"|
-              "talak"|""} — une par ligne d'annonce de mannam ("🧡" ou emoji
-              STANDARD FRUIT). "figure_name" ne doit JAMAIS contenir
-              "mannam", "LS", ni l'emoji/drapeau en tête de ligne. Chaîne
-              vide "" pour un sous-champ absent.
+              "talak"|"", "pays": str} — une par ligne d'annonce de mannam
+              ("🧡" ou emoji STANDARD FRUIT). "figure_name" ne doit JAMAIS
+              contenir "mannam", "LS", ni l'emoji/drapeau en tête de ligne.
+              Chaîne vide "" pour un sous-champ absent.
 
 Règles :
 - Ne jamais inventer de valeurs.
@@ -422,6 +429,13 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
             s = str(v or "").strip().lower()
             return s if s in ("centre", "fideles", "talak") else ""
 
+        def _mannam_pays(v) -> str:
+            # "France" est le défaut implicite côté API (cf. resolve_pastor) —
+            # ne jamais l'écrire explicitement, même si Gemini l'a fait par
+            # mégarde malgré la consigne.
+            p = str(v or "").strip()
+            return "" if p.lower() == "france" else p
+
         mannams = [
             {
                 "figure_name": str(m.get("figure_name", "")).strip(),
@@ -435,6 +449,9 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
                 # (en repli, ancien format) que d'une ligne globale.
                 "groupe": _mannam_groupe(m.get("groupe")),
                 "section": _mannam_section(m.get("section")),
+                # Pays du pasteur, déduit du drapeau en tête de ligne (ex:
+                # 🇧🇯 → "Bénin") ; "" si 🇫🇷/absent — la France est le défaut.
+                "pays": _mannam_pays(m.get("pays")),
             }
             for m in (data.get("mannams") or [])
             if str(m.get("figure_name", "")).strip()
@@ -1885,6 +1902,7 @@ async def on_chatgi_report(update: Update, _):
                 "figure_name": m["figure_name"],
                 "groupe": mannam_groupe,
                 "section": m.get("section", ""),
+                "pays": m.get("pays", ""),
                 "event_type": event_type,
             })
             created_types.append(event_type)
