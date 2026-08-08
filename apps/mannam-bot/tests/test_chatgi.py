@@ -431,6 +431,7 @@ class TestOnChatgiReport:
             "date": "2026-08-05",
             "groupe": "centre",
             "entries": FAKE_FIELDS["entries"],
+            "mannams": FAKE_FIELDS["mannams"],
         })
         mock_upsert.assert_called_once()
         event_id, details = mock_upsert.call_args[0]

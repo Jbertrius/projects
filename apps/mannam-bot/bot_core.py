@@ -1851,6 +1851,9 @@ async def on_chatgi_report(update: Update, _):
             "date": date_iso,
             "groupe": report_groupe,
             "entries": fields["entries"],
+            # Noms des pasteurs mentionnés (lignes mannam) — affichés dans le
+            # détail du rapport côté site, à la place des noms de membres.
+            "mannams": fields["mannams"],
         })
     except Exception as e:
         logging.error(f"Erreur submit_chatgi_report: {e}")

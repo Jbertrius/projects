@@ -363,7 +363,9 @@ def submit_chatgi_report(payload: dict) -> dict:
     POST /api/bot/chatgi-reports — upsert idempotent par telegramMessageId.
 
     payload attend : telegramMessageId, date, groupe ("centre"|"team"),
-    entries (liste de {person, recherche, appels, chatgi}).
+    entries (liste de {person, recherche, appels, chatgi}), mannams (liste de
+    {figure_name, event_type} — pasteurs mentionnés, affichés dans le détail
+    du rapport côté site).
     Retourne {"id", "totals": {"recherche", "appels", "chatgi"}}.
     """
     logger.info(
