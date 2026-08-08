@@ -334,6 +334,11 @@ Structure typique du message (l'ordre et les espacements varient) :
   défaut et n'invente rien d'autre.
   IGNORE tout suffixe "/ centre", "/ team" etc. en fin de ligne — il ne veut
   rien dire ici, ne l'utilise pour rien (ni "groupe" ni "section").
+  Le nom du pasteur peut être suivi de PARENTHÈSES, ex: "Pasteur Niel
+  (Elise)" — le contenu entre parenthèses est le nom de son "guide" (인도자,
+  la personne qui l'accompagne vers la Parole), PAS une partie du nom du
+  pasteur. Extrais-le dans "guide" et retire les parenthèses de
+  "figure_name". Chaîne vide "" si aucune parenthèse.
   L'emoji en tête de ligne donne "groupe" et "section" pour CE mannam
   (correspondance standard ou celle du bloc STANDARD FRUIT si présent) :
     * 💛 (team)           → groupe="team",   section=""
@@ -361,10 +366,11 @@ Champs attendus :
 - "mannams" : liste de {"figure_name": str, "event_type": "mannam"|"ls",
               "date": str (brut, ex: "430808"), "time": str, "location": str,
               "groupe": "centre"|"team"|"", "section": "centre"|"fideles"|
-              "talak"|"", "pays": str} — une par ligne d'annonce de mannam
-              ("🧡" ou emoji STANDARD FRUIT). "figure_name" ne doit JAMAIS
-              contenir "mannam", "LS", ni l'emoji/drapeau en tête de ligne.
-              Chaîne vide "" pour un sous-champ absent.
+              "talak"|"", "pays": str, "guide": str} — une par ligne
+              d'annonce de mannam ("🧡" ou emoji STANDARD FRUIT).
+              "figure_name" ne doit JAMAIS contenir "mannam", "LS", de
+              parenthèses, ni l'emoji/drapeau en tête de ligne. Chaîne vide
+              "" pour un sous-champ absent.
 
 Règles :
 - Ne jamais inventer de valeurs.
@@ -436,9 +442,21 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
             p = str(v or "").strip()
             return "" if p.lower() == "france" else p
 
-        mannams = [
-            {
-                "figure_name": str(m.get("figure_name", "")).strip(),
+        def _split_trailing_parens(name: str) -> tuple[str, str]:
+            # Filet de sécurité si Gemini a laissé les parenthèses dans
+            # figure_name malgré la consigne (ex: "Niel (Elise)") — extrait
+            # quand même le nom du guide plutôt que de le perdre.
+            m = re.match(r"^(.*?)\s*\(([^()]+)\)\s*$", name)
+            return (m.group(1).strip(), m.group(2).strip()) if m else (name.strip(), "")
+
+        mannams = []
+        for m in (data.get("mannams") or []):
+            raw_name = str(m.get("figure_name", "")).strip()
+            if not raw_name:
+                continue
+            clean_name, fallback_guide = _split_trailing_parens(raw_name)
+            mannams.append({
+                "figure_name": clean_name,
                 "event_type": _event_type(m.get("event_type")),
                 "date": str(m.get("date", "")).strip(),
                 "time": str(m.get("time", "")).strip(),
@@ -452,10 +470,10 @@ def normalize_chatgi_with_gemini(message: str) -> dict | None:
                 # Pays du pasteur, déduit du drapeau en tête de ligne (ex:
                 # 🇧🇯 → "Bénin") ; "" si 🇫🇷/absent — la France est le défaut.
                 "pays": _mannam_pays(m.get("pays")),
-            }
-            for m in (data.get("mannams") or [])
-            if str(m.get("figure_name", "")).strip()
-        ]
+                # 인도자 — personne qui guide ce pasteur vers la Parole,
+                # donnée entre parenthèses après son nom.
+                "guide": str(m.get("guide", "")).strip() or fallback_guide,
+            })
         groupe = str(data.get("groupe", "")).strip().lower()
         if groupe not in ("centre", "team"):
             groupe = ""
@@ -1906,6 +1924,7 @@ async def on_chatgi_report(update: Update, _):
                 "groupe": mannam_groupe,
                 "section": m.get("section", ""),
                 "pays": m.get("pays", ""),
+                "guide": m.get("guide", ""),
                 "event_type": event_type,
             })
             created_types.append(event_type)

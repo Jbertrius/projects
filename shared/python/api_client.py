@@ -250,6 +250,9 @@ def upsert_meeting(event_id: str, event_details: dict) -> dict:
         "description": event_details.get("description", ""),
         "section": event_details.get("section", ""),
         "pays": event_details.get("pays", ""),
+        # 인도자 (guide) — personne qui accompagne ce pasteur vers la Parole,
+        # extraite des parenthèses après son nom dans le rapport chatgi.
+        "guide": event_details.get("guide", ""),
         "figureName": event_details.get("figure_name", ""),
         "participants": participants,
         "calendarEventId": event_id,

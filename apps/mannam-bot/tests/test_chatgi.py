@@ -320,13 +320,45 @@ class TestNormalizeChatgiWithGemini:
         assert result["mannams"][0] == {
             "figure_name": "Servante Hubert", "event_type": "mannam", "date": "430811",
             "time": "18H00", "location": "zoom", "groupe": "centre", "section": "centre",
-            "pays": "",
+            "pays": "", "guide": "",
         }
         assert result["mannams"][1]["groupe"] == "team"
         assert result["mannams"][1]["section"] == "fideles"
         assert result["mannams"][1]["pays"] == "Bénin"
         assert result["mannams"][2]["groupe"] == "centre"
         assert result["mannams"][2]["section"] == "centre"
+
+    def test_guide_extracted_from_gemini_field(self):
+        payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
+        payload["mannams"][1]["guide"] = "Elise"
+        payload["mannams"][1]["figure_name"] = "Pasteur Niel"
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert result["mannams"][1]["figure_name"] == "Pasteur Niel"
+        assert result["mannams"][1]["guide"] == "Elise"
+
+    def test_guide_fallback_extracted_from_parens_left_in_figure_name(self):
+        # Filet de sécurité : si Gemini laisse les parenthèses dans
+        # figure_name malgré la consigne, on extrait quand même le guide.
+        payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
+        payload["mannams"][1]["figure_name"] = "Pasteur Niel (Elise)"
+        payload["mannams"][1]["guide"] = ""
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert result["mannams"][1]["figure_name"] == "Pasteur Niel"
+        assert result["mannams"][1]["guide"] == "Elise"
+
+    def test_no_guide_mentioned_gives_empty_string(self):
+        result_payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = _make_gemini_response(json.dumps(result_payload))
+        with patch.object(bot_core, "_gemini_client", fake_client):
+            result = normalize_chatgi_with_gemini(SUBAE_MESSAGE_STANDARD_FRUIT)
+        assert all(m["guide"] == "" for m in result["mannams"])
 
     def test_france_flag_normalized_to_empty_pays(self):
         payload = json.loads(GEMINI_STANDARD_FRUIT_JSON)
@@ -588,6 +620,27 @@ class TestOnChatgiReport:
         assert details["section"] == "centre"
         text = update.message.reply_text.call_args[0][0]
         assert "Centre + KYK" in text
+
+    def test_guide_passed_through_to_upsert_meeting(self):
+        fields = {
+            "date": "43.08.07",
+            "groupe": "",
+            "entries": [],
+            "mannams": [
+                {"figure_name": "Pasteur Niel", "event_type": "mannam", "date": "430811",
+                 "time": "18:00", "location": "zoom", "groupe": "centre", "section": "centre",
+                 "guide": "Elise"},
+            ],
+        }
+        update = _make_update(SUBAE_MESSAGE_STANDARD_FRUIT)
+        with patch.object(bot_core, "normalize_chatgi_with_gemini", return_value=fields), \
+             patch.object(bot_core.api_client, "submit_chatgi_report"), \
+             patch.object(bot_core.api_client, "check_duplicate_mannam", return_value={"duplicate": False}), \
+             patch.object(bot_core.api_client, "upsert_meeting") as mock_upsert:
+            asyncio.run(on_chatgi_report(update, None))
+
+        _event_id, details = mock_upsert.call_args[0]
+        assert details["guide"] == "Elise"
 
     def test_no_explicit_groupe_and_no_mannam_groupe_is_rejected(self):
         # Ni ligne "Groupe :" (ancien format), ni emoji reconnu sur un
